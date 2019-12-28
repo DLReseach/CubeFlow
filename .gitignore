@@ -1,0 +1,8 @@
+.envrc
+.env
+Pipfile
+Pipfile.lock
+venv/
+.vscode
+*.h5
+__pycache__
