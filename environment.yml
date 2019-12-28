@@ -1,0 +1,12 @@
+name: cubeflow
+channels:
+    - anaconda
+dependencies:
+    - h5py
+    - numpy
+    - pandas
+    - scikit-learn
+    - psutil
+    - joblib
+    - Keras
+    - tensorflow

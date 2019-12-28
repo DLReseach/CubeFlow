@@ -41,7 +41,7 @@ class CnnGenerator(keras.utils.Sequence):
             index * self.batch_size:(index + 1) * self.batch_size
             ]
         # Find list of IDs
-        ids_temp = [self.ids[k] for k in indices]
+        ids_temp = self.ids[self.ids.idx.isin(indices)]
         # Generate data
         X, y = self.__data_generation(ids_temp)
         return X, y
@@ -58,21 +58,19 @@ class CnnGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples' 
         # X : (n_samples, *dim, n_channels)
         # Initialization
-        X = np.empty((self.batch_size, self.max_doms, self.n_channels))
-        y = np.empty((self.batch_size, len(self.features)))
+        X = np.zeros((self.batch_size, self.max_doms, self.n_channels))
+        y = np.zeros((self.batch_size, len(self.targets)))
         # Generate data
-        for i, idx in enumerate(ids_temp):
-            with h5.File(ids_temp.file, 'r') as f:
-                event_indices = f['masks/' + mask][idx]
+        for i, (file, idx) in enumerate(ids_temp.to_numpy()):
+            with h5.File(file, 'r') as f:
+                event_indices = f['masks/' + self.mask][idx]
                 event_length = len(event_indices)
-                event_pulses = np.zeros((event_length, len(features)))
-                for j, feature in enumerate(features):
+                event_pulses = np.zeros((event_length, len(self.features)))
+                for j, feature in enumerate(self.features):
                     event_pulses[:, j] = f[
-                        transform + '/' + feature
+                        self.transform + '/' + feature
                     ][idx][event_indices]
-                X[i,] = event_pulses
-                target_values = np.zeros(len(self.features))
-                for k, target in enumerate(targets):
-                    target_values[k] = f[transform + '/' + target]
-                y[i,] = target_values
+                X[i, 0:len(event_pulses), :] = event_pulses
+                for k, target in enumerate(self.targets):
+                    y[i, k] = f[self.transform + '/' + target][idx]
         return X, y

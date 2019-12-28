@@ -87,7 +87,7 @@ class CnnSplit:
                 (file, index) for (file, L) in file_dict.items()
                 for index in L
             ],
-            columns=['file', 'index']
+            columns=['file', 'idx']
         )
         return indices_df
 

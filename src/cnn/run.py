@@ -3,6 +3,7 @@ import psutil
 import joblib
 from cnn.cnn_split import CnnSplit
 from cnn.cnn_dataloader import CnnGenerator
+import numpy as np
 
 process = psutil.Process(os.getpid())
 
@@ -47,9 +48,10 @@ training_generator = CnnGenerator(
     len(features),
     shuffle=True
 )
-blah = next(iter(training_generator))
-print(blah)
-
+X, y = next(iter(training_generator))
+test = np.asarray(X)
+print(X)
+print(y)
 print(
     'Mem usage: {} GB'.format(round(process.memory_info().rss / 1073741824, 2))
 )
