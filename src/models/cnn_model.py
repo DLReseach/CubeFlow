@@ -19,7 +19,7 @@ def cnn_model(config):
             activity_regularizer=None,
             kernel_constraint=None,
             bias_constraint=None,
-            input_shape=tuple(config.input_size)
+            input_shape=(config.max_doms, len(config.features))
         )
     )
     model.add(

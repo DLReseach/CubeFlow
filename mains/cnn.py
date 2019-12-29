@@ -23,7 +23,6 @@ print(
     'Num GPUs Available: ',
     len(tf.config.experimental.list_physical_devices('GPU'))
 )
-ts = time.time()
 
 
 def main():
@@ -80,6 +79,7 @@ def main():
 
     callbacks = cnn_callbacks(model, config, experiment)
 
+    ts = time.time()
     print(
         'At {} I started fitting model {}'
         .format(
@@ -103,6 +103,15 @@ def main():
         use_multiprocessing=False,
         shuffle=True,
         initial_epoch=0
+    )
+
+    ts = time.time()
+    print(
+        'At {} I finished fitting model {}'
+        .format(
+            datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'),
+            experiment_name
+        )
     )
 
     model_plot_file.unlink()

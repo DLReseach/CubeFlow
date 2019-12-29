@@ -15,8 +15,7 @@
   "num_epochs": 10,
   "num_iter_per_epoch": 10,
   "learning_rate": 0.001,
-  "batch_size": 256,
-  "input_size": [60, 5],
+  "batch_size": 1024,
   "output_size": 1,
   "shuffle": true,
   "max_to_keep":5
