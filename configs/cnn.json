@@ -1,0 +1,23 @@
+{
+  "exp_name": "cnn",
+  "dev_run": true,
+  "no_dev_examples": 2,
+  "data_type": "oscnext-genie-level5-v01-01-pass2",
+  "no_of_files": 1,
+  "mask": "SRTInIcePulses",
+  "transform": "transform1",
+  "max_doms": 60,
+  "features": ["dom_charge", "dom_time", "dom_x", "dom_y", "dom_z"],
+  "targets": ["true_primary_time"],
+  "test_fraction": 0.2,
+  "validation_fraction": 0.2,
+  "random_state": 29897070,
+  "num_epochs": 10,
+  "num_iter_per_epoch": 10,
+  "learning_rate": 0.001,
+  "batch_size": 1,
+  "input_size": [60, 5],
+  "output_size": 1,
+  "shuffle": true,
+  "max_to_keep":5
+}

@@ -2,11 +2,16 @@ name: cubeflow
 channels:
     - anaconda
 dependencies:
+    - pip
     - h5py
     - numpy
     - pandas
     - scikit-learn
-    - psutil
-    - joblib
     - Keras
     - tensorflow
+    - pydot
+    - pip:
+        - bunch
+        - comet_ml
+        - coolname
+        - graphviz
