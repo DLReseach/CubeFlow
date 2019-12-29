@@ -8,7 +8,7 @@ dependencies:
     - pandas
     - scikit-learn
     - Keras
-    - tensorflow
+    - tensorflow-gpu
     - pydot
     - pip:
         - bunch
