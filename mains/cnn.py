@@ -3,7 +3,8 @@ from comet_ml import Experiment
 import tensorflow as tf
 import numpy as np
 import logging
-from datetime import date
+import time
+import datetime
 from coolname import generate_slug
 
 from callbacks.cnn_callbacks import cnn_callbacks
@@ -22,6 +23,7 @@ print(
     'Num GPUs Available: ',
     len(tf.config.experimental.list_physical_devices('GPU'))
 )
+ts = time.time()
 
 
 def main():
@@ -37,7 +39,8 @@ def main():
 
     root_folder = get_project_root()
     cool_name = generate_slug(2)
-    experiment_name = config.exp_name + '_' + str(date.today()) + '.' + cool_name
+    experiment_name = config.exp_name \
+        + '_' + str(datetime.date.today()) + '.' + cool_name
     model_plot_file = root_folder.joinpath(
         './figures/' + experiment_name + '.png'
     )
@@ -76,6 +79,14 @@ def main():
     )
 
     callbacks = cnn_callbacks(model, config, experiment)
+
+    print(
+        'At {} I started fitting model {}'
+        .format(
+            datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'),
+            experiment_name
+        )
+    )
 
     model.fit_generator(
         generator=train_generator,
