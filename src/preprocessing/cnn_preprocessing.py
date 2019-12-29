@@ -16,7 +16,7 @@ class CnnSplit:
         root_path = get_project_root()
         data_path = root_path.joinpath('./data/' + self.config.data_type)
         data_files = [file for file in data_path.glob('*.h5')]
-        if self.config.no_of_files is not None:
+        if self.config.no_of_files != 0:
             data_files = data_files[0:self.config.no_of_files]
         return data_files
 

@@ -7,7 +7,6 @@ dependencies:
     - numpy
     - pandas
     - scikit-learn
-    - Keras
     - tensorflow-gpu
     - pydot
     - pip:
