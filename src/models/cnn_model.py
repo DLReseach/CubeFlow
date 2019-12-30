@@ -80,25 +80,6 @@ def cnn_model(config):
         )
     )
     model.add(
-        tf.keras.layers.Conv1D(
-            filters=512,
-            kernel_size=5,
-            strides=2,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
-        )
-    )
-    model.add(
         tf.keras.layers.Flatten(
             data_format='channels_last'
         )

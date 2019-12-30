@@ -5,9 +5,12 @@ import pandas as pd
 
 
 class CnnGenerator(Sequence):
-    def __init__(self, config, ids):
+    def __init__(self, config, ids, test):
         self.config = config
         self.ids = ids
+        self.test = test
+        if self.config.dev_run == True:
+            self.config.batch_size = 1
         self.on_epoch_end()
 
 
@@ -26,7 +29,7 @@ class CnnGenerator(Sequence):
 
     def on_epoch_end(self):
         self.indices = np.arange(len(self.ids))
-        if self.config.shuffle == True:
+        if self.config.shuffle == True and self.test == False:
             np.random.shuffle(self.indices)
 
 

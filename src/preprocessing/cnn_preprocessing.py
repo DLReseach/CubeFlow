@@ -9,6 +9,8 @@ from sklearn.model_selection import train_test_split
 class CnnSplit:
     def __init__(self, config):
         self.config = config
+        if self.config.dev_run == True:
+            self.config.no_of_files = 1
         self.return_indices()
 
 
