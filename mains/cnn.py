@@ -1,5 +1,7 @@
 import os
-from comet_ml import Experiment
+# from comet_ml import Experiment
+import neptune
+import neptune_tensorboard as neptune_tb
 import tensorflow as tf
 import numpy as np
 import logging
@@ -15,10 +17,16 @@ from utils.config import process_config
 from utils.utils import get_args
 from utils.utils import get_project_root
 
+neptune.init(
+    project_qualified_name='ehrhorn/sandbox',
+    api_token=os.environ['NEPTUNE_API_KEY']
+)
+neptune_tb.integrate_with_tensorflow()
+
 logger = tf.get_logger()
 logger.setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-comet_api_key = os.environ['COMET_API_KEY']
+# comet_api_key = os.environ['COMET_API_KEY']
 print(
     'Num GPUs Available: ',
     len(tf.config.experimental.list_physical_devices('GPU'))
@@ -36,6 +44,10 @@ def main():
         print('missing or invalid arguments')
         exit(0)
 
+    PARAMS = {
+        'lr': config.learning_rate,
+        'momentum': config.momentum
+    }
     root_folder = get_project_root()
     cool_name = generate_slug(2)
     experiment_name = config.exp_name \
@@ -43,78 +55,82 @@ def main():
     model_plot_file = root_folder.joinpath(
         './figures/' + experiment_name + '.png'
     )
+    LOG_PATH = root_folder.joinpath('logs/' + experiment_name)
+    tensorboard = tf.keras.callbacks.TensorBoard(log_dir=LOG_PATH)
 
-    data = CnnSplit(config)
-    train, validation, test = data.return_indices()
-    train_generator = CnnGenerator(config, train)
-    validation_generator = CnnGenerator(config, validation)
-    test_generator = CnnGenerator(config, test)
-    
-    model = cnn_model(config)
-    model.compile(
-        optimizer='adam',
-        loss='MAE',
-        metrics=['MeanAbsoluteError']
-    )
-    tf.keras.utils.plot_model(
-        model,
-        to_file=model_plot_file,
-        show_shapes=True,
-        show_layer_names=True,
-        rankdir='TB',
-        expand_nested=False,
-        dpi=96
-    )
-    
-    experiment = Experiment(
-        api_key=comet_api_key,
-        project_name='cubeflow',
-        workspace='ehrhorn'
-    )
-    experiment.set_name(experiment_name)
-    experiment.log_image(
-        image_data=model_plot_file,
-        name='Model'
-    )
+    with neptune.create_experiment(name=experiment_name, params=PARAMS):
 
-    callbacks = cnn_callbacks(model, config, experiment)
-
-    ts = time.time()
-    print(
-        'At {} I started fitting model {}'
-        .format(
-            datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'),
-            experiment_name
+        data = CnnSplit(config)
+        train, validation, test = data.return_indices()
+        train_generator = CnnGenerator(config, train)
+        validation_generator = CnnGenerator(config, validation)
+        test_generator = CnnGenerator(config, test)
+        
+        model = cnn_model(config)
+        model.compile(
+            optimizer='adam',
+            loss='MAE',
+            metrics=['MeanAbsoluteError']
         )
-    )
-
-    model.fit_generator(
-        generator=train_generator,
-        steps_per_epoch=np.ceil(len(train) / config.batch_size),
-        epochs=config.num_epochs,
-        verbose=1,
-        callbacks=callbacks,
-        validation_data=validation_generator,
-        validation_steps=None,
-        validation_freq=1,
-        class_weight=None,
-        max_queue_size=10,
-        workers=1,
-        use_multiprocessing=False,
-        shuffle=True,
-        initial_epoch=0
-    )
-
-    ts = time.time()
-    print(
-        'At {} I finished fitting model {}'
-        .format(
-            datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'),
-            experiment_name
+        tf.keras.utils.plot_model(
+            model,
+            to_file=model_plot_file,
+            show_shapes=True,
+            show_layer_names=True,
+            rankdir='TB',
+            expand_nested=False,
+            dpi=96
         )
-    )
+        
+        # experiment = Experiment(
+        #     api_key=comet_api_key,
+        #     project_name='cubeflow',
+        #     workspace='ehrhorn'
+        # )
+        # experiment.set_name(experiment_name)
+        # experiment.log_image(
+        #     image_data=model_plot_file,
+        #     name='Model'
+        # )
 
-    model_plot_file.unlink()
+        # callbacks = cnn_callbacks(model, config, experiment)
+
+        ts = time.time()
+        print(
+            'At {} I started fitting model {}'
+            .format(
+                datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'),
+                experiment_name
+            )
+        )
+
+        model.fit_generator(
+            generator=train_generator,
+            steps_per_epoch=np.ceil(len(train) / config.batch_size),
+            epochs=config.num_epochs,
+            verbose=1,
+            callbacks=[tensorboard],
+            validation_data=validation_generator,
+            validation_steps=None,
+            validation_freq=1,
+            class_weight=None,
+            max_queue_size=10,
+            workers=1,
+            use_multiprocessing=False,
+            shuffle=True,
+            initial_epoch=0
+        )
+
+        ts = time.time()
+        print(
+            'At {} I finished fitting model {}'
+            .format(
+                datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S'),
+                experiment_name
+            )
+        )
+
+        model_plot_file.unlink()
 
 
 if __name__ == '__main__':

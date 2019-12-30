@@ -8,9 +8,13 @@ dependencies:
     - pandas
     - scikit-learn
     - tensorflow-gpu
+    - psutil
     - pydot
     - pip:
         - bunch
         - comet_ml
         - coolname
         - graphviz
+        - neptune-client
+        - neptune_tensorboard
+        - streamlit
