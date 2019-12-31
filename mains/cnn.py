@@ -48,7 +48,7 @@ def main():
         log_dir=LOG_PATH,
         histogram_freq=1
     )
-    if config.wandb == False:
+    if config.wandb == True:
         wandb.init(
                     project='cubeflow',
                     name=experiment_name,
@@ -97,7 +97,7 @@ def main():
         y_predict = model.predict_on_batch(X)
         resolution = np.append(resolution, (y_truth - y_predict).numpy())
 
-    if config.wandb == False:
+    if config.wandb == True:
         fig, ax = plt.subplots()
         ax.hist(resolution, bins='fd')
         wandb.log({'chart': fig})
