@@ -17,8 +17,6 @@ from utils.config import process_config
 from utils.utils import get_args
 from utils.utils import get_project_root
 
-# logger = tf.get_logger()
-# logger.setLevel(logging.ERROR)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
@@ -50,7 +48,7 @@ def main():
         log_dir=LOG_PATH,
         histogram_freq=1
     )
-    if config.dev_run == False:
+    if config.wandb == False:
         wandb.init(
                     project='cubeflow',
                     name=experiment_name,
@@ -99,7 +97,7 @@ def main():
         y_predict = model.predict_on_batch(X)
         resolution = np.append(resolution, (y_truth - y_predict).numpy())
 
-    if config.dev_run == False:
+    if config.wandb == False:
         fig, ax = plt.subplots()
         ax.hist(resolution, bins='fd')
         wandb.log({'chart': fig})
