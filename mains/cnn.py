@@ -8,6 +8,8 @@ import time
 import datetime
 from coolname import generate_slug
 import matplotlib.pyplot as plt
+import matplotlib.cbook
+import warnings
 
 from callbacks.cnn_callbacks import cnn_callbacks
 from data_loader.cnn_generator import CnnGenerator
@@ -18,6 +20,10 @@ from utils.utils import get_args
 from utils.utils import get_project_root
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings(
+    'ignore',
+    category=matplotlib.cbook.mplDeprecation
+) 
 
 
 def main():
