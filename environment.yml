@@ -9,8 +9,10 @@ dependencies:
     - scikit-learn
     - tensorflow-gpu
     - psutil
+    - plotly
     - pip:
         - bunch
         - coolname
         - streamlit
         - matplotlib
+        - wandb
