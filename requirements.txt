@@ -1,0 +1,10 @@
+h5py
+numpy
+pandas
+scikit-learn
+tensorflow-gpu
+psutil
+bunch
+coolname
+matplotlib
+wandb
