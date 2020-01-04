@@ -98,15 +98,26 @@ def main():
         initial_epoch=0
     )
 
-    resolution = np.empty(1)
+    resolution = np.empty((0, len(config.targets)))
+    direction = np.empty((0, 1))
     for X, y_truth in test_generator:
         y_predict = model.predict_on_batch(X)
-        resolution = np.append(resolution, (y_truth - y_predict).numpy())
+        resolution = np.vstack([resolution, (y_truth - y_predict.numpy())])
+        direction = np.vstack([direction, np.dot(y_truth, y_predict.numpy().T)])
 
     if config.wandb == True:
+        for i in range(resolution.shape[1]):
+            fig, ax = plt.subplots()
+            ax.hist(resolution[:, i], bins='fd')
+            ax.set(
+                title='Resolution axis {}'.format(i),
+                xlabel='Resolution',
+                ylabel='Frequency'
+            )
+            wandb.log({'chart': fig})
         fig, ax = plt.subplots()
-        ax.hist(resolution, bins='fd')
-        wandb.log({'chart': fig})
+        ax.hist(direction, bins='fd')
+        ax.set(title='Direction', xlabel='Dot product', ylabel='Frequency')
 
 
 if __name__ == '__main__':

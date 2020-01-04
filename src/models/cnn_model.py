@@ -1,5 +1,6 @@
 import tensorflow as tf
 
+
 def cnn_model(config):
     model = tf.keras.models.Sequential()
     model.add(

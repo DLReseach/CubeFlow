@@ -8,3 +8,5 @@ bunch
 coolname
 matplotlib
 wandb
+tensorboard>=2.0.0
+plotly
