@@ -10,7 +10,7 @@ class CnnGenerator(Sequence):
         self.ids = ids
         self.test = test
         if self.config.dev_run == True:
-            self.config.batch_size = 1
+            self.config.batch_size = 2
         self.on_epoch_end()
 
 
@@ -31,6 +31,9 @@ class CnnGenerator(Sequence):
         self.indices = np.arange(len(self.ids))
         if self.config.shuffle == True and self.test == False:
             np.random.shuffle(self.indices)
+        self.ids = self.ids.iloc[self.indices]
+        self.ids.sort_values(by='file', inplace=True)
+        self.indices = np.arange(len(self.ids))
 
 
     def __data_generation(self, ids_temp):
@@ -42,6 +45,10 @@ class CnnGenerator(Sequence):
             )
         )
         y = np.zeros((self.config.batch_size, len(self.config.targets)))
+        files_dict = {
+            file_name: list(self.ids[self.ids.file == file_name].idx.values)
+            for file_name in self.ids.file.unique()
+        }
         for i, (file, idx) in enumerate(ids_temp.to_numpy()):
             with h5.File(file, 'r') as f:
                 event_indices = f['masks/' + self.config.mask][idx]

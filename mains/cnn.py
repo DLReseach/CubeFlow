@@ -67,12 +67,35 @@ def main():
     else:
         callbacks = [tensorboard]
 
-
+    ts1 = time.time()
+    st1 = datetime.datetime.fromtimestamp(ts1).strftime('%Y-%m-%d %H:%M:%S')
+    print('Starting preprocessing at {}'.format(st1))
     data = CnnSplit(config)
     train, validation, test = data.return_indices()
+    ts2 = time.time()
+    st2 = datetime.datetime.fromtimestamp(ts2).strftime('%Y-%m-%d %H:%M:%S')
+    print('Ended preprocessing at {}'.format(st2))
+    td = ts2 - ts1
+    td_secs = int(td)
+    print('Preprocessing took approximately {} seconds'.format(td_secs))
     train_generator = CnnGenerator(config, train, test=False)
     validation_generator = CnnGenerator(config, validation, test=False)
     test_generator = CnnGenerator(config, test, test=True)
+    print(
+        'We have around {} training events'.format(
+            len(train_generator) * config.batch_size
+        )
+    )
+    print(
+        'We have around {} validation events'.format(
+            len(validation_generator) * config.batch_size
+        )
+    )
+    print(
+        'We have around {} test events'.format(
+            len(test_generator) * config.batch_size
+        )
+    )
     
     loss = tf.keras.losses.CosineSimilarity(axis=1)
     model = cnn_model(config)
