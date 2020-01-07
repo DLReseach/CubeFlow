@@ -1,6 +1,6 @@
 {
   "exp_name": "cnn",
-  "dev_run": false,
+  "dev_run": true,
   "wandb": false,
   "num_epochs": 2,
   "no_dev_examples": 10,

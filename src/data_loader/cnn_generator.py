@@ -46,28 +46,29 @@ class CnnGenerator(Sequence):
         )
         y = np.zeros((self.config.batch_size, len(self.config.targets)))
         files_dict = {
-            file_name: list(self.ids[self.ids.file == file_name].idx.values)
-            for file_name in self.ids.file.unique()
+            file_name: list(ids_temp[ids_temp.file == file_name].idx.values)
+            for file_name in ids_temp.file.unique()
         }
-        for i, (file, idx) in enumerate(ids_temp.to_numpy()):
+        batch_size_dim_start = 0
+        for file, idx in files_dict.items():
+            idx = sorted(idx)
+            batch_size_dim_end = batch_size_dim_start + len(idx)
             with h5.File(file, 'r') as f:
-                event_indices = f['masks/' + self.config.mask][idx]
-                event_length = len(event_indices)
-                event_pulses = np.zeros(
-                    (
-                        event_length,
-                        len(self.config.features)
-                    )
-                )
-                for j, feature in enumerate(self.config.features):
-                    event_pulses[:, j] = f[
+                for i, feature in enumerate(self.config.features):
+                    feature_event_pulses = f[
                         self.config.transform + '/' + feature
-                    ][idx][event_indices]
-                X[i, 0:len(event_pulses), :] = event_pulses
-                for k, target in enumerate(self.config.targets):
+                    ][idx]
+                    batch_range = range(batch_size_dim_start, batch_size_dim_end)
+                    pulses_range = range(len(feature_event_pulses))
+                    for j, k in zip(batch_range, pulses_range):
+                        X[j, 0:len(feature_event_pulses[k]), i] = feature_event_pulses[k]
+                for i, target in enumerate(self.config.targets):
                     dataset_name = self.config.transform + '/' + target
                     if dataset_name in f:
-                        y[i, k] = f[dataset_name][idx]
+                        event_targets = f[dataset_name][idx]
                     else:
-                        y[i, k] = f['raw/' + target][idx]
+                        event_targets = f['raw/' + target][idx]
+                    for j, k in zip(batch_range, pulses_range):
+                        y[j, i] = event_targets[k]
+            batch_size_dim_start = batch_size_dim_end
         return X, y
