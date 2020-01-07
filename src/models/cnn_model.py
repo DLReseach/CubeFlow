@@ -7,7 +7,7 @@ def cnn_model(config):
         tf.keras.layers.Conv1D(
             filters=32,
             kernel_size=5,
-            strides=2,
+            strides=1,
             padding='valid',
             data_format='channels_last',
             dilation_rate=1,
@@ -24,10 +24,27 @@ def cnn_model(config):
         )
     )
     model.add(
+        tf.keras.layers.BatchNormalization(
+            axis=-1,
+            momentum=0.99,
+            epsilon=0.001,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            moving_mean_initializer='zeros',
+            moving_variance_initializer='ones',
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None
+        )
+    )
+    model.add(
         tf.keras.layers.Conv1D(
             filters=64,
             kernel_size=5,
-            strides=2,
+            strides=1,
             padding='valid',
             data_format='channels_last',
             dilation_rate=1,
@@ -40,13 +57,38 @@ def cnn_model(config):
             activity_regularizer=None,
             kernel_constraint=None,
             bias_constraint=None
+        )
+    )
+    model.add(
+        tf.keras.layers.MaxPooling1D(
+            pool_size=2,
+            strides=None,
+            padding='valid',
+            data_format='channels_last'
+        )
+    )
+    model.add(
+        tf.keras.layers.BatchNormalization(
+            axis=-1,
+            momentum=0.99,
+            epsilon=0.001,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            moving_mean_initializer='zeros',
+            moving_variance_initializer='ones',
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None
         )
     )
     model.add(
         tf.keras.layers.Conv1D(
             filters=128,
             kernel_size=5,
-            strides=2,
+            strides=1,
             padding='valid',
             data_format='channels_last',
             dilation_rate=1,
@@ -59,13 +101,30 @@ def cnn_model(config):
             activity_regularizer=None,
             kernel_constraint=None,
             bias_constraint=None
+        )
+    )
+    model.add(
+        tf.keras.layers.BatchNormalization(
+            axis=-1,
+            momentum=0.99,
+            epsilon=0.001,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            moving_mean_initializer='zeros',
+            moving_variance_initializer='ones',
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None
         )
     )
     model.add(
         tf.keras.layers.Conv1D(
             filters=256,
             kernel_size=5,
-            strides=2,
+            strides=1,
             padding='valid',
             data_format='channels_last',
             dilation_rate=1,
@@ -81,8 +140,112 @@ def cnn_model(config):
         )
     )
     model.add(
-        tf.keras.layers.Flatten(
+        tf.keras.layers.MaxPooling1D(
+            pool_size=2,
+            strides=None,
+            padding='valid',
             data_format='channels_last'
+        )
+    )
+    model.add(
+        tf.keras.layers.BatchNormalization(
+            axis=-1,
+            momentum=0.99,
+            epsilon=0.001,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            moving_mean_initializer='zeros',
+            moving_variance_initializer='ones',
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None
+        )
+    )
+    model.add(
+        tf.keras.layers.Conv1D(
+            filters=512,
+            kernel_size=5,
+            strides=1,
+            padding='valid',
+            data_format='channels_last',
+            dilation_rate=1,
+            activation=tf.keras.layers.LeakyReLU(),
+            use_bias=True,
+            kernel_initializer='glorot_uniform',
+            bias_initializer='zeros',
+            kernel_regularizer=None,
+            bias_regularizer=None,
+            activity_regularizer=None,
+            kernel_constraint=None,
+            bias_constraint=None
+        )
+    )
+    model.add(
+        tf.keras.layers.BatchNormalization(
+            axis=-1,
+            momentum=0.99,
+            epsilon=0.001,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            moving_mean_initializer='zeros',
+            moving_variance_initializer='ones',
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None
+        )
+    )
+    model.add(
+        tf.keras.layers.Conv1D(
+            filters=1024,
+            kernel_size=5,
+            strides=1,
+            padding='valid',
+            data_format='channels_last',
+            dilation_rate=1,
+            activation=tf.keras.layers.LeakyReLU(),
+            use_bias=True,
+            kernel_initializer='glorot_uniform',
+            bias_initializer='zeros',
+            kernel_regularizer=None,
+            bias_regularizer=None,
+            activity_regularizer=None,
+            kernel_constraint=None,
+            bias_constraint=None
+        )
+    )
+    model.add(
+        tf.keras.layers.GlobalAveragePooling1D(
+            data_format='channels_last'
+        )
+    )
+    model.add(
+        tf.keras.layers.Dropout(
+            rate=0.5,
+            noise_shape=None,
+            seed=None
+        )
+    )
+    model.add(
+        tf.keras.layers.BatchNormalization(
+            axis=-1,
+            momentum=0.99,
+            epsilon=0.001,
+            center=True,
+            scale=True,
+            beta_initializer='zeros',
+            gamma_initializer='ones',
+            moving_mean_initializer='zeros',
+            moving_variance_initializer='ones',
+            beta_regularizer=None,
+            gamma_regularizer=None,
+            beta_constraint=None,
+            gamma_constraint=None
         )
     )
     model.add(

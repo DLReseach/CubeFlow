@@ -74,6 +74,7 @@ def main():
     validation_generator = CnnGenerator(config, validation, test=False)
     test_generator = CnnGenerator(config, test, test=True)
     
+    loss = tf.keras.losses.CosineSimilarity(axis=1)
     model = cnn_model(config)
     model.compile(
         optimizer='adam',
@@ -98,27 +99,50 @@ def main():
         initial_epoch=0
     )
 
+
+    def unit_vector(vector):
+        """ Returns the unit vector of the vector.  """
+        return vector / np.linalg.norm(vector)
+
+    def angle_between(v1, v2):
+        """ Returns the angle in radians between vectors 'v1' and 'v2'::
+
+                >>> angle_between((1, 0, 0), (0, 1, 0))
+                1.5707963267948966
+                >>> angle_between((1, 0, 0), (1, 0, 0))
+                0.0
+                >>> angle_between((1, 0, 0), (-1, 0, 0))
+                3.141592653589793
+        """
+        v1_u = unit_vector(v1)
+        v2_u = unit_vector(v2)
+        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+
     resolution = np.empty((0, len(config.targets)))
     direction = np.empty((0, 1))
     for X, y_truth in test_generator:
         y_predict = model.predict_on_batch(X)
         resolution = np.vstack([resolution, (y_truth - y_predict.numpy())])
-        direction = np.vstack([direction, np.dot(y_truth, y_predict.numpy().T)])
+        for i in range(y_predict.shape[0]):
+            angle = angle_between(y_truth[i, :], y_predict.numpy()[i, :])
+            direction = np.vstack([direction, angle])
 
     if config.wandb == True:
-        for i in range(resolution.shape[1]):
-            fig, ax = plt.subplots()
-            ax.hist(resolution[:, i], bins='fd')
-            ax.set(
-                title='Resolution axis {}'.format(i),
-                xlabel='Resolution',
-                ylabel='Frequency'
-            )
-            wandb.log({'chart': fig})
+        # for i in range(resolution.shape[1]):
+        #     print(i)
+        #     fig, ax = plt.subplots()
+        #     ax.hist(resolution[:, i], bins='auto')
+        #     ax.set(
+        #         title='Resolution axis {}'.format(i),
+        #         xlabel='Resolution',
+        #         ylabel='Frequency'
+        #     )
+        #     wandb.log({'chart': fig})
         fig, ax = plt.subplots()
-        ax.hist(direction, bins='fd')
-        ax.set(title='Direction', xlabel='Dot product', ylabel='Frequency')
-
+        ax.hist(direction, bins='auto')
+        ax.set(title='Direction', xlabel='Angle (radians)', ylabel='Frequency')
+        wandb.log({'chart': fig})
 
 if __name__ == '__main__':
     main()

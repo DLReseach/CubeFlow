@@ -58,5 +58,9 @@ class CnnGenerator(Sequence):
                     ][idx][event_indices]
                 X[i, 0:len(event_pulses), :] = event_pulses
                 for k, target in enumerate(self.config.targets):
-                    y[i, k] = f[self.config.transform + '/' + target][idx]
+                    dataset_name = self.config.transform + '/' + target
+                    if dataset_name in f:
+                        y[i, k] = f[dataset_name][idx]
+                    else:
+                        y[i, k] = f['raw/' + target][idx]
         return X, y
