@@ -1,4 +1,6 @@
 import os
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 import tensorflow as tf
 import wandb as wandb
 from wandb.keras import WandbCallback
@@ -11,6 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
 
+from plots.plot_functions import histogram
 from callbacks.cnn_callbacks import cnn_callbacks
 from data_loader.cnn_generator import CnnGenerator
 from models.cnn_model import cnn_model
@@ -23,7 +26,31 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings(
     'ignore',
     category=matplotlib.cbook.mplDeprecation
-) 
+)
+
+
+class EpochDurationCallback(tf.keras.callbacks.Callback):
+    def __init__(self, no_of_batches):
+        self.times = []
+        self.times.append(time.time())
+        self.no_of_batches = no_of_batches
+
+
+    def on_epoch_end(self, epoch, logs=None):
+        timestamp = time.time()
+        duration = timestamp - self.times[-1]
+        self.times.append(timestamp)
+        print('\nEpoch lasted {} minutes'.format(duration / 60))
+    
+
+    def on_train_batch_end(self, batch, logs=None):
+        if ((batch + 1) % 1000 == 0) or (batch == 0):
+            wandb.log(
+                {
+                    'loss': logs['loss'],
+                    'cosine_similarity': logs['cosine_similarity']
+                }
+            )
 
 
 def main():
@@ -50,22 +77,18 @@ def main():
     )
     LOG_PATH = root_folder.joinpath('logs/fit' + experiment_name)
     LOG_PATH.mkdir(exist_ok=True, parents=True)
-    tensorboard = tf.keras.callbacks.TensorBoard(
-        log_dir=LOG_PATH,
-        histogram_freq=1
-    )
+
     if config.wandb == True:
         wandb.init(
-                    project='cubeflow',
-                    name=experiment_name,
-                    sync_tensorboard=True
-                )
-        callbacks = [
-            tensorboard,
-            WandbCallback(log_weights=True)   
-        ]
-    else:
-        callbacks = [tensorboard]
+                project='cubeflow',
+                name=experiment_name,
+                sync_tensorboard=True
+            )
+
+    print(
+        'Num GPUs Available: ',
+        len(tf.config.experimental.list_physical_devices('GPU'))
+    )
 
     ts1 = time.time()
     st1 = datetime.datetime.fromtimestamp(ts1).strftime('%Y-%m-%d %H:%M:%S')
@@ -96,13 +119,38 @@ def main():
             len(test_generator) * config.batch_size
         )
     )
-    
+
+    print(int(time.time()))
+    np.random.seed(int(time.time()))
+
+    tensorboard = tf.keras.callbacks.TensorBoard(
+        log_dir=LOG_PATH,
+        histogram_freq=1,
+        profile_batch=3
+    )
+    if config.wandb == True:
+        wandb.init(
+                    project='cubeflow',
+                    name=experiment_name,
+                    sync_tensorboard=True
+                )
+        callbacks = [
+            EpochDurationCallback(len(train_generator) + 1),
+            tensorboard,
+            WandbCallback(log_weights=True)   
+        ]
+    else:
+        callbacks = [
+            EpochDurationCallback(len(train_generator) + 1),
+            tensorboard
+        ]
+
     loss = tf.keras.losses.CosineSimilarity(axis=1)
     model = cnn_model(config)
     model.compile(
         optimizer='adam',
-        loss='MAE',
-        # metrics=['MeanAbsoluteError']
+        loss='MSE',
+        metrics=[tf.keras.metrics.CosineSimilarity(axis=1)]
     )
 
     model.fit_generator(
@@ -115,10 +163,10 @@ def main():
         validation_steps=None,
         validation_freq=1,
         class_weight=None,
-        max_queue_size=10,
-        workers=1,
-        use_multiprocessing=False,
-        shuffle=True,
+        max_queue_size=100,
+        workers=6,
+        use_multiprocessing=True,
+        shuffle=False,
         initial_epoch=0
     )
 
@@ -152,19 +200,14 @@ def main():
             direction = np.vstack([direction, angle])
 
     if config.wandb == True:
-        # for i in range(resolution.shape[1]):
-        #     print(i)
-        #     fig, ax = plt.subplots()
-        #     ax.hist(resolution[:, i], bins='auto')
-        #     ax.set(
-        #         title='Resolution axis {}'.format(i),
-        #         xlabel='Resolution',
-        #         ylabel='Frequency'
-        #     )
-        #     wandb.log({'chart': fig})
-        fig, ax = plt.subplots()
-        ax.hist(direction, bins='auto')
-        ax.set(title='Direction', xlabel='Angle (radians)', ylabel='Frequency')
+        fig, ax = histogram(
+            data=direction,
+            title='Direction',
+            xlabel='Angle (radians)',
+            ylabel='Frequency',
+            width_scale=1,
+            bins='fd'    
+        )
         wandb.log({'chart': fig})
 
 if __name__ == '__main__':
