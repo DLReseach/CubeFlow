@@ -122,7 +122,7 @@ def cnn_model(config):
     )
     model.add(
         tf.keras.layers.Conv1D(
-            filters=256,
+            filters=128,
             kernel_size=5,
             strides=1,
             padding='valid',
@@ -166,7 +166,7 @@ def cnn_model(config):
     )
     model.add(
         tf.keras.layers.Conv1D(
-            filters=512,
+            filters=256,
             kernel_size=5,
             strides=1,
             padding='valid',
@@ -202,7 +202,7 @@ def cnn_model(config):
     )
     model.add(
         tf.keras.layers.Conv1D(
-            filters=1024,
+            filters=256,
             kernel_size=5,
             strides=1,
             padding='valid',

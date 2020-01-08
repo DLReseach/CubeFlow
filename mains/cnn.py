@@ -30,27 +30,45 @@ warnings.filterwarnings(
 
 
 class EpochDurationCallback(tf.keras.callbacks.Callback):
-    def __init__(self, no_of_batches):
+    def __init__(self, no_of_batches, validation_generator):
         self.times = []
         self.times.append(time.time())
         self.no_of_batches = no_of_batches
+        self.validation_generator = validation_generator
+    
+
+    def on_epoch_begin(self, epoch, logs=None):
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
+        print('\nStarting epoch {0} at {1}'.format(epoch + 1, st))
 
 
     def on_epoch_end(self, epoch, logs=None):
         timestamp = time.time()
         duration = timestamp - self.times[-1]
         self.times.append(timestamp)
-        print('\nEpoch lasted {} minutes'.format(duration / 60))
+        print('\nEpoch lasted {0:.2f} minutes'.format(duration / 60))
     
 
     def on_train_batch_end(self, batch, logs=None):
         if ((batch + 1) % 1000 == 0) or (batch == 0):
+            val_loss = self.model.evaluate_generator(
+                generator=self.validation_generator,
+                steps=None,
+                callbacks=None,
+                max_queue_size=10,
+                workers=1,
+                use_multiprocessing=False,
+                verbose=0
+            )
             wandb.log(
                 {
                     'loss': logs['loss'],
-                    'cosine_similarity': logs['cosine_similarity']
+                    'cosine_similarity': logs['cosine_similarity'],
+                    'val_loss': val_loss
                 }
             )
+
 
 
 def main():
@@ -120,14 +138,21 @@ def main():
         )
     )
 
-    print(int(time.time()))
     np.random.seed(int(time.time()))
 
     tensorboard = tf.keras.callbacks.TensorBoard(
         log_dir=LOG_PATH,
         histogram_freq=1,
+        write_graph=True,
+        write_images=True,
+        embeddings_freq=0,
+        embeddings_layer_names=None,
+        embeddings_metadata=None,
+        embeddings_data=None,
+        update_freq=1000,
         profile_batch=3
     )
+
     if config.wandb == True:
         wandb.init(
                     project='cubeflow',
@@ -135,22 +160,28 @@ def main():
                     sync_tensorboard=True
                 )
         callbacks = [
-            EpochDurationCallback(len(train_generator) + 1),
+            EpochDurationCallback(
+                no_of_batches=len(train_generator) + 1,
+                validation_generator=validation_generator
+            ),
             tensorboard,
             WandbCallback(log_weights=True)   
         ]
     else:
         callbacks = [
-            EpochDurationCallback(len(train_generator) + 1),
+            EpochDurationCallback(
+                no_of_batches=len(train_generator) + 1,
+                validation_generator=validation_generator
+            ),
             tensorboard
         ]
 
-    loss = tf.keras.losses.CosineSimilarity(axis=1)
+    cosine_metric = tf.keras.losses.CosineSimilarity(axis=1)
     model = cnn_model(config)
     model.compile(
         optimizer='adam',
         loss='MSE',
-        metrics=[tf.keras.metrics.CosineSimilarity(axis=1)]
+        metrics=[cosine_metric]
     )
 
     model.fit_generator(
@@ -164,7 +195,7 @@ def main():
         validation_freq=1,
         class_weight=None,
         max_queue_size=100,
-        workers=6,
+        workers=4,
         use_multiprocessing=True,
         shuffle=False,
         initial_epoch=0
@@ -202,7 +233,7 @@ def main():
     if config.wandb == True:
         fig, ax = histogram(
             data=direction,
-            title='Direction',
+            title='y_truth . y_pred / (||y_truth|| ||y_pred||)',
             xlabel='Angle (radians)',
             ylabel='Frequency',
             width_scale=1,
