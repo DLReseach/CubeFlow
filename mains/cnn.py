@@ -1,8 +1,8 @@
 import os
-# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   
-# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+# os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'   
+# os.environ['CUDA_VISIBLE_DEVICES'] = ''
 import torch
-
+from torchsummary import summary
 import wandb as wandb
 import numpy as np
 import logging
@@ -28,6 +28,7 @@ warnings.filterwarnings(
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print('Using device', device)
 
 
 def main():
@@ -53,8 +54,7 @@ def main():
     if config.wandb == True:
         wandb.init(
                 project='cubeflow',
-                name=experiment_name,
-                sync_tensorboard=True
+                name=experiment_name
             )
 
     ts1 = time.time()
@@ -99,84 +99,152 @@ def main():
     np.random.seed(int(time.time()))
 
     model = CnnNet(config)
+    model.to(device)
+    summary(model, input_size=(len(config.features), config.max_doms))
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
+    optimizer = torch.optim.Adam(model.parameters())
+
+    if config.wandb == True:
+        wandb.watch(model)
+
+    print_interval = int(np.ceil(len(train_generator) * 0.1))
+
+
+    def train_step(model, inputs, targets, loss_fn, optimizer):
+        model.train()
+        predictions = model(inputs)
+        loss = loss_fn(targets, predictions)
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        return loss.item()
+
+
+    def validation_step(model, inputs, targets, loss_fn):
+        with torch.no_grad():
+            model.eval()
+            predictions = model(inputs)
+            loss = loss_fn(targets, predictions)
+            return loss.item()
+        
+    
+    def prediction_step(model, inputs):
+        with torch.no_grad():
+            model.eval()
+            predictions = model(inputs)
+            return predictions
+
 
     for epoch in range(config.num_epochs):
         running_loss = 0.0
+        val_loss = 0.0
+        ts = time.time()
+        st = datetime.datetime.fromtimestamp(ts).strftime(
+            '%Y-%m-%d %H:%M:%S'
+        )
+        print(
+            'Starting epoch {}/{} at {}'
+            .format(
+                epoch + 1,
+                config.num_epochs,
+                st
+            )
+        )
         for i, data in enumerate(train_generator, 0):
-            if i == 0:
-                ts = time.time()
-                st = datetime.datetime.fromtimestamp(ts).strftime(
-                    '%Y-%m-%d %H:%M:%S'
-                )
-                print(
-                    'Starting epoch {}/{} at {}'
-                    .format(
-                        epoch,
-                        config.num_epochs,
-                        st
-                    )
-                )
             inputs, targets = data
             inputs = inputs.float().to(device)
             targets = targets.float().to(device)
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item()
-            if i % 2000 == 1999:
-                print('[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 1))
+            loss = train_step(model, inputs, targets, criterion, optimizer)
+            running_loss += loss
+            if i % print_interval == (print_interval - 1):
+                print(
+                    '[%d, %5d / %5d] loss: %.3f' %
+                    (
+                        epoch + 1,
+                        i + 1,
+                        len(train_generator),
+                        running_loss / print_interval
+                    )
+                )
+                for inputs, targets in validation_generator:
+                    inputs = inputs.float().to(device)
+                    targets = targets.float().to(device)
+                    val_loss += validation_step(
+                        model,
+                        inputs,
+                        targets,
+                        criterion
+                    )
+                if config.wandb == True:
+                    wandb.log(
+                        {
+                            'loss': running_loss / print_interval,
+                            'val_loss': val_loss / len(validation_generator)
+                        }
+                    )
                 running_loss = 0.0
+                val_loss = 0.0
+        for i, data in enumerate(validation_generator, 0):
+            inputs, targets = data
+            inputs = inputs.float().to(device)
+            targets = targets.float().to(device)
+            val_loss += validation_step(model, inputs, targets, criterion)
+        print(
+            'Validation loss epoch {}: {:.3f}'
+            .format(
+                epoch + 1,
+                val_loss / len(validation_generator)
+            )
+        )
+        print(
+            'Epoch {} took {:.2f} minutes'
+            .format(
+                epoch + 1,
+                (time.time() - ts) / 60
+            )
+        )
+
+
+    def unit_vector(vector):
+        ''' Returns the unit vector of the vector.  '''
+        return vector / np.linalg.norm(vector)
+
+    def angle_between(v1, v2):
+        ''' Returns the angle in radians between vectors 'v1' and 'v2'::
+
+                >>> angle_between((1, 0, 0), (0, 1, 0))
+                1.5707963267948966
+                >>> angle_between((1, 0, 0), (1, 0, 0))
+                0.0
+                >>> angle_between((1, 0, 0), (-1, 0, 0))
+                3.141592653589793
+        '''
+        v1_u = unit_vector(v1)
+        v2_u = unit_vector(v2)
+        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+
+    resolution = np.empty((0, len(config.targets)))
+    direction = np.empty((0, 1))
+    for inputs, targets in test_generator:
+        inputs = inputs.float().to(device)
+        targets = targets.float().to(device)
+        predictions = prediction_step(model, inputs)
+        resolution = np.vstack([resolution, (targets.cpu() - predictions.cpu())])
+        for i in range(predictions.shape[0]):
+            angle = angle_between(targets.cpu()[i, :], predictions.cpu()[i, :])
+            direction = np.vstack([direction, angle])
 
     if config.wandb == True:
-        wandb.init(
-                    project='cubeflow',
-                    name=experiment_name
-                )
-
-
-    # def unit_vector(vector):
-    #     """ Returns the unit vector of the vector.  """
-    #     return vector / np.linalg.norm(vector)
-
-    # def angle_between(v1, v2):
-    #     """ Returns the angle in radians between vectors 'v1' and 'v2'::
-
-    #             >>> angle_between((1, 0, 0), (0, 1, 0))
-    #             1.5707963267948966
-    #             >>> angle_between((1, 0, 0), (1, 0, 0))
-    #             0.0
-    #             >>> angle_between((1, 0, 0), (-1, 0, 0))
-    #             3.141592653589793
-    #     """
-    #     v1_u = unit_vector(v1)
-    #     v2_u = unit_vector(v2)
-    #     return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
-
-
-    # resolution = np.empty((0, len(config.targets)))
-    # direction = np.empty((0, 1))
-    # for X, y_truth in test_generator:
-    #     y_predict = model.predict_on_batch(X)
-    #     resolution = np.vstack([resolution, (y_truth - y_predict.numpy())])
-    #     for i in range(y_predict.shape[0]):
-    #         angle = angle_between(y_truth[i, :], y_predict.numpy()[i, :])
-    #         direction = np.vstack([direction, angle])
-
-    # if config.wandb == True:
-    #     fig, ax = histogram(
-    #         data=direction,
-    #         title='y_truth . y_pred / (||y_truth|| ||y_pred||)',
-    #         xlabel='Angle (radians)',
-    #         ylabel='Frequency',
-    #         width_scale=1,
-    #         bins='fd'    
-    #     )
-    #     wandb.log({'chart': fig})
+        fig, ax = histogram(
+            data=direction,
+            title='y_truth . y_pred / (||y_truth|| ||y_pred||)',
+            xlabel='Angle (radians)',
+            ylabel='Frequency',
+            width_scale=1,
+            bins='fd'    
+        )
+        wandb.log({'chart': fig})
 
 if __name__ == '__main__':
     main()

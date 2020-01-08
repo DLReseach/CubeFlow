@@ -1,7 +1,7 @@
 {
   "exp_name": "cnn",
   "dev_run": false,
-  "wandb": false,
+  "wandb": true,
   "num_epochs": 1,
   "no_dev_examples": 9  ,
   "data_type": "oscnext-genie-level5-v01-01-pass2",

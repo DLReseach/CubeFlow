@@ -1,7 +1,6 @@
 name: cubeflow
 channels:
     - anaconda
-    - pytorch
 dependencies:
     - pip
     - h5py
@@ -9,9 +8,6 @@ dependencies:
     - numpy
     - pandas
     - scikit-learn
-    - pytorch
-    - torchvision
-    - cudatoolkit=10.1
     - psutil
     - plotly
     - pip:
