@@ -1,265 +1,62 @@
-import tensorflow as tf
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 
-def cnn_model(config):
-    model = tf.keras.models.Sequential()
-    model.add(
-        tf.keras.layers.Conv1D(
-            filters=32,
-            kernel_size=5,
-            strides=1,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None,
-            input_shape=(config.max_doms, len(config.features))
+class CnnNet(nn.Module):
+    def __init__(self, config):
+        super(CnnNet, self).__init__()
+        self.config = config
+        self.conv1 = nn.Conv1d(
+            in_channels=len(self.config.features),
+            out_channels=32,
+            kernel_size=5
         )
-    )
-    model.add(
-        tf.keras.layers.BatchNormalization(
-            axis=-1,
-            momentum=0.99,
-            epsilon=0.001,
-            center=True,
-            scale=True,
-            beta_initializer='zeros',
-            gamma_initializer='ones',
-            moving_mean_initializer='zeros',
-            moving_variance_initializer='ones',
-            beta_regularizer=None,
-            gamma_regularizer=None,
-            beta_constraint=None,
-            gamma_constraint=None
+        self.conv2 = torch.nn.Conv1d(
+            in_channels=32,
+            out_channels=64,
+            kernel_size=5
         )
-    )
-    model.add(
-        tf.keras.layers.Conv1D(
-            filters=64,
-            kernel_size=5,
-            strides=1,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
+        self.conv3 = torch.nn.Conv1d(
+            in_channels=64,
+            out_channels=128,
+            kernel_size=5
         )
-    )
-    model.add(
-        tf.keras.layers.MaxPooling1D(
-            pool_size=2,
-            strides=None,
-            padding='valid',
-            data_format='channels_last'
+        self.conv4 = torch.nn.Conv1d(
+            in_channels=128,
+            out_channels=128,
+            kernel_size=5
         )
-    )
-    model.add(
-        tf.keras.layers.BatchNormalization(
-            axis=-1,
-            momentum=0.99,
-            epsilon=0.001,
-            center=True,
-            scale=True,
-            beta_initializer='zeros',
-            gamma_initializer='ones',
-            moving_mean_initializer='zeros',
-            moving_variance_initializer='ones',
-            beta_regularizer=None,
-            gamma_regularizer=None,
-            beta_constraint=None,
-            gamma_constraint=None
+        self.conv5 = torch.nn.Conv1d(
+            in_channels=128,
+            out_channels=256,
+            kernel_size=5
         )
-    )
-    model.add(
-        tf.keras.layers.Conv1D(
-            filters=128,
-            kernel_size=5,
-            strides=1,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
+        self.conv6 = torch.nn.Conv1d(
+            in_channels=256,
+            out_channels=256,
+            kernel_size=5
         )
-    )
-    model.add(
-        tf.keras.layers.BatchNormalization(
-            axis=-1,
-            momentum=0.99,
-            epsilon=0.001,
-            center=True,
-            scale=True,
-            beta_initializer='zeros',
-            gamma_initializer='ones',
-            moving_mean_initializer='zeros',
-            moving_variance_initializer='ones',
-            beta_regularizer=None,
-            gamma_regularizer=None,
-            beta_constraint=None,
-            gamma_constraint=None
+        self.linear1 = torch.nn.Linear(
+            in_features=2304,
+            out_features=len(self.config.targets)
         )
-    )
-    model.add(
-        tf.keras.layers.Conv1D(
-            filters=128,
-            kernel_size=5,
-            strides=1,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
-        )
-    )
-    model.add(
-        tf.keras.layers.MaxPooling1D(
-            pool_size=2,
-            strides=None,
-            padding='valid',
-            data_format='channels_last'
-        )
-    )
-    model.add(
-        tf.keras.layers.BatchNormalization(
-            axis=-1,
-            momentum=0.99,
-            epsilon=0.001,
-            center=True,
-            scale=True,
-            beta_initializer='zeros',
-            gamma_initializer='ones',
-            moving_mean_initializer='zeros',
-            moving_variance_initializer='ones',
-            beta_regularizer=None,
-            gamma_regularizer=None,
-            beta_constraint=None,
-            gamma_constraint=None
-        )
-    )
-    model.add(
-        tf.keras.layers.Conv1D(
-            filters=256,
-            kernel_size=5,
-            strides=1,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
-        )
-    )
-    model.add(
-        tf.keras.layers.BatchNormalization(
-            axis=-1,
-            momentum=0.99,
-            epsilon=0.001,
-            center=True,
-            scale=True,
-            beta_initializer='zeros',
-            gamma_initializer='ones',
-            moving_mean_initializer='zeros',
-            moving_variance_initializer='ones',
-            beta_regularizer=None,
-            gamma_regularizer=None,
-            beta_constraint=None,
-            gamma_constraint=None
-        )
-    )
-    model.add(
-        tf.keras.layers.Conv1D(
-            filters=256,
-            kernel_size=5,
-            strides=1,
-            padding='valid',
-            data_format='channels_last',
-            dilation_rate=1,
-            activation=tf.keras.layers.LeakyReLU(),
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
-        )
-    )
-    model.add(
-        tf.keras.layers.GlobalAveragePooling1D(
-            data_format='channels_last'
-        )
-    )
-    model.add(
-        tf.keras.layers.Dropout(
-            rate=0.5,
-            noise_shape=None,
-            seed=None
-        )
-    )
-    model.add(
-        tf.keras.layers.BatchNormalization(
-            axis=-1,
-            momentum=0.99,
-            epsilon=0.001,
-            center=True,
-            scale=True,
-            beta_initializer='zeros',
-            gamma_initializer='ones',
-            moving_mean_initializer='zeros',
-            moving_variance_initializer='ones',
-            beta_regularizer=None,
-            gamma_regularizer=None,
-            beta_constraint=None,
-            gamma_constraint=None
-        )
-    )
-    model.add(
-        tf.keras.layers.Dense(
-            units=len(config.targets),
-            activation=None,
-            use_bias=True,
-            kernel_initializer='glorot_uniform',
-            bias_initializer='zeros',
-            kernel_regularizer=None,
-            bias_regularizer=None,
-            activity_regularizer=None,
-            kernel_constraint=None,
-            bias_constraint=None
-        )
-    )
-    return model
+
+
+    def forward(self, x):
+        x = F.leaky_relu(self.conv1(x))
+        # print('First layer:', x.shape)
+        x = F.max_pool1d(F.leaky_relu(self.conv2(x)), 2)
+        # print('Second layer:', x.shape)
+        x = F.leaky_relu(self.conv3(x))
+        # print('Third layer:', x.shape)
+        x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
+        # print('Fourth layer:', x.shape)
+        x = F.leaky_relu(self.conv5(x))
+        # print('Fifth layer:', x.shape)
+        x = F.max_pool1d(F.leaky_relu(self.conv6(x)), 2)
+        # print('Sixth layer:', x.shape)
+        x = torch.flatten(x, start_dim=1, end_dim=2)
+        # print('Flatten layer:', x.shape)
+        x = self.linear1(x)
+        return x

@@ -1,10 +1,10 @@
-from tensorflow.python.keras.utils.data_utils import Sequence
+from torch.utils.data import Dataset
 import numpy as np
 import h5py as h5
 import pandas as pd
 
 
-class CnnGenerator(Sequence):
+class CnnGenerator(Dataset):
     def __init__(self, config, ids, test):
         self.config = config
         self.ids = ids
@@ -71,4 +71,5 @@ class CnnGenerator(Sequence):
                     for j, k in zip(batch_range, pulses_range):
                         y[j, i] = event_targets[k]
             batch_size_dim_start = batch_size_dim_end
+        X = np.transpose(X, (0, 2, 1))
         return X, y
