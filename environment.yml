@@ -16,3 +16,5 @@ dependencies:
         - streamlit
         - matplotlib
         - wandb
+        - torchsummary
+        - py-spy

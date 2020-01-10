@@ -29,30 +29,23 @@ class CnnGenerator(Dataset):
             np.random.shuffle(self.indices)
 
 
+    # @profile
     def __data_generation(self, index):
-        X = np.zeros(
-            (
-                self.config.batch_size,
-                self.config.max_doms,
-                len(self.config.features)
-            )
-        )
-        y = np.zeros((self.config.batch_size, len(self.config.targets)))
+        batch_size = self.config.batch_size
+        max_doms = self.config.max_doms
+        no_features = len(self.config.features)
+        no_targets = len(self.config.targets)
+        X = np.zeros((batch_size, max_doms, no_features))
+        y = np.zeros((batch_size, no_targets))
         file = list(self.ids[index].keys())[0]
         idx = list(self.ids[index].values())[0]
         idx = sorted(idx)
-        features_dict = {
-            feature: [] for feature in self.config.features
-
-        }
-        targets_dict = {
-            target: [] for target in self.config.targets
-        }
+        features_dict = {feature: [] for feature in self.config.features}
+        targets_dict = {target: [] for target in self.config.targets}
         with h5.File(file, 'r') as f:
             for feature in self.config.features:
-                features_dict[feature] = f[
-                    self.config.transform + '/' + feature
-                ][idx]
+                dataset_name = self.config.transform + '/' + feature
+                features_dict[feature] = f[dataset_name][idx]
             for target in self.config.targets:
                 dataset_name = self.config.transform + '/' + target
                 if dataset_name in f:
