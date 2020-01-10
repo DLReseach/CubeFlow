@@ -1,5 +1,5 @@
 import os
-# os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'   
+# os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
 # os.environ['CUDA_VISIBLE_DEVICES'] = ''
 import torch
 from torchsummary import summary
@@ -21,7 +21,6 @@ from utils.config import process_config
 from utils.utils import get_args
 from utils.utils import get_project_root
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings(
     'ignore',
     category=matplotlib.cbook.mplDeprecation
@@ -70,15 +69,18 @@ def main():
     print('Preprocessing took approximately {} seconds'.format(td_secs))
     train_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, train, test=False),
-        batch_size=None
+        batch_size=None,
+        num_workers=6
     )
     validation_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, validation, test=False),
-        batch_size=None
+        batch_size=None,
+        num_workers=6
     )
     test_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, test, test=True),
-        batch_size=None
+        batch_size=None,
+        num_workers=6
     )
     print(
         'We have around {} training events'.format(
@@ -102,7 +104,7 @@ def main():
     model.to(device)
     summary(model, input_size=(len(config.features), config.max_doms))
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters())
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     if config.wandb == True:
         wandb.watch(model)
@@ -120,14 +122,15 @@ def main():
         return loss.item()
 
 
-    def validation_step(model, inputs, targets, loss_fn):
+    def validation_step(model, inputs, targets, loss_fn, metric):
         with torch.no_grad():
             model.eval()
             predictions = model(inputs)
             loss = loss_fn(targets, predictions)
-            return loss.item()
-        
-    
+            metric_val = torch.mean(metric(targets, predictions))
+            return loss.item(), metric_val
+
+
     def prediction_step(model, inputs):
         with torch.no_grad():
             model.eval()
@@ -138,6 +141,7 @@ def main():
     for epoch in range(config.num_epochs):
         running_loss = 0.0
         val_loss = 0.0
+        cosine_similarity = 0.0
         ts = time.time()
         st = datetime.datetime.fromtimestamp(ts).strftime(
             '%Y-%m-%d %H:%M:%S'
@@ -169,26 +173,39 @@ def main():
                 for inputs, targets in validation_generator:
                     inputs = inputs.float().to(device)
                     targets = targets.float().to(device)
-                    val_loss += validation_step(
+                    validation_values = validation_step(
                         model,
                         inputs,
                         targets,
-                        criterion
+                        criterion,
+                        torch.nn.CosineSimilarity()
                     )
+                    val_loss += validation_values[0]
+                    cosine_similarity += validation_values[1]
                 if config.wandb == True:
                     wandb.log(
                         {
                             'loss': running_loss / print_interval,
-                            'val_loss': val_loss / len(validation_generator)
+                            'val_loss': val_loss / len(validation_generator),
+                            'cosine_similarity': cosine_similarity / len(validation_generator)
                         }
                     )
                 running_loss = 0.0
                 val_loss = 0.0
+                cosine_similarity = 0.0
         for i, data in enumerate(validation_generator, 0):
             inputs, targets = data
             inputs = inputs.float().to(device)
             targets = targets.float().to(device)
-            val_loss += validation_step(model, inputs, targets, criterion)
+            validation_values = validation_step(
+                model,
+                inputs,
+                targets,
+                criterion,
+                torch.nn.CosineSimilarity()
+            )
+            val_loss += validation_values[0]
+            cosine_similarity += validation_values[1]
         print(
             'Validation loss epoch {}: {:.3f}'
             .format(
@@ -238,11 +255,11 @@ def main():
     if config.wandb == True:
         fig, ax = histogram(
             data=direction,
-            title='y_truth . y_pred / (||y_truth|| ||y_pred||)',
+            title='arccos[y_truth . y_pred / (||y_truth|| ||y_pred||)]',
             xlabel='Angle (radians)',
             ylabel='Frequency',
             width_scale=1,
-            bins='fd'    
+            bins='fd'
         )
         wandb.log({'chart': fig})
 
