@@ -15,15 +15,11 @@ class CnnGenerator(Dataset):
 
 
     def __len__(self):
-        return int(np.floor(len(self.ids) / self.config.batch_size))
+        return int(np.floor(len(self.ids)))
 
 
     def __getitem__(self, index):
-        indices = self.indices[
-            index * self.config.batch_size:(index + 1) * self.config.batch_size
-            ]
-        ids_temp = self.ids.iloc[indices]
-        X, y = self.__data_generation(ids_temp)
+        X, y = self.__data_generation(index)
         return X, y
 
 
@@ -31,12 +27,9 @@ class CnnGenerator(Dataset):
         self.indices = np.arange(len(self.ids))
         if self.config.shuffle == True and self.test == False:
             np.random.shuffle(self.indices)
-        self.ids = self.ids.iloc[self.indices]
-        self.ids.sort_values(by='file', inplace=True)
-        self.indices = np.arange(len(self.ids))
 
 
-    def __data_generation(self, ids_temp):
+    def __data_generation(self, index):
         X = np.zeros(
             (
                 self.config.batch_size,
@@ -45,31 +38,35 @@ class CnnGenerator(Dataset):
             )
         )
         y = np.zeros((self.config.batch_size, len(self.config.targets)))
-        files_dict = {
-            file_name: list(ids_temp[ids_temp.file == file_name].idx.values)
-            for file_name in ids_temp.file.unique()
+        file = list(self.ids[index].keys())[0]
+        idx = list(self.ids[index].values())[0]
+        idx = sorted(idx)
+        features_dict = {
+            feature: [] for feature in self.config.features
+
         }
-        batch_size_dim_start = 0
-        for file, idx in files_dict.items():
-            idx = sorted(idx)
-            batch_size_dim_end = batch_size_dim_start + len(idx)
-            with h5.File(file, 'r') as f:
-                for i, feature in enumerate(self.config.features):
-                    feature_event_pulses = f[
-                        self.config.transform + '/' + feature
-                    ][idx]
-                    batch_range = range(batch_size_dim_start, batch_size_dim_end)
-                    pulses_range = range(len(feature_event_pulses))
-                    for j, k in zip(batch_range, pulses_range):
-                        X[j, 0:len(feature_event_pulses[k]), i] = feature_event_pulses[k]
-                for i, target in enumerate(self.config.targets):
-                    dataset_name = self.config.transform + '/' + target
-                    if dataset_name in f:
-                        event_targets = f[dataset_name][idx]
-                    else:
-                        event_targets = f['raw/' + target][idx]
-                    for j, k in zip(batch_range, pulses_range):
-                        y[j, i] = event_targets[k]
-            batch_size_dim_start = batch_size_dim_end
+        targets_dict = {
+            target: [] for target in self.config.targets
+        }
+        with h5.File(file, 'r') as f:
+            for feature in self.config.features:
+                features_dict[feature] = f[
+                    self.config.transform + '/' + feature
+                ][idx]
+            for target in self.config.targets:
+                dataset_name = self.config.transform + '/' + target
+                if dataset_name in f:
+                    targets_dict[target] = f[dataset_name][idx]
+                else:
+                    targets_dict[target] = f['raw/' + target][idx]
+        for i, feature in enumerate(features_dict):
+            no_of_events = len(features_dict[feature])
+            for j in range(no_of_events):
+                event_length = len(features_dict[feature][j])
+                X[j, 0:event_length, i] = features_dict[feature][j]
+        for i, target in enumerate(targets_dict):
+            no_of_events = len(targets_dict[target])
+            for j in range(no_of_events):
+                y[j, i] = targets_dict[target][j]
         X = np.transpose(X, (0, 2, 1))
         return X, y

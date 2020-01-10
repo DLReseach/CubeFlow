@@ -11,7 +11,7 @@ class CnnSplit:
         self.config = config
         if self.config.dev_run == True:
             self.config.no_of_files = 1
-        self.return_indices()
+            self.config.batch_size = 2
 
 
     def get_files(self):
@@ -21,16 +21,6 @@ class CnnSplit:
         if self.config.no_of_files != 0:
             data_files = data_files[0:self.config.no_of_files]
         return data_files
-
-
-    def get_no_events(self, file_list, *datasets):
-        output_dict = {key: 0 for key in datasets}
-        for dataset in datasets:
-            for file in file_list:
-                with h5.File(file, 'r') as f:
-                    no_of_events_in_file = f[dataset][...].item()
-                    output_dict[dataset] += no_of_events_in_file
-        return output_dict
 
 
     def get_file_indices(self, file_list):
@@ -92,15 +82,35 @@ class CnnSplit:
         return train, validate, test
 
 
+    def batcher(self, df):
+        set_list = []
+        for file_name in df.file.unique():
+            events_in_file = df[df['file'] == file_name]
+            batches_in_file = int(
+                np.floor(
+                    len(events_in_file) / self.config.batch_size
+                )
+            )
+            for batch in range(batches_in_file):
+                idx_start = self.config.batch_size * batch
+                idx_end = self.config.batch_size * (batch + 1)
+                grouped_batch = events_in_file.idx.iloc[idx_start:idx_end].values.tolist()
+                set_list.append({file_name: grouped_batch})
+        return set_list
+
+
     def return_indices(self):
         data_files = self.get_files()
         events_dict = self.get_file_indices(data_files)
         if self.config.max_doms is not None:
             events_dict = self.max_dom_trimmer(events_dict)
         events_df = self.pandas_index_list(events_dict)
-        train, validate, test = self.splitter(events_df)
+        train_df, validate_df, test_df = self.splitter(events_df)
         if self.config.dev_run:
-            train = train[0:self.config.no_dev_examples]
-            validate = validate[0:self.config.no_dev_examples]
-            test = test[0:self.config.no_dev_examples]
-        return train, validate, test
+            train_df = train_df[0:self.config.no_dev_examples]
+            validate_df = validate_df[0:self.config.no_dev_examples]
+            test_df = test_df[0:self.config.no_dev_examples]
+        train_list = self.batcher(train_df)
+        validate_list = self.batcher(validate_df)
+        test_list = self.batcher(test_df)
+        return train_list, validate_list, test_list

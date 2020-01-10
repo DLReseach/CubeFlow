@@ -70,17 +70,17 @@ def main():
     train_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, train, test=False),
         batch_size=None,
-        num_workers=6
+        num_workers=config.num_workers
     )
     validation_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, validation, test=False),
         batch_size=None,
-        num_workers=6
+        num_workers=config.num_workers
     )
     test_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, test, test=True),
         batch_size=None,
-        num_workers=6
+        num_workers=config.num_workers
     )
     print(
         'We have around {} training events'.format(
