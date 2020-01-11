@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
+import io
+from PIL import Image
 
 from data_loader.cnn_generator import CnnGenerator
 from models.cnn_model import CnnNet
@@ -19,7 +21,6 @@ from utils.utils import create_experiment_name
 from utils.utils import set_random_seed
 from utils.math_funcs import angle_between
 from plots.plot_functions import histogram
-from plots.plot_functions import matplotlib_histogram
 from plots.create_distribution_histograms import DistributionHistograms
 
 warnings.filterwarnings(
@@ -55,7 +56,7 @@ def main():
     data = CnnSplit(config)
     (train_df, validation_df, test_df), (train, validation, test) = data.return_indices()
     dist_hists = DistributionHistograms(train_df, validation_df, test_df, config)
-    train_hists = dist_hists.create_histograms(train_df)    
+    hists = dist_hists.create_histograms()    
     print('Ended preprocessing at {}'.format(get_time()))
 
     train_generator = torch.utils.data.DataLoader(
@@ -92,14 +93,27 @@ def main():
 
     if config.wandb == True:
         wandb.watch(model)
-        fig1 = matplotlib_histogram(
-            data=train_hists['dom_x'],
-            title='dom_x train distribution',
-            xlabel='dom_x [m]',
-            ylabel='Frequency',
-            bins='auto'
-        )
-        wandb.log({'chart': fig1})
+        for dataset in hists['train']:
+            fig, ax = plt.subplots()
+            for hist_set in hists:
+                ax.hist(
+                    hists[hist_set][dataset],
+                    bins=100,
+                    density=True,
+                    histtype='step',
+                    alpha=0.5
+                )
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png', dpi=600)
+            buf.seek(0)
+            im = Image.open(buf)
+            wandb.log(
+                {
+                    'examples': [
+                        wandb.Image(im, caption=dataset + ' distribution')
+                    ]
+                }
+            )
 
     print_interval = int(np.ceil(len(train_generator) * 0.1))
 
