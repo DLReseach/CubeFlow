@@ -2,8 +2,8 @@ from pathlib import Path
 import h5py as h5
 import numpy as np
 import pandas as pd
-from utils.utils import get_project_root
 from sklearn.model_selection import train_test_split
+from utils.utils import get_project_root
 
 
 class CnnSplit:
@@ -114,4 +114,4 @@ class CnnSplit:
         train_list = self.batcher(train_df)
         validate_list = self.batcher(validate_df)
         test_list = self.batcher(test_df)
-        return train_list, validate_list, test_list
+        return (train_df, validate_df, test_df), (train_list, validate_list, test_list)

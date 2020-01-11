@@ -19,6 +19,7 @@ from utils.utils import create_experiment_name
 from utils.utils import set_random_seed
 from utils.math_funcs import angle_between
 from plots.plot_functions import histogram
+from plots.create_distribution_histograms import DistributionHistograms
 
 warnings.filterwarnings(
     'ignore',
@@ -51,7 +52,9 @@ def main():
 
     print('Starting preprocessing at {}'.format(get_time()))
     data = CnnSplit(config)
-    train, validation, test = data.return_indices()
+    (train_df, validation_df, test_df), (train, validation, test) = data.return_indices()
+    dist_hists = DistributionHistograms(train_df, validation_df, test_df, config)
+    train_hists = dist_hists.create_histograms(train_df)    
     print('Ended preprocessing at {}'.format(get_time()))
 
     train_generator = torch.utils.data.DataLoader(
@@ -211,6 +214,14 @@ def main():
             bins='fd'
         )
         wandb.log({'chart': fig})
+        fig, ax = histogram(
+            data=train_hists['dom_x'],
+            title='dom_x train distribution',
+            xlabel='dom_x [m]',
+            ylabel='Frequency',
+            width_scale=1,
+            bins='fd'
+        )
 
 if __name__ == '__main__':
     main()
