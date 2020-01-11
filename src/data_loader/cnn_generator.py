@@ -43,6 +43,7 @@ class CnnGenerator(Dataset):
         features_dict = {feature: [] for feature in self.config.features}
         targets_dict = {target: [] for target in self.config.targets}
         with h5.File(file, 'r') as f:
+            masks = f['masks/' + self.config.mask][idx]
             for feature in self.config.features:
                 dataset_name = self.config.transform + '/' + feature
                 features_dict[feature] = f[dataset_name][idx]
@@ -55,11 +56,14 @@ class CnnGenerator(Dataset):
         for i, feature in enumerate(features_dict):
             no_of_events = len(features_dict[feature])
             for j in range(no_of_events):
-                event_length = len(features_dict[feature][j])
-                X[j, 0:event_length, i] = features_dict[feature][j]
+                event_length = len(masks[j])
+                X[j, 0:event_length, i] = features_dict[feature][j][masks[j]]
         for i, target in enumerate(targets_dict):
             no_of_events = len(targets_dict[target])
             for j in range(no_of_events):
                 y[j, i] = targets_dict[target][j]
+        # print('File:', file)
+        # print('idx:', idx[0])
+        # print('X:', X[0, 0:5, :])
         X = np.transpose(X, (0, 2, 1))
         return X, y

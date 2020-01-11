@@ -33,7 +33,7 @@ class CnnSplit:
         return output_dict
 
 
-    def max_dom_trimmer(self, file_dict):
+    def dom_trimmer(self, file_dict):
         output_dict = {}
         for file in file_dict:
             with h5.File(file, 'r') as f:
@@ -46,6 +46,7 @@ class CnnSplit:
                             (doms, index) for doms, index
                             in zip(no_of_doms, file_dict[file])
                             if doms <= self.config.max_doms
+                            and doms >= self.config.min_doms
                         )
                     )
                     output_dict[str(file)] = list(indices)
@@ -103,7 +104,7 @@ class CnnSplit:
         data_files = self.get_files()
         events_dict = self.get_file_indices(data_files)
         if self.config.max_doms is not None:
-            events_dict = self.max_dom_trimmer(events_dict)
+            events_dict = self.dom_trimmer(events_dict)
         events_df = self.pandas_index_list(events_dict)
         train_df, validate_df, test_df = self.splitter(events_df)
         if self.config.dev_run:

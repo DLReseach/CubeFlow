@@ -28,6 +28,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device', device)
 
 
+# @profile
 def main():
     # capture the config path from the run arguments
     # then process the json configuration file
