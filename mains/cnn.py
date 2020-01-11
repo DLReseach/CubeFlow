@@ -92,7 +92,7 @@ def main():
 
     if config.wandb == True:
         wandb.watch(model)
-        fig1, ax1 = matplotlib_histogram(
+        fig1 = matplotlib_histogram(
             data=train_hists['dom_x'],
             title='dom_x train distribution',
             xlabel='dom_x [m]',
