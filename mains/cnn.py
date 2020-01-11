@@ -220,9 +220,9 @@ def main():
             title='dom_x train distribution',
             xlabel='dom_x [m]',
             ylabel='Frequency',
-            width_scale=1,
             bins='fd'
         )
+        wandb.log({'chart': fig1})
 
 if __name__ == '__main__':
     main()
