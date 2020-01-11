@@ -18,6 +18,7 @@ from utils.utils import print_data_set_sizes
 from utils.utils import create_experiment_name
 from utils.utils import set_random_seed
 from utils.math_funcs import angle_between
+from plots.plot_functions import histogram
 
 warnings.filterwarnings(
     'ignore',
