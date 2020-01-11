@@ -10,3 +10,10 @@ def histogram(data, title, xlabel, ylabel, width_scale=0.7, bins='fd'):
     ax.bar(center, values, align='center', width=width)
     ax.set(title=title, xlabel=xlabel, ylabel=ylabel)
     return fig, ax
+
+
+def matplotlib_histogram(data, title, xlabel, ylabel, bins='fd'):
+    fig, ax = plt.subplots()
+    ax.hist(data, bins=bins)
+    ax.set(title=title, xlabel=xlabel, ylabel=ylabel)
+    return fig, ax

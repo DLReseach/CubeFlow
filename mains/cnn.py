@@ -19,6 +19,7 @@ from utils.utils import create_experiment_name
 from utils.utils import set_random_seed
 from utils.math_funcs import angle_between
 from plots.plot_functions import histogram
+from plots.plot_functions import matplotlib_histogram
 from plots.create_distribution_histograms import DistributionHistograms
 
 warnings.filterwarnings(
@@ -214,7 +215,7 @@ def main():
             bins='fd'
         )
         wandb.log({'chart': fig})
-        fig, ax = histogram(
+        fig1, ax1 = matplotlib_histogram(
             data=train_hists['dom_x'],
             title='dom_x train distribution',
             xlabel='dom_x [m]',
