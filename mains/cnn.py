@@ -17,6 +17,7 @@ from utils.utils import get_time
 from utils.utils import print_data_set_sizes
 from utils.utils import create_experiment_name
 from utils.utils import set_random_seed
+from utils.math_funcs import angle_between
 
 warnings.filterwarnings(
     'ignore',
@@ -186,26 +187,6 @@ def main():
                 val_loss / len(validation_generator)
             )
         )
-
-
-    def unit_vector(vector):
-        ''' Returns the unit vector of the vector.  '''
-        return vector / np.linalg.norm(vector)
-
-    def angle_between(v1, v2):
-        ''' Returns the angle in radians between vectors 'v1' and 'v2'::
-
-                >>> angle_between((1, 0, 0), (0, 1, 0))
-                1.5707963267948966
-                >>> angle_between((1, 0, 0), (1, 0, 0))
-                0.0
-                >>> angle_between((1, 0, 0), (-1, 0, 0))
-                3.141592653589793
-        '''
-        v1_u = unit_vector(v1)
-        v2_u = unit_vector(v2)
-        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
-
 
     resolution = np.empty((0, len(config.targets)))
     direction = np.empty((0, 1))

@@ -3,6 +3,7 @@
   "dev_run": true,
   "wandb": false,
   "num_epochs": 1,
+  "validate_every": 2e5,
   "no_dev_examples": 100,
   "num_workers": 1,
   "data_type": "oscnext-genie-level5-v01-01-pass2",
