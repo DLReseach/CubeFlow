@@ -28,7 +28,7 @@ class CnnNet(nn.Module):
             kernel_size=5
         )
         self.linear1 = torch.nn.Linear(
-            in_features=256,
+            in_features=2560,
             out_features=len(self.config.targets)
         )
 
