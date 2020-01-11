@@ -16,7 +16,7 @@ def histogram(data, title, xlabel, ylabel, width_scale=0.7, bins='fd'):
 def matplotlib_histogram(data, title, xlabel, ylabel, bins='fd'):
     fig = go.Figure()
     fig.add_trace(
-        go.histogram(
+        go.Histogram(
             x=data
         ),
         marker_color='black'
