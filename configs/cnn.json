@@ -1,9 +1,9 @@
 {
   "exp_name": "cnn",
-  "dev_run": false,
+  "dev_run": true,
   "wandb": false,
   "num_epochs": 1,
-  "no_dev_examples": 2,
+  "no_dev_examples": 100,
   "num_workers": 1,
   "data_type": "oscnext-genie-level5-v01-01-pass2",
   "no_of_files": 10,

@@ -1,25 +1,22 @@
 import os
-# os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
-# os.environ['CUDA_VISIBLE_DEVICES'] = ''
 import torch
 from torchsummary import summary
 import wandb as wandb
 import numpy as np
-import logging
-import time
-import datetime
-from coolname import generate_slug
 import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
 
-from plots.plot_functions import histogram
 from data_loader.cnn_generator import CnnGenerator
 from models.cnn_model import CnnNet
 from preprocessing.cnn_preprocessing import CnnSplit
 from utils.config import process_config
 from utils.utils import get_args
 from utils.utils import get_project_root
+from utils.utils import get_time
+from utils.utils import print_data_set_sizes
+from utils.utils import create_experiment_name
+from utils.utils import set_random_seed
 
 warnings.filterwarnings(
     'ignore',
@@ -41,14 +38,7 @@ def main():
         print('missing or invalid arguments')
         exit(0)
 
-    PARAMS = {
-        'lr': config.learning_rate,
-        'momentum': config.momentum
-    }
-    root_folder = get_project_root()
-    cool_name = generate_slug(2)
-    experiment_name = config.exp_name \
-        + '_' + str(datetime.date.today()) + '.' + cool_name
+    experiment_name = create_experiment_name(config, slug_length=2)
 
     if config.wandb == True:
         wandb.init(
@@ -56,17 +46,11 @@ def main():
                 name=experiment_name
             )
 
-    ts1 = time.time()
-    st1 = datetime.datetime.fromtimestamp(ts1).strftime('%Y-%m-%d %H:%M:%S')
-    print('Starting preprocessing at {}'.format(st1))
+    print('Starting preprocessing at {}'.format(get_time()))
     data = CnnSplit(config)
     train, validation, test = data.return_indices()
-    ts2 = time.time()
-    st2 = datetime.datetime.fromtimestamp(ts2).strftime('%Y-%m-%d %H:%M:%S')
-    print('Ended preprocessing at {}'.format(st2))
-    td = ts2 - ts1
-    td_secs = int(td)
-    print('Preprocessing took approximately {} seconds'.format(td_secs))
+    print('Ended preprocessing at {}'.format(get_time()))
+
     train_generator = torch.utils.data.DataLoader(
         CnnGenerator(config, train, test=False),
         batch_size=None,
@@ -82,27 +66,20 @@ def main():
         batch_size=None,
         num_workers=config.num_workers
     )
-    print(
-        'We have around {} training events'.format(
-            len(train_generator) * config.batch_size
-        )
-    )
-    print(
-        'We have around {} validation events'.format(
-            len(validation_generator) * config.batch_size
-        )
-    )
-    print(
-        'We have around {} test events'.format(
-            len(test_generator) * config.batch_size
-        )
+    print_data_set_sizes(
+        config,
+        train_generator,
+        validation_generator,
+        test_generator
     )
 
-    np.random.seed(int(time.time()))
+    set_random_seed()
 
     model = CnnNet(config)
     model.to(device)
+
     summary(model, input_size=(len(config.features), config.max_doms))
+
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
@@ -142,16 +119,12 @@ def main():
         running_loss = 0.0
         val_loss = 0.0
         cosine_similarity = 0.0
-        ts = time.time()
-        st = datetime.datetime.fromtimestamp(ts).strftime(
-            '%Y-%m-%d %H:%M:%S'
-        )
         print(
             'Starting epoch {}/{} at {}'
             .format(
                 epoch + 1,
                 config.num_epochs,
-                st
+                get_time()
             )
         )
         for i, data in enumerate(train_generator, 0):
@@ -211,13 +184,6 @@ def main():
             .format(
                 epoch + 1,
                 val_loss / len(validation_generator)
-            )
-        )
-        print(
-            'Epoch {} took {:.2f} minutes'
-            .format(
-                epoch + 1,
-                (time.time() - ts) / 60
             )
         )
 
