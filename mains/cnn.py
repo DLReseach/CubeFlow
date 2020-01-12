@@ -110,7 +110,8 @@ def main():
                 ylabel='Density',
                 label=hist_set
             )
-            ax.legend()
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles, labels)
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
@@ -137,7 +138,8 @@ def main():
                 ylabel='Density',
                 label=hist_set
             )
-            ax.legend()
+            handles, labels = ax.get_legend_handles_labels()
+            ax.legend(handles, labels)
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
