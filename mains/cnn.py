@@ -107,7 +107,8 @@ def main():
             ax.set(
                 title=dataset + ' distribution',
                 xlabel=dataset,
-                ylabel='Density'
+                ylabel='Density',
+                label=hist_set
             )
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
@@ -132,7 +133,8 @@ def main():
             ax.set(
                 title='True energy distribution',
                 xlabel='Log(E)',
-                ylabel='Density'
+                ylabel='Density',
+                label=hist_set
             )
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
