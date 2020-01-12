@@ -115,13 +115,14 @@ def main():
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
             im = Image.open(buf)
-            wandb.log(
-                {
-                    'examples': [
-                        wandb.Image(im, caption=dataset + ' distribution')
-                    ]
-                }
-            )
+            # wandb.log(
+            #     {
+            #         'examples': [
+            #             wandb.Image(im, caption=dataset + ' distribution')
+            #         ]
+            #     }
+            # )
+            wandb.log({'chart': fig})
         fig, ax = plt.subplots()
         for hist_set in energy_hists:
             ax.hist(
@@ -142,13 +143,14 @@ def main():
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
             im = Image.open(buf)
-            wandb.log(
-                {
-                    'examples': [
-                        wandb.Image(im, caption='True energy distribution')
-                    ]
-                }
-            )
+            # wandb.log(
+            #     {
+            #         'examples': [
+            #             wandb.Image(im, caption='True energy distribution')
+            #         ]
+            #     }
+            # )
+            wandb.log({'chart': fig})
 
     print_interval = int(np.ceil(len(train_generator) * 0.1))
 

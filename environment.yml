@@ -4,7 +4,6 @@ channels:
 dependencies:
     - pip
     - h5py
-    - jupyter
     - numpy
     - pandas
     - scikit-learn
@@ -17,4 +16,3 @@ dependencies:
         - matplotlib
         - wandb
         - torchsummary
-        - py-spy
