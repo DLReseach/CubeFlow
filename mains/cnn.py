@@ -102,16 +102,15 @@ def main():
                     bins=100,
                     density=True,
                     histtype='step',
-                    alpha=0.5
+                    alpha=0.5,
+                    label=hist_set
                 )
             ax.set(
                 title=dataset + ' distribution',
                 xlabel=dataset,
-                ylabel='Density',
-                label=hist_set
+                ylabel='Density'
             )
-            handles, labels = ax.get_legend_handles_labels()
-            ax.legend(handles, labels)
+            ax.legend()
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
@@ -130,16 +129,15 @@ def main():
                 bins=100,
                 density=True,
                 histtype='step',
-                alpha=0.5
+                alpha=0.5,
+                label=hist_set
             )
             ax.set(
                 title='True energy distribution',
                 xlabel='Log(E)',
-                ylabel='Density',
-                label=hist_set
+                ylabel='Density'
             )
-            handles, labels = ax.get_legend_handles_labels()
-            ax.legend(handles, labels)
+            ax.legend()
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
