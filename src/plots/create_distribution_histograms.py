@@ -49,3 +49,33 @@ class DistributionHistograms:
                         for i in range(len(data)):
                             histogram_dict[key][target].append(data[i])
         return histogram_dict
+
+
+    def create_energy_distribution_histogram(self):
+        energy_label = 'true_primary_energy'
+        histogram_dict = {}
+        histogram_dict['train'] = {}
+        histogram_dict['validation'] = {}
+        histogram_dict['test'] = {}
+        for key in histogram_dict:
+            for label in energy_label:
+                histogram_dict[key][energy_label] = []
+        for key in histogram_dict:
+            if key == 'train':
+                set_df = self.train
+            elif key == 'validation':
+                set_df = self.validation
+            elif key == 'test':
+                set_df = self.test
+            files = set_df.file.unique()
+            for file in files:
+                idx = sorted(set_df[set_df.file == file].idx.values.tolist())
+                with h5.File(file, 'r') as f:
+                    dataset = self.config.transform + '/' + energy_label
+                    if dataset in f:
+                        data = f[dataset][idx]
+                    else:
+                        data = f['raw/' + target][idx]
+                    for i in range(len(data)):
+                        histogram_dict[key][energy_label].append(data[i])
+        return histogram_dict
