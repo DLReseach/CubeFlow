@@ -110,6 +110,7 @@ def main():
                 ylabel='Density',
                 label=hist_set
             )
+            ax.legend()
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
@@ -136,6 +137,7 @@ def main():
                 ylabel='Density',
                 label=hist_set
             )
+            ax.legend()
             buf = io.BytesIO()
             fig.savefig(buf, format='png', dpi=600)
             buf.seek(0)
