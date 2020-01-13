@@ -70,7 +70,8 @@ def meta_data(events_file, group):
         )
         max_charge = max(np.concatenate(all_integrated_charge).ravel())
         min_charge = min(np.concatenate(all_integrated_charge).ravel())
-        no_of_doms = data.no_of_doms.read()
+        no_of_doms_temp = data.dom_charge.read()
+        no_of_doms = [len(x) for x in no_of_doms_temp]
         try:
             all_energy = f.root.raw.true_muon_energy.read()
         except:
@@ -293,7 +294,7 @@ def create_static(
         range_color=time_range,
         size_max=20
     )
-    st.write(truth)
+    # st.write(truth)
     # Add DOM geometry
     fig.add_scatter3d(
         x=geom.x,
@@ -540,11 +541,8 @@ transformed_cols = [
     'true_primary_position_z'
 ]
 
-groups = group_finder(data_set)
-group = st.sidebar.selectbox(
-    'Select key',
-    options=groups
-)
+groups = ['raw']
+group = 'raw'
 
 if show_dists == 'Events':
     predict_path = Path('../models').joinpath(data_set).joinpath('regression').joinpath('volapyk')
@@ -585,7 +583,8 @@ if show_dists == 'Events':
         events_file = st.sidebar.selectbox(
             'Select file',
             options=events_intersection,
-            index=0
+            index=0,
+            format_func=lambda x: x.split('.')[0]
         )
         events_file = files_path.joinpath(data_set).joinpath(events_file + '.h5')
         meta = meta_data(str(events_file), group)
@@ -605,7 +604,7 @@ if show_dists == 'Events':
         events_file = st.sidebar.selectbox(
             'Select file',
             options=events_files,
-            format_func=lambda x: x.stem,
+            format_func=lambda x: x.name.split('.')[-2].split('__')[0],
             index=0
         )
         meta = meta_data(str(events_file), group)
@@ -664,7 +663,7 @@ if show_dists == 'Events':
         event_no = st.sidebar.selectbox(
             'Select {} value of event'.format(browse_type),
             options=select_meta.index,
-            format_func=selection_func
+            format_func=lambda x: round(select_meta[select_meta.index == x].values[0], 2)
         )
 
     # Get activations and truth from selected event number
