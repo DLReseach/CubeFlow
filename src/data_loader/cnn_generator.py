@@ -65,5 +65,6 @@ class CnnGenerator(Dataset):
         # print('File:', file)
         # print('idx:', idx[0])
         # print('X:', X[0, 0:5, :])
+        # print('y:', y[0])
         X = np.transpose(X, (0, 2, 1))
         return X, y

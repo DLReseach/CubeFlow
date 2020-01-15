@@ -27,16 +27,6 @@ class CnnNet(nn.Module):
             out_channels=256,
             kernel_size=5
         )
-        self.conv5 = torch.nn.Conv1d(
-            in_channels=256,
-            out_channels=512,
-            kernel_size=5
-        )
-        self.conv6 = torch.nn.Conv1d(
-            in_channels=512,
-            out_channels=1024,
-            kernel_size=5
-        )
         self.linear1 = torch.nn.Linear(
             in_features=2560,
             out_features=len(self.config.targets)

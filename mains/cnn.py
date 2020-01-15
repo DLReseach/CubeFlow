@@ -6,12 +6,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
-import io
-from PIL import Image
+import joblib
 
 from data_loader.cnn_generator import CnnGenerator
 from models.cnn_model import CnnNet
-from preprocessing.cnn_preprocessing import CnnSplit
+from preprocessing.cnn_preprocessing import CnnPreprocess
 from utils.config import process_config
 from utils.utils import get_args
 from utils.utils import get_project_root
@@ -21,12 +20,11 @@ from utils.utils import create_experiment_name
 from utils.utils import set_random_seed
 from utils.math_funcs import angle_between
 from plots.plot_functions import histogram
-from plots.create_distribution_histograms import DistributionHistograms
 
-warnings.filterwarnings(
-    'ignore',
-    category=matplotlib.cbook.mplDeprecation
-)
+# warnings.filterwarnings(
+#     'ignore',
+#     category=matplotlib.cbook.mplDeprecation
+# )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device', device)
@@ -52,26 +50,26 @@ def main():
                 name=experiment_name
             )
 
+    sets = joblib.load(
+        get_project_root().joinpath('sets/' + str(config.particle_type) + '.joblib')
+    )
     print('Starting preprocessing at {}'.format(get_time()))
-    data = CnnSplit(config)
-    (train_df, validation_df, test_df), (train, validation, test) = data.return_indices()
-    dist_hists = DistributionHistograms(train_df, validation_df, test_df, config)
-    hists = dist_hists.create_histograms()  
-    energy_hists = dist_hists.create_energy_distribution_histogram()  
+    data = CnnPreprocess(sets, config)
+    sets = data.return_indices()
     print('Ended preprocessing at {}'.format(get_time()))
 
     train_generator = torch.utils.data.DataLoader(
-        CnnGenerator(config, train, test=False),
+        CnnGenerator(config, sets['train'], test=False),
         batch_size=None,
         num_workers=config.num_workers
     )
     validation_generator = torch.utils.data.DataLoader(
-        CnnGenerator(config, validation, test=False),
+        CnnGenerator(config, sets['validate'], test=False),
         batch_size=None,
         num_workers=config.num_workers
     )
     test_generator = torch.utils.data.DataLoader(
-        CnnGenerator(config, test, test=True),
+        CnnGenerator(config, sets['test'], test=True),
         batch_size=None,
         num_workers=config.num_workers
     )
@@ -94,63 +92,6 @@ def main():
 
     if config.wandb == True:
         wandb.watch(model)
-        for dataset in hists['train']:
-            fig, ax = plt.subplots()
-            for hist_set in hists:
-                ax.hist(
-                    hists[hist_set][dataset],
-                    bins=100,
-                    density=True,
-                    histtype='step',
-                    alpha=0.5,
-                    label=hist_set
-                )
-            ax.set(
-                title=dataset + ' distribution',
-                xlabel=dataset,
-                ylabel='Density'
-            )
-            ax.legend()
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png', dpi=600)
-            buf.seek(0)
-            im = Image.open(buf)
-            # wandb.log(
-            #     {
-            #         'examples': [
-            #             wandb.Image(im, caption=dataset + ' distribution')
-            #         ]
-            #     }
-            # )
-            wandb.log({'chart': fig})
-        fig, ax = plt.subplots()
-        for hist_set in energy_hists:
-            ax.hist(
-                energy_hists[hist_set]['true_primary_energy'],
-                bins=100,
-                density=True,
-                histtype='step',
-                alpha=0.5,
-                label=hist_set
-            )
-            ax.set(
-                title='True energy distribution',
-                xlabel='Log(E)',
-                ylabel='Density'
-            )
-            ax.legend()
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png', dpi=600)
-            buf.seek(0)
-            im = Image.open(buf)
-            # wandb.log(
-            #     {
-            #         'examples': [
-            #             wandb.Image(im, caption='True energy distribution')
-            #         ]
-            #     }
-            # )
-            wandb.log({'chart': fig})
 
     print_interval = int(np.ceil(len(train_generator) * 0.1))
 
