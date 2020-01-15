@@ -11,3 +11,4 @@ logs/
 wandb/
 nohup.out
 scratchpad/
+*.joblib

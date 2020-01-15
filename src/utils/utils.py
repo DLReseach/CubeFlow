@@ -4,6 +4,7 @@ import time
 import datetime
 from coolname import generate_slug
 import numpy as np
+import h5py as h5
 
 
 def get_args():
@@ -60,3 +61,18 @@ def create_experiment_name(config, slug_length):
 
 def set_random_seed():
     np.random.seed(int(time.time()))
+
+
+def h5_groups_reader(data_file, group):
+    with h5.File(data_file, 'r') as f:
+        groups = list(f[group].keys())
+    return groups
+
+
+def h5_data_reader(data_file, group, idx):
+    with h5.File(data_file, 'r') as f:
+        if idx == 'all':
+            data = f[group][:]
+        else:
+            data = f[group][idx]
+    return data

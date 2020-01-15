@@ -81,7 +81,7 @@ def meta_data(events_file):
     return out
 
 
-def read_event(events_file, event_no):
+def read_event(events_file, event_no, clean_mask):
     """Read an hdf5 file and output activations and truth as DataFrame.
 
     Args:
@@ -97,12 +97,13 @@ def read_event(events_file, event_no):
     with h5.File(events_file, 'r') as f:
         activations = {}
         truth = {}
+        mask = f['masks/' + clean_mask][event_no]
         for array in f['raw'].__iter__():
             data = f['raw/' + array][event_no]
             if array == 'dom_time':
-                activations[array] = f['transform1/' + array][event_no]
+                activations[array] = f['transform1/' + array][event_no][mask]
             elif type(data) == np.ndarray:
-                activations[array] = f['raw/' + array][event_no]
+                activations[array] = f['raw/' + array][event_no][mask]
             else:
                 truth[array] = []
                 truth[array].append(f['raw/' + array][event_no])
@@ -276,7 +277,8 @@ def create_static(
                 z=[vectors['entry'][2]],
                 u=100 * truth.true_primary_direction_x,
                 v=100 * truth.true_primary_direction_y,
-                w=100 * truth.true_primary_direction_z
+                w=100 * truth.true_primary_direction_z,
+                showscale=False
             )
         )
 
@@ -425,6 +427,14 @@ if show_dists == 'Events':
     )
 
     events_files = file_finder(data_set, particle_type)
+
+    clean_masks = h5_groups_reader(events_files[0], 'masks')
+    clean_mask = st.sidebar.selectbox(
+        'Select cleaning mask',
+        options=clean_masks,
+        index=1
+    )
+
     events_file = st.sidebar.selectbox(
         'Select file',
         options=events_files,
@@ -433,19 +443,7 @@ if show_dists == 'Events':
     )
     meta = meta_data(str(events_file))
 
-# TODO block that only runs when user wants to see predictions
-
-# TODO restrict file choices to only those that have prediction available
-
-# TODO restrict event choices to only those that have prediction available
-
-# TODO only show prediction options when predictions contain directions
-
-# TODO histogram comparisons
-
-# TODO bayesian blocks in hists
-
-# Read HDF5 geometry file
+    # Read HDF5 geometry file
     geom = read_geom_file(geom_file)
     axis_lims = geom.x.max() + 0.4 * geom.x.max()
     template = create_template()
@@ -491,7 +489,7 @@ if show_dists == 'Events':
         )
 
     # Get activations and truth from selected event number
-    activations, truth = read_event(str(events_file), event_no)
+    activations, truth = read_event(str(events_file), event_no, clean_mask)
     true_muon_entry_pos = truth[
         [
             'true_primary_position_x',
