@@ -12,3 +12,4 @@ wandb/
 nohup.out
 scratchpad/
 *.joblib
+lightning_logs/

@@ -96,7 +96,7 @@ class CnnSplit:
 print('Starting set splitting...')
 splitting = CnnSplit(
     'oscnext-genie-level5-v01-01-pass2',
-    '120000',
+    '140000',
     0.2,
     0.2,
     29897070

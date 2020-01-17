@@ -41,7 +41,7 @@ def read_geom_file(geom_file):
 
 
 # @st.cache
-def meta_data(events_file):
+def meta_data(events_file, mask):
     """Calculate meta data from event file.
 
     Args:
@@ -64,7 +64,8 @@ def meta_data(events_file):
         )
         max_charge = max(np.concatenate(all_integrated_charge).ravel())
         min_charge = min(np.concatenate(all_integrated_charge).ravel())
-        no_of_doms = [len(x) for x in all_integrated_charge]
+        no_of_doms_data = f['masks/' + mask]
+        no_of_doms = [len(x) for x in no_of_doms_data]
         all_energy = f['raw/true_primary_energy'][:]
         toi_eval_ratios = f['raw/toi_evalratio'][:]
         toi_ratios = pd.Series(toi_eval_ratios)
@@ -441,7 +442,7 @@ if show_dists == 'Events':
         format_func=lambda x: x.stem.split('.')[-1].split('__')[0],
         index=0
     )
-    meta = meta_data(str(events_file))
+    meta = meta_data(str(events_file), clean_mask)
 
     # Read HDF5 geometry file
     geom = read_geom_file(geom_file)

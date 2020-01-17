@@ -21,3 +21,5 @@ dependencies:
         - matplotlib
         - wandb
         - torchsummary
+        - torch-lr-finder
+

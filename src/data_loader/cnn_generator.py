@@ -1,16 +1,16 @@
-from torch.utils.data import Dataset
+import torch
 import numpy as np
 import h5py as h5
 import pandas as pd
 
 
-class CnnGenerator(Dataset):
+class CnnGenerator(torch.utils.data.Dataset):
     def __init__(self, config, ids, test):
         self.config = config
         self.ids = ids
         self.test = test
         if self.config.dev_run == True:
-            self.config.batch_size = 2
+            self.config.batch_size = 64
         self.on_epoch_end()
 
 
@@ -67,4 +67,6 @@ class CnnGenerator(Dataset):
         # print('X:', X[0, 0:5, :])
         # print('y:', y[0])
         X = np.transpose(X, (0, 2, 1))
+        X = torch.from_numpy(X).float()
+        y = torch.from_numpy(y).float()
         return X, y

@@ -1,15 +1,17 @@
 import os
 import torch
 from torchsummary import summary
+from pytorch_lightning import Trainer
 import wandb as wandb
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
 import joblib
+from torch_lr_finder import LRFinder
+from warmup_scheduler import GradualWarmupScheduler
 
-from data_loader.cnn_generator import CnnGenerator
-from models.cnn_model import CnnNet
+from src.lightning_systems.cnn import CnnSystem
 from preprocessing.cnn_preprocessing import CnnPreprocess
 from utils.config import process_config
 from utils.utils import get_args
@@ -21,10 +23,15 @@ from utils.utils import set_random_seed
 from utils.math_funcs import angle_between
 from plots.plot_functions import histogram
 
-# warnings.filterwarnings(
-#     'ignore',
-#     category=matplotlib.cbook.mplDeprecation
-# )
+warnings.filterwarnings(
+    'ignore',
+    category=matplotlib.cbook.mplDeprecation
+)
+
+warnings.filterwarnings(
+    'ignore',
+    module='torch_lr_finder'
+)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device', device)
@@ -44,177 +51,60 @@ def main():
 
     experiment_name = create_experiment_name(config, slug_length=2)
 
-    if config.wandb == True:
+    if config.wandb == True and config.exp_name != 'lr_finder':
         wandb.init(
                 project='cubeflow',
                 name=experiment_name
             )
 
     sets = joblib.load(
-        get_project_root().joinpath('sets/' + str(config.particle_type) + '.joblib')
+        get_project_root().joinpath(
+            'sets/' + str(config.particle_type) + '.joblib'
+        )
     )
     print('Starting preprocessing at {}'.format(get_time()))
     data = CnnPreprocess(sets, config)
     sets = data.return_indices()
     print('Ended preprocessing at {}'.format(get_time()))
 
-    train_generator = torch.utils.data.DataLoader(
-        CnnGenerator(config, sets['train'], test=False),
-        batch_size=None,
-        num_workers=config.num_workers
-    )
-    validation_generator = torch.utils.data.DataLoader(
-        CnnGenerator(config, sets['validate'], test=False),
-        batch_size=None,
-        num_workers=config.num_workers
-    )
-    test_generator = torch.utils.data.DataLoader(
-        CnnGenerator(config, sets['test'], test=True),
-        batch_size=None,
-        num_workers=config.num_workers
-    )
-    print_data_set_sizes(
-        config,
-        train_generator,
-        validation_generator,
-        test_generator
-    )
-
     set_random_seed()
 
-    model = CnnNet(config)
-    model.to(device)
+    # summary(model, input_size=(len(config.features), config.max_doms))
 
-    summary(model, input_size=(len(config.features), config.max_doms))
-
-    criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    model = CnnSystem(sets, config, wandb)
 
     if config.wandb == True:
         wandb.watch(model)
 
-    print_interval = int(np.ceil(len(train_generator) * 0.1))
+    trainer = Trainer(fast_dev_run=config.dev_run)
+    trainer.fit(model)
 
+    #     resolution = np.empty((0, len(config.targets)))
+    #     direction = np.empty((0, 1))
+    #     for inputs, targets in test_generator:
+    #         inputs = inputs.to(device)
+    #         targets = targets.to(device)
+    #         predictions = prediction_step(model, inputs)
+    #         resolution = np.vstack(
+    #             [resolution, (targets.cpu() - predictions.cpu())]
+    #         )
+    #         for i in range(predictions.shape[0]):
+    #             angle = angle_between(
+    #                 targets.cpu()[i, :],
+    #                 predictions.cpu()[i, :]
+    #             )
+    #             direction = np.vstack([direction, angle])
 
-    def train_step(model, inputs, targets, loss_fn, optimizer):
-        model.train()
-        predictions = model(inputs)
-        loss = loss_fn(targets, predictions)
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-        return loss.item()
-
-
-    def validation_step(model, inputs, targets, loss_fn, metric):
-        with torch.no_grad():
-            model.eval()
-            predictions = model(inputs)
-            loss = loss_fn(targets, predictions)
-            metric_val = torch.mean(metric(targets, predictions))
-            return loss.item(), metric_val
-
-
-    def prediction_step(model, inputs):
-        with torch.no_grad():
-            model.eval()
-            predictions = model(inputs)
-            return predictions
-
-
-    for epoch in range(config.num_epochs):
-        running_loss = 0.0
-        val_loss = 0.0
-        cosine_similarity = 0.0
-        print(
-            'Starting epoch {}/{} at {}'
-            .format(
-                epoch + 1,
-                config.num_epochs,
-                get_time()
-            )
-        )
-        for i, data in enumerate(train_generator, 0):
-            inputs, targets = data
-            inputs = inputs.float().to(device)
-            targets = targets.float().to(device)
-            loss = train_step(model, inputs, targets, criterion, optimizer)
-            running_loss += loss
-            if i % print_interval == (print_interval - 1):
-                print(
-                    '[%d, %5d / %5d] loss: %.3f' %
-                    (
-                        epoch + 1,
-                        i + 1,
-                        len(train_generator),
-                        running_loss / print_interval
-                    )
-                )
-                for inputs, targets in validation_generator:
-                    inputs = inputs.float().to(device)
-                    targets = targets.float().to(device)
-                    validation_values = validation_step(
-                        model,
-                        inputs,
-                        targets,
-                        criterion,
-                        torch.nn.CosineSimilarity()
-                    )
-                    val_loss += validation_values[0]
-                    cosine_similarity += validation_values[1]
-                if config.wandb == True:
-                    wandb.log(
-                        {
-                            'loss': running_loss / print_interval,
-                            'val_loss': val_loss / len(validation_generator),
-                            'cosine_similarity': cosine_similarity / len(validation_generator)
-                        }
-                    )
-                running_loss = 0.0
-                val_loss = 0.0
-                cosine_similarity = 0.0
-        for i, data in enumerate(validation_generator, 0):
-            inputs, targets = data
-            inputs = inputs.float().to(device)
-            targets = targets.float().to(device)
-            validation_values = validation_step(
-                model,
-                inputs,
-                targets,
-                criterion,
-                torch.nn.CosineSimilarity()
-            )
-            val_loss += validation_values[0]
-            cosine_similarity += validation_values[1]
-        print(
-            'Validation loss epoch {}: {:.3f}'
-            .format(
-                epoch + 1,
-                val_loss / len(validation_generator)
-            )
-        )
-
-    resolution = np.empty((0, len(config.targets)))
-    direction = np.empty((0, 1))
-    for inputs, targets in test_generator:
-        inputs = inputs.float().to(device)
-        targets = targets.float().to(device)
-        predictions = prediction_step(model, inputs)
-        resolution = np.vstack([resolution, (targets.cpu() - predictions.cpu())])
-        for i in range(predictions.shape[0]):
-            angle = angle_between(targets.cpu()[i, :], predictions.cpu()[i, :])
-            direction = np.vstack([direction, angle])
-
-    if config.wandb == True:
-        fig, ax = histogram(
-            data=direction,
-            title='arccos[y_truth . y_pred / (||y_truth|| ||y_pred||)]',
-            xlabel='Angle (radians)',
-            ylabel='Frequency',
-            width_scale=1,
-            bins='fd'
-        )
-        wandb.log({'chart': fig})
+    #     if config.wandb == True:
+    #         fig, ax = histogram(
+    #             data=direction,
+    #             title='arccos[y_truth . y_pred / (||y_truth|| ||y_pred||)]',
+    #             xlabel='Angle (radians)',
+    #             ylabel='Frequency',
+    #             width_scale=1,
+    #             bins='fd'
+    #         )
+    #         wandb.log({'Angle error': fig})
 
 if __name__ == '__main__':
     main()

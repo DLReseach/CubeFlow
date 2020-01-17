@@ -6,6 +6,7 @@ import itertools
 import random
 from sklearn.model_selection import train_test_split
 from utils.utils import get_project_root
+from utils.utils import get_time
 
 
 class CnnPreprocess:
@@ -75,10 +76,18 @@ class CnnPreprocess:
 
     def return_indices(self):
         if self.config.no_of_files > 0:
+            print('Starting trimming files at', get_time())
             self.file_trimmer()
+            print('Finished trimming files at', get_time())
         if self.config.max_doms is not None:
+            print('Starting trimming DOMs at', get_time())
             self.dom_trimmer()
+            print('Finished trimming DOMs at', get_time())
         if self.config.dev_run == True:
+            print('Starting trimming dev examples at', get_time())
             self.dev_examples_trimmer()
+            print('Finished trimming dev examples at', get_time())
+        print('Starting batching files at', get_time())
         batched_sets_list = self.batcher()
+        print('Finished batching files at', get_time())
         return batched_sets_list
