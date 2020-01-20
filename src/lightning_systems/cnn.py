@@ -2,6 +2,7 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
+import math
 from data_loader.cnn_generator import CnnGenerator
 from loggers.loggers import WandbLogger
 
@@ -12,7 +13,11 @@ class CnnSystem(pl.LightningModule):
         self.sets = sets
         self.config = config
         self.wandb = wandb
-        self.logclass = WandbLogger(wandb)
+        self.logclass = WandbLogger(self.wandb, ['train_loss', 'val_loss'])
+        self.log_frac = math.floor(
+            len(self.sets['train']) * self.config.log_frac
+        )
+        print(self.log_frac)
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
             out_channels=32,
@@ -74,18 +79,35 @@ class CnnSystem(pl.LightningModule):
         return {'val_loss': loss}
 
 
-    def on_epoch_end(self):
+    def optimizer_step(
+        self,
+        current_epoch,
+        batch_nb,
+        optimizer,
+        optimizer_i,
+        second_order_closure=None
+    ):
+        if self.trainer.global_step < 500:
+            lr_scale = min(1., float(self.trainer.global_step + 1) / 500.)
+            optimizer.param_groups[0]['lr'] = lr_scale * self.config.max_learning_rate
+        optimizer.step()
+        optimizer.zero_grad()
         if self.config.wandb == True:
-            self.logclass.log_metrics()
-        else:
-            pass
+            self.wandb.log({'learning_rate': optimizer.param_groups[0]['lr']})
 
 
     def configure_optimizers(self):
-        # REQUIRED
-        # can return multiple optimizers and learning_rate schedulers
-        # (LBFGS it is automatically supported, no need for closure function)
-        return torch.optim.Adam(self.parameters(), lr=0.0001)
+        optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.config.min_learning_rate
+        )
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            optimizer,
+            step_size=1,
+            gamma=0.1,
+            last_epoch=-1
+        )
+        return [optimizer], [scheduler]
 
 
     @pl.data_loader
