@@ -76,7 +76,7 @@ def main():
     if config.wandb == True:
         wandb.watch(model)
 
-    trainer = Trainer(fast_dev_run=config.dev_run)
+    trainer = Trainer(fast_dev_run=config.dev_run, early_stop_callback=None)
     trainer.fit(model)
 
     #     resolution = np.empty((0, len(config.targets)))
