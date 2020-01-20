@@ -10,7 +10,7 @@ class CnnGenerator(torch.utils.data.Dataset):
         self.ids = ids
         self.test = test
         if self.config.dev_run == True:
-            self.config.batch_size = 64
+            self.config.batch_size = 2
         self.on_epoch_end()
 
 
@@ -70,3 +70,9 @@ class CnnGenerator(torch.utils.data.Dataset):
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
         return X, y
+
+
+    def get_file_and_indices(self, index):
+        file = list(self.ids[index].keys())[0]
+        idx = list(self.ids[index].values())[0]
+        return file, idx

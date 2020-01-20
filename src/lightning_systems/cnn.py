@@ -6,6 +6,7 @@ from warmup_scheduler import GradualWarmupScheduler
 import math
 from data_loader.cnn_generator import CnnGenerator
 from loggers.loggers import WandbLogger
+from metrics.comparison import RetroCrsComparison
 
 
 class CnnSystem(pl.LightningModule):
@@ -15,6 +16,7 @@ class CnnSystem(pl.LightningModule):
         self.config = config
         self.wandb = wandb
         self.logclass = WandbLogger(self.wandb, ['train_loss', 'val_loss'])
+        self.comparisonclass = RetroCrsComparison(self.wandb, self.config)
         self.log_frac = math.floor(
             len(self.sets['train']) * self.config.log_frac
         )
@@ -79,6 +81,26 @@ class CnnSystem(pl.LightningModule):
         return {'val_loss': loss}
 
 
+    def test_step(self, batch, batch_nb):
+        x, y = batch
+        y_hat = self.forward(x)
+        loss = F.mse_loss(y_hat, y)
+        file, idx = self.test_dataset.get_file_and_indices(batch_nb)
+        # print(y_hat)
+        # print(y_hat.shape)
+        # print(x, y)
+        # print(file)
+        # print(idx)
+        self.comparisonclass.update_values(file, idx, y_hat)
+        return {'test_loss': loss}
+
+
+    def test_end(self, outputs):
+        self.comparisonclass.calculate_energy_bins()
+        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+        return {'test_loss': avg_loss}
+
+
     def on_epoch_end(self):
         if self.config.wandb == True:
             self.logclass.log_metrics()
@@ -114,38 +136,52 @@ class CnnSystem(pl.LightningModule):
     ):
         optimizer.step()   
         optimizer.zero_grad()
-        if batch_nb == 0:
+        if batch_nb == 0 and self.config.wandb == True:
             self.wandb.log({'learning_rate': optimizer.param_groups[0]['lr']})
-
-
-    def test_step(self, batch, batch_nb):
-        x, y = batch
-        y_hat = self.forward(x)
         
-
 
     @pl.data_loader
     def train_dataloader(self):
-        return DataLoader(
+        dl = DataLoader(
             CnnGenerator(self.config, self.sets['train'], test=False),
             batch_size=None,
             num_workers=self.config.num_workers
         )
+        no_of_samples = len(dl) * self.config.batch_size
+        print(
+            'No. of train samples:', no_of_samples
+        )
+        return dl
 
 
     @pl.data_loader
     def val_dataloader(self):
-        return DataLoader(
+        dl = DataLoader(
             CnnGenerator(self.config, self.sets['validate'], test=False),
             batch_size=None,
             num_workers=self.config.num_workers
         )
+        no_of_samples = len(dl) * self.config.batch_size
+        print(
+            'No. of validation samples:', no_of_samples
+        )
+        return dl
 
 
     @pl.data_loader
     def test_dataloader(self):
-        return DataLoader(
-            CnnGenerator(self.config, self.sets['test'], test=True),
+        self.test_dataset = CnnGenerator(
+            self.config,
+            self.sets['test'],
+            test=True
+        )
+        dl = DataLoader(
+            self.test_dataset,
             batch_size=None,
             num_workers=self.config.num_workers
         )
+        no_of_samples = len(dl) * self.config.batch_size
+        print(
+            'No. of test samples:', no_of_samples
+        )
+        return dl

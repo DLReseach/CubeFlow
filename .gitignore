@@ -13,3 +13,4 @@ nohup.out
 scratchpad/
 *.joblib
 lightning_logs/
+energy_test.pdf

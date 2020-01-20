@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
 import joblib
-from torch_lr_finder import LRFinder
 from warmup_scheduler import GradualWarmupScheduler
+# from torch_lr_finder import LRFinder
 
 from src.lightning_systems.cnn import CnnSystem
 from preprocessing.cnn_preprocessing import CnnPreprocess
@@ -26,11 +26,6 @@ from plots.plot_functions import histogram
 warnings.filterwarnings(
     'ignore',
     category=matplotlib.cbook.mplDeprecation
-)
-
-warnings.filterwarnings(
-    'ignore',
-    module='torch_lr_finder'
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -76,8 +71,13 @@ def main():
     if config.wandb == True:
         wandb.watch(model)
 
-    trainer = Trainer(fast_dev_run=config.dev_run, early_stop_callback=None)
+    trainer = Trainer(
+        max_nb_epochs=config.num_epochs,
+        fast_dev_run=config.dev_run,
+        early_stop_callback=None
+    )
     trainer.fit(model)
+    trainer.test()
 
     #     resolution = np.empty((0, len(config.targets)))
     #     direction = np.empty((0, 1))

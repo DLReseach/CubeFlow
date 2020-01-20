@@ -1,5 +1,5 @@
 import torch
-from pytorch_lightning.logging import LightningLoggerBase
+
 
 class WandbLogger():
     def __init__(self, wandb, metric_types):

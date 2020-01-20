@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
 

@@ -41,7 +41,6 @@ class CnnPreprocess:
                     data = f['masks/' + self.config.mask][idx]
                     no_of_doms = [len(event) for event in data]
                     try:
-
                         cleaned_idx = [
                             idx[i] for i in range(len(idx))
                             if no_of_doms[i] <= self.config.max_doms
