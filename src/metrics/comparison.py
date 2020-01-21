@@ -112,18 +112,24 @@ class RetroCrsComparison():
         bins = self.comparison_df.binned.unique()
         retro_azimuth = []
         predicted_azimuth = []
+        retro_zenith = []
+        predicted_zenith = []
         for i in range(len(bins)):
-            retro = self.comparison_df[self.comparison_df.binned == bins[i]].retro_crs_azimuth.mean()
-            predict = self.comparison_df[self.comparison_df.binned == bins[i]].predicted_azimuth.mean()
+            retro = ((self.comparison_df[self.comparison_df.binned == bins[i]].retro_crs_azimuth.mean()) * 180 / np.pi) % 360
+            predict = ((self.comparison_df[self.comparison_df.binned == bins[i]].predicted_azimuth.mean()) * 180 / np.pi) % 360
             retro_azimuth.append(retro)
             predicted_azimuth.append(predict)
+            retro = ((self.comparison_df[self.comparison_df.binned == bins[i]].retro_crs_zenith.mean()) * 180 / np.pi) % 360
+            predict = ((self.comparison_df[self.comparison_df.binned == bins[i]].predicted_zenith.mean()) * 180 / np.pi) % 360
+            retro_zenith.append(retro)
+            predicted_zenith.append(predict)
         hist, bins = np.histogram(
             self.comparison_df.true_energy.values,
             bins=10
         )
         width = 0.7 * (bins[1] - bins[0])
         center = (bins[:-1] + bins[1:]) / 2
-        fig, ax1 = plt.subplots()
+        fig1, ax1 = plt.subplots()
         ax1.bar(
             center,
             hist,
@@ -139,4 +145,28 @@ class RetroCrsComparison():
             center,
             predicted_azimuth
         )
-        fig.savefig(str(get_project_root().joinpath('energy_test.pdf')))
+        ax1.set_yscale('log')
+        ax1.set(xlabel='Energy', ylabel='Frequency', title='Azimuth')
+        ax2.set(ylabel='Error')
+        fig1.savefig(str(get_project_root().joinpath('azimuth.pdf')))
+        fig2, ax3 = plt.subplots()
+        ax3.bar(
+            center,
+            hist,
+            align='center',
+            width=width
+        )
+        ax4 = ax3.twinx()
+        ax4.scatter(
+            center,
+            retro_zenith
+        )
+        ax4.scatter(
+            center,
+            predicted_zenith
+        )
+        ax3.set(xlabel='Energy', ylabel='Frequency', title='Zenith')
+        ax4.set(ylabel='Error')
+        fig2.savefig(str(get_project_root().joinpath('zenith.pdf')))
+        self.wandb.log({'Azimuth error': fig1})
+        self.wandb.log({'Zenith error': fig2})

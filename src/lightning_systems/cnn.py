@@ -113,15 +113,20 @@ class CnnSystem(pl.LightningModule):
             self.parameters(),
             lr=self.config.min_learning_rate
         )
-        scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+        # scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
+        #     optimizer,
+        #     self.config.num_epochs
+        # )
+        scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer,
-            self.config.num_epochs
+            step_size,
+            gamma=0.1
         )
         scheduler_warmup = GradualWarmupScheduler(
             optimizer,
             multiplier=8,
             total_epoch=10,
-            after_scheduler=scheduler_cosine
+            after_scheduler=scheduler
         )
         return [optimizer], [scheduler_warmup]
 
