@@ -4,6 +4,7 @@ import numpy as np
 def unit_vector(vector):
     return vector / np.linalg.norm(vector)
 
+
 def angle_between(vector_1, vector_2):
     vector_1_unit = unit_vector(vector_1)
     vector_2_unit = unit_vector(vector_2)

@@ -17,9 +17,7 @@ class CnnSystem(pl.LightningModule):
         self.wandb = wandb
         self.logclass = WandbLogger(self.wandb, ['train_loss', 'val_loss'])
         self.comparisonclass = RetroCrsComparison(self.wandb, self.config)
-        self.log_frac = math.floor(
-            len(self.sets['train']) * self.config.log_frac
-        )
+
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
             out_channels=32,
@@ -81,17 +79,18 @@ class CnnSystem(pl.LightningModule):
         return {'val_loss': loss}
 
 
+    def validation_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        return {'val_loss': avg_loss}
+
+
     def test_step(self, batch, batch_nb):
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         file, idx = self.test_dataset.get_file_and_indices(batch_nb)
-        # print(y_hat)
-        # print(y_hat.shape)
-        # print(x, y)
-        # print(file)
-        # print(idx)
-        self.comparisonclass.update_values(file, idx, y_hat)
+        # if self.wandb == True:
+        self.comparisonclass.update_values(file, idx, y_hat, y)
         return {'test_loss': loss}
 
 
@@ -113,13 +112,9 @@ class CnnSystem(pl.LightningModule):
             self.parameters(),
             lr=self.config.min_learning_rate
         )
-        # scheduler_cosine = torch.optim.lr_scheduler.CosineAnnealingLR(
-        #     optimizer,
-        #     self.config.num_epochs
-        # )
         scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer,
-            step_size,
+            step_size=1,
             gamma=0.1
         )
         scheduler_warmup = GradualWarmupScheduler(
@@ -147,29 +142,35 @@ class CnnSystem(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
+        self.train_dataset = CnnGenerator(
+            self.config,
+            self.sets['train'],
+            test=False
+        )
         dl = DataLoader(
-            CnnGenerator(self.config, self.sets['train'], test=False),
+            self.train_dataset,
             batch_size=None,
             num_workers=self.config.num_workers
         )
-        no_of_samples = len(dl) * self.config.batch_size
-        print(
-            'No. of train samples:', no_of_samples
-        )
+        no_of_samples = len(self.train_dataset) * self.config.batch_size
+        print('No. of train samples:', no_of_samples)
         return dl
 
 
     @pl.data_loader
     def val_dataloader(self):
+        self.val_dataset = CnnGenerator(
+            self.config,
+            self.sets['validate'],
+            test=False
+        ) 
         dl = DataLoader(
-            CnnGenerator(self.config, self.sets['validate'], test=False),
+            self.val_dataset,
             batch_size=None,
             num_workers=self.config.num_workers
         )
-        no_of_samples = len(dl) * self.config.batch_size
-        print(
-            'No. of validation samples:', no_of_samples
-        )
+        no_of_samples = len(self.train_dataset) * self.config.batch_size
+        print('No. of validation samples:', no_of_samples)
         return dl
 
 
@@ -185,8 +186,6 @@ class CnnSystem(pl.LightningModule):
             batch_size=None,
             num_workers=self.config.num_workers
         )
-        no_of_samples = len(dl) * self.config.batch_size
-        print(
-            'No. of test samples:', no_of_samples
-        )
+        no_of_samples = len(self.test_dataset) * self.config.batch_size
+        print('No. of test samples:', no_of_samples)
         return dl

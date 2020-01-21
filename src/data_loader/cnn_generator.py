@@ -9,8 +9,6 @@ class CnnGenerator(torch.utils.data.Dataset):
         self.config = config
         self.ids = ids
         self.test = test
-        if self.config.dev_run == True:
-            self.config.batch_size = 2
         self.on_epoch_end()
 
 

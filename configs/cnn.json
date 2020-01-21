@@ -1,10 +1,10 @@
 {
   "exp_name": "cnn_4_dir_14",
-  "particle_type": 140000,
-  "dev_run": false,
-  "wandb": true,
+  "particle_type": 120000,
+  "dev_run": true,
+  "wandb": false,
   "num_epochs": 1,
-  "patience": 5,
+  "patience": 1,
   "log_frac": 0.05,
   "no_dev_examples": 4,
   "num_workers": 24,
@@ -26,6 +26,12 @@
     "true_primary_direction_y",
     "true_primary_direction_z"
   ],
+  "comparison_metrics": [
+    "azimuth",
+    "zenith"
+  ],
+  "opponent": "retro_crs_prefit",
+  "comparison_type": "polar",
   "test_fraction": 0.2,
   "validation_fraction": 0.2,
   "random_state": 29897070,
@@ -33,7 +39,7 @@
   "min_learning_rate": 1e-4,
   "max_learning_rate": 1e-2,
   "momentum": 0,
-  "batch_size": 64,
+  "batch_size": 4,
   "shuffle": true,
   "max_to_keep": 5
 }

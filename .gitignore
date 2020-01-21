@@ -14,3 +14,4 @@ scratchpad/
 *.joblib
 lightning_logs/
 energy_test.pdf
+plots/
