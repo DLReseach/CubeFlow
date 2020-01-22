@@ -5,10 +5,13 @@ import h5py as h5
 import pandas as pd
 import numpy as np
 import math
+from PIL import Image
+import io
 from sklearn.preprocessing import QuantileTransformer
 from sklearn.preprocessing import RobustScaler
 from utils.math_funcs import unit_vector
 from utils.utils import get_project_root
+from utils.utils import get_time
 
 import matplotlib.pyplot as plt
 
@@ -27,6 +30,7 @@ class RetroCrsComparison():
             'metric'
         ]
         self.comparison_df = pd.DataFrame(columns=self.column_names)
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
     def get_transformers(self):
@@ -75,12 +79,15 @@ class RetroCrsComparison():
 
     def convert_to_spherical(self, values):
         values = self.invert_transform(values)
+        values = F.normalize(values)
         x = values[:, 0]
         y = values[:, 1]
         z = values[:, 2]
-        r = torch.sqrt(x**2 + y**2 + z**2)
-        phi = torch.atan(y / x)
-        theta = torch.acos(z / r)
+        hypot = torch.sqrt(x**2 + y**2)
+        theta = torch.atan2(z, hypot) % 2 * np.pi
+        phi = torch.atan2(y, x) % 2 * np.pi
+        # theta = np.rad2deg(theta) % 360
+        # phi = np.rad2deg(phi) % 360
         return {'azimuth': phi, 'zenith': theta}
 
 
@@ -89,14 +96,27 @@ class RetroCrsComparison():
         with h5.File(file, 'r') as f:
             for metric in self.config.comparison_metrics:
                 dataset = 'raw/' + self.config.opponent + '_' + metric
-                metrics[metric] = torch.from_numpy(f[dataset][idx])
+                metrics[metric] = torch.from_numpy(f[dataset][idx]).float().to(self.device)
+                # metrics[metric] = np.rad2deg(metrics[metric])
             dataset = 'raw/' + 'true_primary_energy'
-            true_energy = torch.from_numpy(f[dataset][idx])
+            true_energy = torch.from_numpy(f[dataset][idx]).float().to(self.device)
         return metrics, true_energy
 
 
     def calculate_errors(self, prediction, truth):
-        error = prediction.sub(truth)
+        # print(prediction)
+        # print(truth)
+        # error = prediction.sub(truth)
+        # print('Prediction:', prediction)
+        # print('Truth:', truth)
+        test = prediction - truth
+        # print('Error 1:', test)
+        # error = ((error + np.pi) % 2 * np.pi) - np.pi
+        error = torch.atan2(
+            torch.sin(prediction - truth),
+            torch.cos(prediction - truth)
+        )
+        print('Error 2:', error)
         return error
 
 
@@ -144,71 +164,41 @@ class RetroCrsComparison():
             self.comparison_df['true_energy'], no_of_bins
         )
         bins = self.comparison_df.binned.unique()
-        own_errors = self.comparison_df[
-            (self.comparison_df.binned == bins[0])
-            & (self.comparison_df.metric == 'azimuth')
-        ].own_error.values
-        self.plot_error_in_energy_bin(own_errors)
-        # retro_azimuth = []
-        # predicted_azimuth = []
-        # retro_zenith = []
-        # predicted_zenith = []
-        # for i in range(len(bins)):
-        #     retro = ((self.comparison_df[self.comparison_df.binned == bins[i]].retro_crs_azimuth.mean()) * 180 / np.pi) % 360
-        #     predict = ((self.comparison_df[self.comparison_df.binned == bins[i]].predicted_azimuth.mean()) * 180 / np.pi) % 360
-        #     retro_azimuth.append(retro)
-        #     predicted_azimuth.append(predict)
-        #     retro = ((self.comparison_df[self.comparison_df.binned == bins[i]].retro_crs_zenith.mean()) * 180 / np.pi) % 360
-        #     predict = ((self.comparison_df[self.comparison_df.binned == bins[i]].predicted_zenith.mean()) * 180 / np.pi) % 360
-        #     retro_zenith.append(retro)
-        #     predicted_zenith.append(predict)
-        # hist, bins = np.histogram(
-        #     self.comparison_df.true_energy.values,
-        #     bins=10
-        # )
-        # width = 0.7 * (bins[1] - bins[0])
-        # center = (bins[:-1] + bins[1:]) / 2
-        # fig1, ax1 = plt.subplots()
-        # ax1.bar(
-        #     center,
-        #     hist,
-        #     align='center',
-        #     width=width
-        # )
-        # ax2 = ax1.twinx()
-        # ax2.scatter(
-        #     center,
-        #     retro_azimuth
-        # )
-        # ax2.scatter(
-        #     center,
-        #     predicted_azimuth
-        # )
-        # ax1.set_yscale('log')
-        # ax1.set(xlabel='Energy', ylabel='Frequency', title='Azimuth')
-        # ax2.set(ylabel='Error')
-        # fig1.savefig(str(get_project_root().joinpath('azimuth.pdf')))
-        # fig2, ax3 = plt.subplots()
-        # ax3.bar(
-        #     center,
-        #     hist,
-        #     align='center',
-        #     width=width
-        # )
-        # ax4 = ax3.twinx()
-        # ax4.scatter(
-        #     center,
-        #     retro_zenith
-        # )
-        # ax4.scatter(
-        #     center,
-        #     predicted_zenith
-        # )
-        # ax3.set(xlabel='Energy', ylabel='Frequency', title='Zenith')
-        # ax4.set(ylabel='Error')
-        # fig2.savefig(str(get_project_root().joinpath('zenith.pdf')))
-        # self.wandb.log({'Azimuth error': fig1})
-        # self.wandb.log({'Zenith error': fig2})
+        return bins
+
+
+    def bootstrap(self, series, R=1000):
+        n = series.size
+        column_names = [
+            'q1',
+            'q1_minus',
+            'q1_plus',
+            'q3',
+            'q3_minus',
+            'q3_plus'
+        ]
+        df = pd.DataFrame(columns=column_names)
+        for i in range(R):
+            bs_sample = series.sample(n=n, replace=True)
+            temp_df = pd.DataFrame(
+                data={
+                    'q1': [bs_sample.quantile(q=0.25)],
+                    'q1_minus': [bs_sample.quantile(q=0.21)],
+                    'q1_plus': [bs_sample.quantile(q=0.29)],
+                    'q3': [bs_sample.quantile(q=0.75)],
+                    'q3_minus': [bs_sample.quantile(q=0.71)],
+                    'q3_plus': [bs_sample.quantile(q=0.79)]
+                }
+            )
+            df = df.append(
+                temp_df,
+                ignore_index=True
+            )
+        print(df)
+        q1_mean = df.q1.mean()
+        q3_mean = df.q3.mean()
+        std = (q3_mean - q1_mean) / 1.35
+        return std
 
 
     def plot_error_in_energy_bin(self, values):
@@ -217,3 +207,113 @@ class RetroCrsComparison():
         ax.hist(values, bins='auto')
         fig.savefig(str(file_name))
 
+
+    def create_comparison_plot(self, bins):
+        for metric in self.config.comparison_metrics:
+            print(
+                'Starting {} metric comparison at {}'
+                .format(
+                    metric,
+                    get_time()
+                )
+            )
+            no_of_samples_in_bin = []
+            bin_center = []
+            opponent_performance = []
+            opponent_std = []
+            own_performance = []
+            own_std = []
+            width = []
+            for i in range(len(bins)):
+                if i == 2:
+                    self.plot_error_in_energy_bin(self.comparison_df[indexer].opponent_error)
+                indexer = (
+                    (self.comparison_df.binned == bins[i])
+                    & (self.comparison_df.metric == metric)
+                )
+                no_of_samples_in_bin.append(len(self.comparison_df[indexer]))
+                bin_center.append(bins[i].mid)
+                width.append(bins[i].length)
+                opponent_bs_std = self.bootstrap(
+                    self.comparison_df[indexer].opponent_error
+                )
+                opponent_performance.append(
+                    abs(
+                        self.comparison_df[indexer].opponent_error.mean()
+                    )
+                )
+                opponent_std.append(opponent_bs_std)
+                own_bs_std = self.bootstrap(
+                    self.comparison_df[indexer].own_error
+                )
+                own_performance.append(
+                    abs(
+                        self.comparison_df[indexer].own_error.mean()
+                    )
+                )
+                own_std.append(own_bs_std)
+            fig1, ax1 = plt.subplots()
+            ax1.bar(
+                bin_center,
+                no_of_samples_in_bin,
+                align='center',
+                fill=False,
+                width=width,
+                edgecolor='black'
+            )
+            ax2 = ax1.twinx()
+            markers, caps, bars = ax2.errorbar(
+                bin_center,
+                opponent_performance,
+                yerr=opponent_std,
+                # xerr=width,
+                fmt='o',
+                # marker='o',
+                ecolor='black',
+                capsize=2,
+                capthick=2,
+                label='retro_crs',
+                markerfacecolor='blue'
+            )
+            [bar.set_alpha(0.5) for bar in bars]
+            [cap.set_alpha(0.5) for cap in caps]
+            markers, caps, bars = ax2.errorbar(
+                bin_center,
+                own_performance,
+                yerr=own_std,
+                # xerr=width,
+                fmt='o',
+                # marker='o',
+                ecolor='black',
+                capsize=2,
+                capthick=2,
+                label='own',
+                markerfacecolor='green'
+            )
+            [bar.set_alpha(0.5) for bar in bars]
+            [cap.set_alpha(0.5) for cap in caps]
+            ax1.set_yscale('log')
+            ax1.set(xlabel='Energy', ylabel='Frequency', title=metric)
+            ax2.set(ylabel='Error')
+            ax2.legend()
+            if self.config.wandb == True:
+                buf = io.BytesIO()
+                fig1.savefig(buf, format='png', dpi=600)
+                buf.seek(0)
+                im = Image.open(buf)
+                self.wandb.log(
+                    {
+                        metric + ' performance': [
+                            self.wandb.Image(im)
+                        ]
+                    }
+                )
+                buf.close()
+            else:
+                file_name = get_project_root().joinpath('plots/' + metric + '.pdf')
+                fig1.savefig(str(file_name))
+
+
+    def testing_ended(self):
+        bins = self.calculate_energy_bins()
+        self.create_comparison_plot(bins)

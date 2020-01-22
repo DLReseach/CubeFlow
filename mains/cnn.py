@@ -1,6 +1,6 @@
 import os
 import torch
-from torchsummary import summary
+# from torchsummary import summary
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 import wandb as wandb
@@ -30,7 +30,7 @@ warnings.filterwarnings(
 )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print('Using device', device)
+# print('Using device', device)
 
 
 # @profile
@@ -81,9 +81,10 @@ def main():
     )
 
     trainer = Trainer(
+        gpus=1,
         max_nb_epochs=config.num_epochs,
         fast_dev_run=config.dev_run,
-        early_stop_callback=early_stop_callback
+        early_stop_callback=None if config.patience == 0 else early_stop_callback
     )
     trainer.fit(model)
     trainer.test()

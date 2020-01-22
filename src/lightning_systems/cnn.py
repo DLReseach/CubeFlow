@@ -81,6 +81,10 @@ class CnnSystem(pl.LightningModule):
 
     def validation_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        output = {
+            'progress_bar': avg_loss,
+            'log': {'val_loss': avg_loss}
+        }
         return {'val_loss': avg_loss}
 
 
@@ -89,13 +93,12 @@ class CnnSystem(pl.LightningModule):
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         file, idx = self.test_dataset.get_file_and_indices(batch_nb)
-        # if self.wandb == True:
         self.comparisonclass.update_values(file, idx, y_hat, y)
         return {'test_loss': loss}
 
 
     def test_end(self, outputs):
-        self.comparisonclass.calculate_energy_bins()
+        self.comparisonclass.testing_ended()
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         return {'test_loss': avg_loss}
 
@@ -169,7 +172,7 @@ class CnnSystem(pl.LightningModule):
             batch_size=None,
             num_workers=self.config.num_workers
         )
-        no_of_samples = len(self.train_dataset) * self.config.batch_size
+        no_of_samples = len(self.val_dataset) * self.config.batch_size
         print('No. of validation samples:', no_of_samples)
         return dl
 
