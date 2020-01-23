@@ -116,7 +116,7 @@ class RetroCrsComparison():
             torch.sin(prediction - truth),
             torch.cos(prediction - truth)
         )
-        print('Error 2:', error)
+        # print('Error 2:', error)
         return error
 
 
@@ -194,11 +194,14 @@ class RetroCrsComparison():
                 temp_df,
                 ignore_index=True
             )
-        print(df)
         q1_mean = df.q1.mean()
         q3_mean = df.q3.mean()
-        std = (q3_mean - q1_mean) / 1.35
-        return std
+        resolution = (q3_mean - q1_mean) / 1.35
+        resolution_error = np.sqrt(
+            (1 / 1.35)**2 * (df.q3_plus.mean())**2
+            + (- 1 / 1.35)**2 * (df.q1_plus.mean())**2
+        )
+        return [resolution, resolution_error]
 
 
     def plot_error_in_energy_bin(self, values):
@@ -225,8 +228,6 @@ class RetroCrsComparison():
             own_std = []
             width = []
             for i in range(len(bins)):
-                if i == 2:
-                    self.plot_error_in_energy_bin(self.comparison_df[indexer].opponent_error)
                 indexer = (
                     (self.comparison_df.binned == bins[i])
                     & (self.comparison_df.metric == metric)
@@ -234,24 +235,19 @@ class RetroCrsComparison():
                 no_of_samples_in_bin.append(len(self.comparison_df[indexer]))
                 bin_center.append(bins[i].mid)
                 width.append(bins[i].length)
-                opponent_bs_std = self.bootstrap(
+                opponent = self.bootstrap(
                     self.comparison_df[indexer].opponent_error
                 )
-                opponent_performance.append(
-                    abs(
-                        self.comparison_df[indexer].opponent_error.mean()
-                    )
-                )
-                opponent_std.append(opponent_bs_std)
-                own_bs_std = self.bootstrap(
+                opponent_performance.append(opponent[0])
+                opponent_std.append(opponent[1])
+                own = self.bootstrap(
                     self.comparison_df[indexer].own_error
                 )
-                own_performance.append(
-                    abs(
-                        self.comparison_df[indexer].own_error.mean()
-                    )
-                )
-                own_std.append(own_bs_std)
+                own_performance.append(own[0])
+                own_std.append(own[1])
+            self.plot_error_in_energy_bin(
+                self.comparison_df[self.comparison_df.metric == 'azimuth'].opponent_error
+            )
             fig1, ax1 = plt.subplots()
             ax1.bar(
                 bin_center,
@@ -268,7 +264,6 @@ class RetroCrsComparison():
                 yerr=opponent_std,
                 # xerr=width,
                 fmt='o',
-                # marker='o',
                 ecolor='black',
                 capsize=2,
                 capthick=2,
@@ -283,7 +278,6 @@ class RetroCrsComparison():
                 yerr=own_std,
                 # xerr=width,
                 fmt='o',
-                # marker='o',
                 ecolor='black',
                 capsize=2,
                 capthick=2,

@@ -13,9 +13,9 @@ class CnnPreprocess:
     def __init__(self, sets_list, config):
         self.sets_list = sets_list
         self.config = config
-        if self.config.dev_run == True:
+        # if self.config.dev_run == True:
             # self.config.no_of_files = 1
-            self.config.batch_size = self.config.no_dev_examples
+            # self.config.batch_size = self.config.no_dev_examples
     
 
     def file_trimmer(self):
@@ -78,7 +78,7 @@ class CnnPreprocess:
             self.file_trimmer()
         if self.config.max_doms is not None:
             self.dom_trimmer()
-        if self.config.dev_run == True:
-            self.dev_examples_trimmer()
+        # if self.config.dev_run == True:
+        #     self.dev_examples_trimmer()
         batched_sets_list = self.batcher()
         return batched_sets_list

@@ -1,11 +1,10 @@
 import os
 import torch
-# from torchsummary import summary
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 import wandb as wandb
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import matplotlib.cbook
 import warnings
 import joblib
@@ -81,11 +80,15 @@ def main():
     )
 
     trainer = Trainer(
-        gpus=1,
-        max_nb_epochs=config.num_epochs,
+        gpus=config.gpus,
+        max_epochs=config.num_epochs,
         fast_dev_run=config.dev_run,
         early_stop_callback=None if config.patience == 0 else early_stop_callback
     )
+    # trainer = Trainer(
+    #     max_epochs=1,
+    #     early_stop_callback=None
+    # )
     trainer.fit(model)
     trainer.test()
 
