@@ -39,7 +39,7 @@ class CnnSystem(pl.LightningModule):
             kernel_size=5
         )
         self.linear1 = torch.nn.Linear(
-            in_features=2560,
+            in_features=11264,
             out_features=len(self.config.targets)
         )
 

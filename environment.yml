@@ -1,7 +1,7 @@
 name: cubeflow
 channels:
     - anaconda
-    # - pytorch
+    - pytorch
 dependencies:
     - python=3.7
     - pip
@@ -23,4 +23,5 @@ dependencies:
         - torchsummary
         - torch-lr-finder
         - pytorch-lightning
+        - snakeviz
 
