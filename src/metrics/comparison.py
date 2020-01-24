@@ -79,16 +79,36 @@ class RetroCrsComparison():
 
     def convert_to_spherical(self, values):
         values = self.invert_transform(values)
-        values = F.normalize(values)
+        # values = F.normalize(values)
         x = values[:, 0]
         y = values[:, 1]
         z = values[:, 2]
         hypot = torch.sqrt(x**2 + y**2)
-        theta = torch.atan2(z, hypot) % 2 * np.pi
-        phi = torch.atan2(y, x) % 2 * np.pi
+        theta = torch.atan2(z, hypot)
+        phi = torch.atan2(y, x)
         # theta = np.rad2deg(theta) % 360
         # phi = np.rad2deg(phi) % 360
+        # theta = np.rad2deg(theta)
+        # phi = np.rad2deg(phi)
+        # print('Values:', values)
+        # print('Theta:', theta)
+        # print('Phi:', phi)
         return {'azimuth': phi, 'zenith': theta}
+
+
+    def convert_to_signed_angle(self, angles, angle_type):
+        if angle_type == 'azimuth':
+            signed_angles = [
+                entry if entry < np.pi else entry - 2 * np.pi for entry in angles
+            ]
+            signed_angles = torch.tensor(
+                [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
+            )
+        elif angle_type == 'zenith':
+            signed_angles = np.pi - angles
+        else:
+            print('Unknown angle type')
+        return signed_angles
 
 
     def get_comparisons(self, file, idx):
@@ -97,27 +117,30 @@ class RetroCrsComparison():
             for metric in self.config.comparison_metrics:
                 dataset = 'raw/' + self.config.opponent + '_' + metric
                 metrics[metric] = torch.from_numpy(f[dataset][idx]).float().to(self.device)
-                # metrics[metric] = np.rad2deg(metrics[metric])
+                metrics[metric] = self.convert_to_signed_angle(
+                    metrics[metric],
+                    metric
+                )
             dataset = 'raw/' + 'true_primary_energy'
             true_energy = torch.from_numpy(f[dataset][idx]).float().to(self.device)
         return metrics, true_energy
 
 
-    def calculate_errors(self, prediction, truth):
-        # print(prediction)
-        # print(truth)
-        # error = prediction.sub(truth)
-        # print('Prediction:', prediction)
-        # print('Truth:', truth)
-        test = prediction - truth
-        # print('Error 1:', test)
-        # error = ((error + np.pi) % 2 * np.pi) - np.pi
-        error = torch.atan2(
-            torch.sin(prediction - truth),
-            torch.cos(prediction - truth)
+    def delta_angle(self, prediction, truth):
+        x = prediction
+        y = truth
+        # delta = ((x - y) + 180) % 360 - 180
+        difference = x - y
+        delta = torch.where(
+            abs(difference) > np.pi,
+            -2 * torch.sign(difference) * np.pi + difference,
+            difference
         )
-        # print('Error 2:', error)
-        return error
+        # print('Truth:', truth)
+        # print('Prediction:', prediction)
+        # print('Delta, normal:', test)
+        # print('Delta, atan:', delta)
+        return delta
 
 
     def update_values(self, file, idx, predictions, truth):
@@ -135,11 +158,11 @@ class RetroCrsComparison():
         sorted_truth = self.convert_to_spherical(sorted_truth)
         comparison_metrics, true_energy = self.get_comparisons(file, sorted_idx)
         for metric in self.config.comparison_metrics:
-            opponent_error[metric] = self.calculate_errors(
+            opponent_error[metric] = self.delta_angle(
                 comparison_metrics[metric],
                 sorted_truth[metric]
             )
-            own_error[metric] = self.calculate_errors(
+            own_error[metric] = self.delta_angle(
                 sorted_predictions[metric],
                 sorted_truth[metric]
             )
