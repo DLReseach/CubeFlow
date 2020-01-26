@@ -77,7 +77,7 @@ class RetroCrsComparison():
         return sorted_idx, sorted_predictions, sorted_truth
 
 
-    def convert_to_spherical(self, values):
+    def convert_to_spherical(self, values, value_type):
         values = self.invert_transform(values)
         x = values[:, 0]
         y = values[:, 1]
@@ -93,14 +93,14 @@ class RetroCrsComparison():
             signed_angles = [
                 entry if entry < np.pi else entry - 2 * np.pi for entry in angles
             ]
-            signed_angles = torch.tensor(
+            reversed_angles = torch.tensor(
                 [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
             ).float().to(self.device)
         elif angle_type == 'zenith':
-            signed_angles = np.pi - angles
+            reversed_angles = torch.tensor(np.pi - angles).float().to(self.device)
         else:
             print('Unknown angle type')
-        return signed_angles
+        return reversed_angles
 
 
     def get_comparisons(self, file, idx):
@@ -108,7 +108,7 @@ class RetroCrsComparison():
         with h5.File(file, 'r') as f:
             for metric in self.config.comparison_metrics:
                 dataset = 'raw/' + self.config.opponent + '_' + metric
-                metrics[metric] = torch.from_numpy(f[dataset][idx]).float().to(self.device)
+                metrics[metric] = f[dataset][idx]
                 metrics[metric] = self.convert_to_signed_angle(
                     metrics[metric],
                     metric
@@ -118,10 +118,14 @@ class RetroCrsComparison():
         return metrics, true_energy
 
 
-    def delta_angle(self, prediction, truth):
+    def delta_angle(self, prediction, truth, angle_type):
         x = prediction
         y = truth
-        delta = torch.atan2(torch.sin(x - y), torch.cos(x - y))
+        difference = x - y
+        if angle_type == 'zenith':
+            delta = difference
+        elif angle_type == 'azimuth':
+            delta = torch.atan2(torch.sin(difference), torch.cos(difference))
         return delta
 
 
@@ -134,19 +138,25 @@ class RetroCrsComparison():
             predictions,
             truth
         )
-        sorted_predictions = self.invert_transform(sorted_predictions)
-        sorted_truth = self.invert_transform(sorted_truth)
-        sorted_predictions = self.convert_to_spherical(sorted_predictions)
-        sorted_truth = self.convert_to_spherical(sorted_truth)
+        sorted_predictions = self.convert_to_spherical(
+            sorted_predictions,
+            'predictions'
+        )
+        sorted_truth = self.convert_to_spherical(
+            sorted_truth,
+            'truth'
+        )
         comparison_metrics, true_energy = self.get_comparisons(file, sorted_idx)
         for metric in self.config.comparison_metrics:
             opponent_error[metric] = self.delta_angle(
                 comparison_metrics[metric],
-                sorted_truth[metric]
+                sorted_truth[metric],
+                metric
             )
             own_error[metric] = self.delta_angle(
                 sorted_predictions[metric],
-                sorted_truth[metric]
+                sorted_truth[metric],
+                metric
             )
         for metric in self.config.comparison_metrics:
             temp_df = pd.DataFrame(
@@ -209,12 +219,12 @@ class RetroCrsComparison():
         return [resolution, resolution_error]
 
 
-    def plot_error_in_energy_bin(self, values, name):
+    def plot_error_in_energy_bin(self, values, name, bin_no):
         file_name = get_project_root().joinpath(
-            'plots/error_distribution_' + name + '.pdf'
+            'plots/error_distribution_' + name + '_' + str(bin_no) + '.pdf'
         )
         fig, ax = plt.subplots()
-        ax.hist(values, bins='auto')
+        ax.hist(values, bins='fd')
         fig.savefig(str(file_name))
 
 
@@ -252,14 +262,11 @@ class RetroCrsComparison():
                 )
                 own_performance.append(own[0])
                 own_std.append(own[1])
-            self.plot_error_in_energy_bin(
-                self.comparison_df[self.comparison_df.metric == 'azimuth'].opponent_error,
-                'azimuth'
-            )
-            self.plot_error_in_energy_bin(
-                self.comparison_df[self.comparison_df.metric == 'zenith'].opponent_error,
-                'zenith'
-            )
+                self.plot_error_in_energy_bin(
+                    self.comparison_df[indexer].opponent_error,
+                    metric,
+                    i
+                )
             fig1, ax1 = plt.subplots()
             ax1.bar(
                 bin_center,
