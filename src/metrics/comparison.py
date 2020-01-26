@@ -103,7 +103,7 @@ class RetroCrsComparison():
             ]
             signed_angles = torch.tensor(
                 [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
-            )
+            ).float().to(self.device)
         elif angle_type == 'zenith':
             signed_angles = np.pi - angles
         else:
