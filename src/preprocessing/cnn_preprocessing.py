@@ -78,7 +78,7 @@ class CnnPreprocess:
             self.file_trimmer()
         if self.config.max_doms is not None:
             self.dom_trimmer()
-        # if self.config.dev_run == True:
-        #     self.dev_examples_trimmer()
+        if self.config.dev_run == True:
+            self.dev_examples_trimmer()
         batched_sets_list = self.batcher()
         return batched_sets_list

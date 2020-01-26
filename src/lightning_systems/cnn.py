@@ -93,6 +93,9 @@ class CnnSystem(pl.LightningModule):
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         file, idx = self.test_dataset.get_file_and_indices(batch_nb)
+        x_test, y_test = self.test_dataset[batch_nb]
+        assert torch.all(x_test.eq(x)), 'Whoops, x and x_test are not the same'
+        assert torch.all(y_test.eq(y)), 'Whoops, y and y_test are not the same'
         self.comparisonclass.update_values(file, idx, y_hat, y)
         return {'test_loss': loss}
 

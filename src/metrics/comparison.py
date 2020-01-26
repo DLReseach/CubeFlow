@@ -79,20 +79,12 @@ class RetroCrsComparison():
 
     def convert_to_spherical(self, values):
         values = self.invert_transform(values)
-        # values = F.normalize(values)
         x = values[:, 0]
         y = values[:, 1]
         z = values[:, 2]
-        hypot = torch.sqrt(x**2 + y**2)
-        theta = torch.atan2(z, hypot)
+        r = torch.sqrt(x**2 + y**2 + z**2)
+        theta = torch.acos(z / r)
         phi = torch.atan2(y, x)
-        # theta = np.rad2deg(theta) % 360
-        # phi = np.rad2deg(phi) % 360
-        # theta = np.rad2deg(theta)
-        # phi = np.rad2deg(phi)
-        # print('Values:', values)
-        # print('Theta:', theta)
-        # print('Phi:', phi)
         return {'azimuth': phi, 'zenith': theta}
 
 
@@ -129,17 +121,7 @@ class RetroCrsComparison():
     def delta_angle(self, prediction, truth):
         x = prediction
         y = truth
-        # delta = ((x - y) + 180) % 360 - 180
-        difference = x - y
-        delta = torch.where(
-            abs(difference) > np.pi,
-            -2 * torch.sign(difference) * np.pi + difference,
-            difference
-        )
-        # print('Truth:', truth)
-        # print('Prediction:', prediction)
-        # print('Delta, normal:', test)
-        # print('Delta, atan:', delta)
+        delta = torch.atan2(torch.sin(x - y), torch.cos(x - y))
         return delta
 
 
@@ -227,8 +209,10 @@ class RetroCrsComparison():
         return [resolution, resolution_error]
 
 
-    def plot_error_in_energy_bin(self, values):
-        file_name = get_project_root().joinpath('plots/error_distribution.pdf')
+    def plot_error_in_energy_bin(self, values, name):
+        file_name = get_project_root().joinpath(
+            'plots/error_distribution_' + name + '.pdf'
+        )
         fig, ax = plt.subplots()
         ax.hist(values, bins='auto')
         fig.savefig(str(file_name))
@@ -269,7 +253,12 @@ class RetroCrsComparison():
                 own_performance.append(own[0])
                 own_std.append(own[1])
             self.plot_error_in_energy_bin(
-                self.comparison_df[self.comparison_df.metric == 'azimuth'].opponent_error
+                self.comparison_df[self.comparison_df.metric == 'azimuth'].opponent_error,
+                'azimuth'
+            )
+            self.plot_error_in_energy_bin(
+                self.comparison_df[self.comparison_df.metric == 'zenith'].opponent_error,
+                'zenith'
             )
             fig1, ax1 = plt.subplots()
             ax1.bar(

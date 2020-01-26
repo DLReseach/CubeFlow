@@ -82,7 +82,7 @@ def main():
     trainer = Trainer(
         gpus=config.gpus,
         max_epochs=config.num_epochs,
-        fast_dev_run=config.dev_run,
+        # fast_dev_run=config.dev_run,
         early_stop_callback=None if config.patience == 0 else early_stop_callback
     )
     # trainer = Trainer(
