@@ -174,7 +174,7 @@ class RetroCrsComparison():
 
 
     def calculate_energy_bins(self):
-        no_of_bins = 10
+        no_of_bins = 12
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
         )
