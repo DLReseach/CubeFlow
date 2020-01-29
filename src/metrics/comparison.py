@@ -85,6 +85,9 @@ class RetroCrsComparison():
         r = torch.sqrt(x**2 + y**2 + z**2)
         theta = torch.acos(z / r)
         phi = torch.atan2(y, x)
+        # if value_type == 'truth':
+            # print('Prediction values:', values)
+            # print('Phi:', phi)
         return {'azimuth': phi, 'zenith': theta}
 
 
@@ -109,23 +112,37 @@ class RetroCrsComparison():
             for metric in self.config.comparison_metrics:
                 dataset = 'raw/' + self.config.opponent + '_' + metric
                 metrics[metric] = f[dataset][idx]
+                # if metric == 'azimuth':
+                    # print('Comparison azimuths:', metrics[metric])
                 metrics[metric] = self.convert_to_signed_angle(
                     metrics[metric],
                     metric
                 )
+                # if metric == 'azimuth':
+                    # print('Comparison reversed azimuths:', metrics[metric])
             dataset = 'raw/' + 'true_primary_energy'
             true_energy = torch.from_numpy(f[dataset][idx]).float().to(self.device)
         return metrics, true_energy
 
 
-    def delta_angle(self, prediction, truth, angle_type):
+    def delta_angle(self, prediction, truth, angle_type, opponent_type):
         x = prediction
         y = truth
         difference = x - y
         if angle_type == 'zenith':
             delta = difference
         elif angle_type == 'azimuth':
-            delta = torch.atan2(torch.sin(difference), torch.cos(difference))
+            # delta = torch.atan2(torch.sin(difference), torch.cos(difference))
+            # delta = ((difference + np.pi) % (2 * np.pi)) - np.pi
+            delta = torch.where(
+                abs(difference) > np.pi,
+                - 2 * torch.sign(difference) * np.pi + difference,
+                difference
+            )
+            # if opponent_type == 'opponent':
+                # print('Truth:', y)
+                # print('Prediction:', x)
+                # print('Delta angle:', delta)
         return delta
 
 
@@ -151,12 +168,14 @@ class RetroCrsComparison():
             opponent_error[metric] = self.delta_angle(
                 comparison_metrics[metric],
                 sorted_truth[metric],
-                metric
+                metric,
+                'opponent'
             )
             own_error[metric] = self.delta_angle(
                 sorted_predictions[metric],
                 sorted_truth[metric],
-                metric
+                metric,
+                'own'
             )
         for metric in self.config.comparison_metrics:
             temp_df = pd.DataFrame(

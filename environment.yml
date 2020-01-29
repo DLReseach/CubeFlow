@@ -24,4 +24,5 @@ dependencies:
         - torch-lr-finder
         - pytorch-lightning
         - snakeviz
-
+        - paramiko
+        - scp
