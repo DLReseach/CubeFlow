@@ -26,7 +26,6 @@ class PickleGenerator(torch.utils.data.Dataset):
         no_targets = len(self.config.targets)
         file_number = self.ids[self.indices[index]]
         sub_folder = str(int(file_number) % 999)
-        print(3 % 999)
         X = np.zeros((max_doms, no_features))
         y = np.zeros((no_targets))
         comparisons = np.zeros((len(self.config.comparison_metrics)))
