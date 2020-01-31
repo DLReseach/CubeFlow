@@ -12,6 +12,7 @@ from warmup_scheduler import GradualWarmupScheduler
 # from torch_lr_finder import LRFinder
 from sklearn.model_selection import train_test_split
 import pickle
+from pathlib import Path
 
 from src.lightning_systems.cnn import CnnSystem
 from preprocessing.cnn_preprocessing import CnnPreprocess
@@ -67,7 +68,7 @@ def main():
     pickle_file = Path.home().joinpath('data/CubeData/' + config.data_type + '/masks/muon_neutrino.pickle')
     with open(pickle_file, 'rb') as f:
         file_indices_particle = pickle.load(f)
-    
+
     pickle_file = Path.home().joinpath('data/CubeData/' + config.data_type + '/masks/dom_interval_min0_max200.pickle')
     with open(pickle_file, 'rb') as f:
         file_indices_max_doms = pickle.load(f)
