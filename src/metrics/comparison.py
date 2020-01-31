@@ -37,7 +37,7 @@ class RetroCrsComparison():
     def get_transformers(self):
         root = Path.home()
         transformer_file = root.joinpath(
-            'data/CubeData/' + self.config.data_type + '/transformers/'
+            self.config.data_dir + self.config.data_type + '/transformers/'
             + str(self.config.particle_type) + '_' + self.config.transform
             + '.pickle'
         )

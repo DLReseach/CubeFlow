@@ -4,20 +4,17 @@ from multiprocessing import Pool, cpu_count
 from multiprocessing import Process, Manager
 from utils.utils import get_project_root
 
-DATA_ROOT = get_project_root().joinpath(
-    'data/oscnext-genie-level5-v01-01-pass2'
-)
-MASK_ROOT = get_project_root().joinpath(
-    'masks/oscnext-genie-level5-v01-01-pass2'
-)
+DATA_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2')
+MASK_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2/masks')
+
 MASK_ROOT.mkdir(exist_ok=True)
 
 DATA_DIRS = sorted([
     directory for directory in DATA_ROOT.iterdir() if directory.is_dir()
+    and directory.stem != 'masks' and directory.stem != 'transformers'
 ])
-DATA_DIRS = DATA_DIRS[0:4]
-print(DATA_DIRS)
-PARTICLE_CODES = ['120000', '140000', '160000']
+print(DATA_DIRS[-1].stem)
+PARTICLE_CODES = ['120000']
 MAX_DOMS = [200]
 
 
@@ -50,7 +47,6 @@ def get_event_length(directory, max_doms, mask_list):
     mask_list.extend(mask)
 
 
-particle_dict = {}
 for particle_code in PARTICLE_CODES:
     print('Particle code mask')
     mask_list = []
@@ -68,11 +64,9 @@ for particle_code in PARTICLE_CODES:
     #         p.join()
     for data_dir in DATA_DIRS:
         get_event_particle_code(data_dir, particle_code, mask_list)
-    particle_dict[particle_code] = mask_list
 PARTICLE_CODES_FILE = MASK_ROOT.joinpath('particle_codes.pickle')
 with open(PARTICLE_CODES_FILE, 'wb') as f:
-    pickle.dump(particle_dict, f)
-max_doms_dict = {}
+    pickle.dump(mask_list, f)
 for max_doms in MAX_DOMS:
     print('Max doms mask')
     mask_list = []
@@ -90,7 +84,6 @@ for max_doms in MAX_DOMS:
     #         processes.append(p)
     #     for p in processes:
     #         p.join()
-    max_doms_dict[max_doms] = mask_list
 MAX_DOMS_FILE = MASK_ROOT.joinpath('max_doms.pickle')
 with open(MAX_DOMS_FILE, 'wb') as f:
-    pickle.dump(max_doms_dict, f)
+    pickle.dump(mask_list, f)

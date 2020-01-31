@@ -65,11 +65,11 @@ def main():
     # sets = data.return_indices()
     # print('Ended preprocessing at {}'.format(get_time()))
 
-    pickle_file = Path.home().joinpath('data/CubeData/' + config.data_type + '/masks/muon_neutrino.pickle')
+    pickle_file = Path.home().joinpath(config.data_dir + config.data_type + '/masks/muon_neutrino.pickle')
     with open(pickle_file, 'rb') as f:
         file_indices_particle = pickle.load(f)
 
-    pickle_file = Path.home().joinpath('data/CubeData/' + config.data_type + '/masks/dom_interval_min0_max200.pickle')
+    pickle_file = Path.home().joinpath(config.data_dir + config.data_type + '/masks/dom_interval_min0_max200.pickle')
     with open(pickle_file, 'rb') as f:
         file_indices_max_doms = pickle.load(f)
 
@@ -114,7 +114,7 @@ def main():
     #     early_stop_callback=None
     # )
     trainer.fit(model)
-    trainer.test()
+    # trainer.test()
 
     #     resolution = np.empty((0, len(config.targets)))
     #     direction = np.empty((0, 1))

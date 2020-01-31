@@ -12,7 +12,7 @@ class PickleGenerator(torch.utils.data.Dataset):
         self.ids = ids
         self.test = test
         self.data_dir = Path.home().joinpath(
-            'data/CubeData/' +
+            self.config.data_dir +
             self.config.data_type
         )
         self.file_extension = '.pickle'
@@ -25,7 +25,7 @@ class PickleGenerator(torch.utils.data.Dataset):
         max_doms = self.config.max_doms
         no_features = len(self.config.features)
         no_targets = len(self.config.targets)
-        file_number = self.ids[self.indices[index]]
+        file_number = str(self.ids[self.indices[index]])
         sub_folder = str(int(np.floor(int(file_number) / 10000) % 9999))
         X = np.zeros((max_doms, no_features))
         y = np.zeros((no_targets))
@@ -65,7 +65,8 @@ class PickleGenerator(torch.utils.data.Dataset):
         y = torch.from_numpy(y).float()
         comparisons = torch.from_numpy(comparisons).float()
         # energy = torch.(energy).float()
-        return X, y, comparisons, energy
+        # return X, y, comparisons, energy
+        return X, y
 
     def on_epoch_end(self):
         self.indices = np.arange(len(self.ids))
