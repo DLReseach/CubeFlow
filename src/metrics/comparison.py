@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 import joblib
 import h5py as h5
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import math
@@ -34,9 +35,9 @@ class RetroCrsComparison():
 
 
     def get_transformers(self):
-        root = get_project_root()
+        root = Path.home()
         transformer_file = root.joinpath(
-            'data/' + self.config.data_type + '/transformers/'
+            'data/CubeData/' + self.config.data_type + '/transformers/'
             + str(self.config.particle_type) + '_' + self.config.transform
             + '.pickle'
         )
@@ -171,7 +172,7 @@ class RetroCrsComparison():
                     'own_error': own_error[metric].tolist(),
                     'opponent_error': opponent_error[metric].tolist(),
                     'true_energy': energy.tolist(),
-                    'metric': [metric] * self.config.batch_size
+                    'metric': [metric] * comparisons.size(0)
                 }
             )
             self.comparison_df = self.comparison_df.append(
