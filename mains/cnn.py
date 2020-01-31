@@ -64,16 +64,14 @@ def main():
     # sets = data.return_indices()
     # print('Ended preprocessing at {}'.format(get_time()))
 
-    pickle_file = get_project_root().joinpath('masks/' + config.data_type + '/particle_codes.pickle')
+    pickle_file = Path.home().joinpath('data/CubeData/' + config.data_type + '/masks/muon_neutrino.pickle')
     with open(pickle_file, 'rb') as f:
         file_indices_particle = pickle.load(f)
     
-    pickle_file = get_project_root().joinpath('masks/' + config.data_type + '/max_doms.pickle')
+    pickle_file = Path.home().joinpath('data/CubeData/' + config.data_type + '/masks/dom_interval_min0_max200.pickle')
     with open(pickle_file, 'rb') as f:
         file_indices_max_doms = pickle.load(f)
 
-    file_indices_particle = file_indices_particle[str(config.particle_type)]
-    file_indices_max_doms = file_indices_max_doms[config.max_doms]
     file_indices = list(set(file_indices_particle) & set(file_indices_max_doms))
     sets = {}
     sets['train'], sets['test'] = train_test_split(
