@@ -11,8 +11,8 @@ class PickleGenerator(torch.utils.data.Dataset):
         self.config = config
         self.ids = ids
         self.test = test
-        self.data_dir = get_project_root().joinpath(
-            'data/' + self.config.data_type
+        self.data_dir = Path('/home/ehrhorn/repos/bak_CubeFlow/data').joinpath(
+            self.config.data_type
         )
         self.file_extension = '.pickle'
         self.on_epoch_end()

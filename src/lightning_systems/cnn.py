@@ -188,7 +188,7 @@ class CnnSystem(pl.LightningModule):
         )
         dl = DataLoader(
             self.test_dataset,
-            batch_size=1,
+            batch_size=self.config.batch_size,
             num_workers=0
         )
         no_of_samples = len(self.test_dataset)

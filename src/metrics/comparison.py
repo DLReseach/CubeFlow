@@ -150,7 +150,7 @@ class RetroCrsComparison():
         converted_truth = self.convert_to_spherical(truth)
         for i, metric in enumerate(self.config.comparison_metrics):
             normalized_comparisons = self.convert_to_signed_angle(
-                comparisons[i],
+                comparisons[:, i],
                 metric
             )
             opponent_error[metric] = self.delta_angle(
@@ -160,7 +160,7 @@ class RetroCrsComparison():
                 'opponent'
             )
             own_error[metric] = self.delta_angle(
-                converted_predictions,
+                converted_predictions[metric],
                 converted_truth[metric],
                 metric,
                 'own'
@@ -170,7 +170,7 @@ class RetroCrsComparison():
                 data={
                     'own_error': own_error[metric].tolist(),
                     'opponent_error': opponent_error[metric].tolist(),
-                    'true_energy': true_energy.tolist(),
+                    'true_energy': energy.tolist(),
                     'metric': [metric] * self.config.batch_size
                 }
             )

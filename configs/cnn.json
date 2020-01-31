@@ -1,7 +1,7 @@
 {
   "exp_name": "cnn_4_dir_14",
   "particle_type": 140000,
-  "dev_run": true,
+  "dev_run": false,
   "wandb": false,
   "num_epochs": 1,
   "patience": 3,
