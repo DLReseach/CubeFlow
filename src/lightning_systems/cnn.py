@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from warmup_scheduler import GradualWarmupScheduler
 import math
-from data_loader.cnn_generator import CnnGenerator
+from data_loader.pickle_generator import PickleGenerator
 from loggers.loggers import WandbLogger
 from metrics.comparison import RetroCrsComparison
 
@@ -62,7 +62,7 @@ class CnnSystem(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         if self.config.wandb == True:
@@ -71,7 +71,7 @@ class CnnSystem(pl.LightningModule):
 
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         if self.config.wandb == True:
@@ -89,14 +89,13 @@ class CnnSystem(pl.LightningModule):
 
 
     def test_step(self, batch, batch_nb):
-        x, y = batch
+        x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        file, idx = self.test_dataset.get_file_and_indices(batch_nb)
         # x_test, y_test = self.test_dataset[batch_nb]
         # assert torch.all(x_test.eq(x)), 'Whoops, x and x_test are not the same'
         # assert torch.all(y_test.eq(y)), 'Whoops, y and y_test are not the same'
-        self.comparisonclass.update_values(file, idx, y_hat, y)
+        self.comparisonclass.update_values(y_hat, y, comparisons, energy)
         return {'test_loss': loss}
 
 
@@ -148,50 +147,50 @@ class CnnSystem(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        self.train_dataset = CnnGenerator(
+        self.train_dataset = PickleGenerator(
             self.config,
             self.sets['train'],
             test=False
         )
         dl = DataLoader(
             self.train_dataset,
-            batch_size=None,
+            batch_size=self.config.batch_size,
             num_workers=self.config.num_workers
         )
-        no_of_samples = len(self.train_dataset) * self.config.batch_size
+        no_of_samples = len(self.train_dataset)
         print('No. of train samples:', no_of_samples)
         return dl
 
 
     @pl.data_loader
     def val_dataloader(self):
-        self.val_dataset = CnnGenerator(
+        self.val_dataset = PickleGenerator(
             self.config,
             self.sets['validate'],
             test=False
         ) 
         dl = DataLoader(
             self.val_dataset,
-            batch_size=None,
+            batch_size=self.config.batch_size,
             num_workers=self.config.num_workers
         )
-        no_of_samples = len(self.val_dataset) * self.config.batch_size
+        no_of_samples = len(self.val_dataset)
         print('No. of validation samples:', no_of_samples)
         return dl
 
 
     @pl.data_loader
     def test_dataloader(self):
-        self.test_dataset = CnnGenerator(
+        self.test_dataset = PickleGenerator(
             self.config,
             self.sets['test'],
             test=True
         )
         dl = DataLoader(
             self.test_dataset,
-            batch_size=None,
-            num_workers=self.config.num_workers
+            batch_size=1,
+            num_workers=0
         )
-        no_of_samples = len(self.test_dataset) * self.config.batch_size
+        no_of_samples = len(self.test_dataset)
         print('No. of test samples:', no_of_samples)
         return dl

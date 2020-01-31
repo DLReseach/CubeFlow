@@ -16,7 +16,7 @@ class CnnPreprocess:
         # if self.config.dev_run == True:
             # self.config.no_of_files = 1
             # self.config.batch_size = self.config.no_dev_examples
-
+    
 
     def file_trimmer(self):
         for file_set in self.sets_list:
@@ -25,7 +25,7 @@ class CnnPreprocess:
                 self.config.no_of_files
             )
         )
-
+    
 
     def dev_examples_trimmer(self):
         for file_set in self.sets_list:

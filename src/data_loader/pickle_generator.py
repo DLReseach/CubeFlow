@@ -25,7 +25,7 @@ class PickleGenerator(torch.utils.data.Dataset):
         no_features = len(self.config.features)
         no_targets = len(self.config.targets)
         file_number = self.ids[self.indices[index]]
-        sub_folder = str(int(file_number) % 999)
+        sub_folder = str(int(np.floor(int(file_number) / 10000) % 9999))
         X = np.zeros((max_doms, no_features))
         y = np.zeros((no_targets))
         comparisons = np.zeros((len(self.config.comparison_metrics)))
@@ -60,9 +60,11 @@ class PickleGenerator(torch.utils.data.Dataset):
             comparisons[i] = loaded_file[transform][comparison]
         energy = loaded_file['raw']['true_primary_energy']
         X = np.transpose(X, (1, 0))
-        # X = torch.from_numpy(X).float()
-        # y = torch.from_numpy(y).float()
-        return X, y, comparison, energy
+        X = torch.from_numpy(X).float()
+        y = torch.from_numpy(y).float()
+        comparisons = torch.from_numpy(comparisons).float()
+        # energy = torch.(energy).float()
+        return X, y, comparisons, energy
 
     def on_epoch_end(self):
         self.indices = np.arange(len(self.ids))
@@ -78,7 +80,3 @@ class PickleGenerator(torch.utils.data.Dataset):
             print('Whoops! The feature ain\'t in the file!')
         return transform
 
-    def get_file_and_indices(self, index):
-        file = list(self.ids[index].keys())[0]
-        idx = list(self.ids[index].values())[0]
-        return file, idx

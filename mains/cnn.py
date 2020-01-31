@@ -10,6 +10,8 @@ import warnings
 import joblib
 from warmup_scheduler import GradualWarmupScheduler
 # from torch_lr_finder import LRFinder
+from sklearn.model_selection import train_test_split
+import pickle
 
 from src.lightning_systems.cnn import CnnSystem
 from preprocessing.cnn_preprocessing import CnnPreprocess
@@ -52,15 +54,38 @@ def main():
                 name=experiment_name
             )
 
-    sets = joblib.load(
-        get_project_root().joinpath(
-            'sets/' + str(config.particle_type) + '.joblib'
-        )
+    # sets = joblib.load(
+    #     get_project_root().joinpath(
+    #         'sets/' + str(config.particle_type) + '.joblib'
+    #     )
+    # )
+    # print('Starting preprocessing at {}'.format(get_time()))
+    # data = CnnPreprocess(sets, config)
+    # sets = data.return_indices()
+    # print('Ended preprocessing at {}'.format(get_time()))
+
+    pickle_file = get_project_root().joinpath('masks/' + config.data_type + '/particle_codes.pickle')
+    with open(pickle_file, 'rb') as f:
+        file_indices_particle = pickle.load(f)
+    
+    pickle_file = get_project_root().joinpath('masks/' + config.data_type + '/max_doms.pickle')
+    with open(pickle_file, 'rb') as f:
+        file_indices_max_doms = pickle.load(f)
+
+    file_indices_particle = file_indices_particle[str(config.particle_type)]
+    file_indices_max_doms = file_indices_max_doms[config.max_doms]
+    file_indices = list(set(file_indices_particle) & set(file_indices_max_doms))
+    sets = {}
+    sets['train'], sets['test'] = train_test_split(
+        file_indices,
+        test_size=config.test_fraction,
+        random_state=config.random_state
     )
-    print('Starting preprocessing at {}'.format(get_time()))
-    data = CnnPreprocess(sets, config)
-    sets = data.return_indices()
-    print('Ended preprocessing at {}'.format(get_time()))
+    sets['train'], sets['validate'] = train_test_split(
+        sets['train'],
+        test_size=config.validation_fraction,
+        random_state=config.random_state
+    )
 
     set_random_seed()
 
@@ -82,7 +107,7 @@ def main():
     trainer = Trainer(
         gpus=config.gpus,
         max_epochs=config.num_epochs,
-        # fast_dev_run=config.dev_run,
+        fast_dev_run=config.dev_run,
         early_stop_callback=None if config.patience == 0 else early_stop_callback
     )
     # trainer = Trainer(

@@ -77,7 +77,7 @@ class RetroCrsComparison():
         return sorted_idx, sorted_predictions, sorted_truth
 
 
-    def convert_to_spherical(self, values, value_type):
+    def convert_to_spherical(self, values):
         values = self.invert_transform(values)
         x = values[:, 0]
         y = values[:, 1]
@@ -85,9 +85,6 @@ class RetroCrsComparison():
         r = torch.sqrt(x**2 + y**2 + z**2)
         theta = torch.acos(z / r)
         phi = torch.atan2(y, x)
-        # if value_type == 'truth':
-            # print('Prediction values:', values)
-            # print('Phi:', phi)
         return {'azimuth': phi, 'zenith': theta}
 
 
@@ -146,34 +143,25 @@ class RetroCrsComparison():
         return delta
 
 
-    def update_values(self, file, idx, predictions, truth):
-        assert type(file) == str, 'Hmm, file is not a string'
+    def update_values(self, predictions, truth, comparisons, energy):
         opponent_error = {}
         own_error = {}
-        sorted_idx, sorted_predictions, sorted_truth = self.sort_values(
-            idx,
-            predictions,
-            truth
-        )
-        sorted_predictions = self.convert_to_spherical(
-            sorted_predictions,
-            'predictions'
-        )
-        sorted_truth = self.convert_to_spherical(
-            sorted_truth,
-            'truth'
-        )
-        comparison_metrics, true_energy = self.get_comparisons(file, sorted_idx)
-        for metric in self.config.comparison_metrics:
+        converted_predictions = self.convert_to_spherical(predictions)
+        converted_truth = self.convert_to_spherical(truth)
+        for i, metric in enumerate(self.config.comparison_metrics):
+            normalized_comparisons = self.convert_to_signed_angle(
+                comparisons[i],
+                metric
+            )
             opponent_error[metric] = self.delta_angle(
-                comparison_metrics[metric],
-                sorted_truth[metric],
+                normalized_comparisons,
+                converted_truth[metric],
                 metric,
                 'opponent'
             )
             own_error[metric] = self.delta_angle(
-                sorted_predictions[metric],
-                sorted_truth[metric],
+                converted_predictions,
+                converted_truth[metric],
                 metric,
                 'own'
             )
