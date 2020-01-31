@@ -28,7 +28,7 @@ def untar_file(file):
 
 
 if __name__ == '__main__':
-    with Pool(48) as pool: 
+    with Pool(5) as pool: 
         pool.map(untar_file, TAR_FILES)
     shutil.rmtree(TAR_PATH.joinpath('lustre'))
     print('Done!')
