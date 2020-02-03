@@ -114,7 +114,7 @@ def main():
     #     early_stop_callback=None
     # )
     trainer.fit(model)
-    # trainer.test()
+    trainer.test()
 
     #     resolution = np.empty((0, len(config.targets)))
     #     direction = np.empty((0, 1))

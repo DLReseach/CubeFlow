@@ -62,8 +62,7 @@ class CnnSystem(pl.LightningModule):
 
 
     def training_step(self, batch, batch_idx):
-        # x, y, comparisons, energy = batch
-        x, y = batch
+        x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         if self.config.wandb == True:
@@ -72,8 +71,7 @@ class CnnSystem(pl.LightningModule):
 
 
     def validation_step(self, batch, batch_idx):
-        # x, y, comparisons, energy = batch
-        x, y = batch
+        x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         if self.config.wandb == True:
@@ -90,21 +88,21 @@ class CnnSystem(pl.LightningModule):
         return {'val_loss': avg_loss}
 
 
-    # def test_step(self, batch, batch_nb):
-    #     x, y, comparisons, energy = batch
-    #     y_hat = self.forward(x)
-    #     loss = F.mse_loss(y_hat, y)
-    #     # x_test, y_test = self.test_dataset[batch_nb]
-    #     # assert torch.all(x_test.eq(x)), 'Whoops, x and x_test are not the same'
-    #     # assert torch.all(y_test.eq(y)), 'Whoops, y and y_test are not the same'
-    #     self.comparisonclass.update_values(y_hat, y, comparisons, energy)
-    #     return {'test_loss': loss}
+    def test_step(self, batch, batch_nb):
+        x, y, comparisons, energy = batch
+        y_hat = self.forward(x)
+        loss = F.mse_loss(y_hat, y)
+        # x_test, y_test = self.test_dataset[batch_nb]
+        # assert torch.all(x_test.eq(x)), 'Whoops, x and x_test are not the same'
+        # assert torch.all(y_test.eq(y)), 'Whoops, y and y_test are not the same'
+        self.comparisonclass.update_values(y_hat, y, comparisons, energy)
+        return {'test_loss': loss}
 
 
-    # def test_end(self, outputs):
-    #     self.comparisonclass.testing_ended()
-    #     avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-    #     return {'test_loss': avg_loss}
+    def test_end(self, outputs):
+        self.comparisonclass.testing_ended()
+        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+        return {'test_loss': avg_loss}
 
 
     def on_epoch_end(self):
@@ -119,10 +117,9 @@ class CnnSystem(pl.LightningModule):
             self.parameters(),
             lr=self.config.min_learning_rate
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(
             optimizer,
-            step_size=1,
-            gamma=0.1
+            gamma=0.5
         )
         scheduler_warmup = GradualWarmupScheduler(
             optimizer,

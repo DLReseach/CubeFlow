@@ -4,7 +4,7 @@ from multiprocessing import Pool, cpu_count
 from multiprocessing import Process, Manager
 from utils.utils import get_project_root
 
-DATA_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2')
+DATA_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2/pickles')
 MASK_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2/masks')
 
 MASK_ROOT.mkdir(exist_ok=True)
@@ -13,18 +13,14 @@ DATA_DIRS = sorted([
     directory for directory in DATA_ROOT.iterdir() if directory.is_dir()
     and directory.stem != 'masks' and directory.stem != 'transformers'
 ])
-print(DATA_DIRS[-1].stem)
-PARTICLE_CODES = ['120000']
+PARTICLE_CODES = ['140000']
 MAX_DOMS = [200]
 
 
 def get_event_particle_code(directory, mask_particle_code, mask_list):
     mask = []
-    print(directory)
     files = [file for file in directory.iterdir() if file.is_file()]
     for i, file in enumerate(files):
-        if i % 100 == 0:
-            print(i)
         with open(file, 'rb') as f:
             event_dict = pickle.load(f)
             event_particle_code = event_dict['meta']['particle_code']
@@ -35,11 +31,8 @@ def get_event_particle_code(directory, mask_particle_code, mask_list):
 
 def get_event_length(directory, max_doms, mask_list):
     mask = []
-    print(directory)
     files = [file for file in directory.iterdir() if file.is_file()]
     for i, file in enumerate(files):
-        if i % 100 == 0:
-            print(i)
         with open(file, 'rb') as f:
             event_dict = pickle.load(f)
             if len(event_dict['masks']['SplitInIcePulses']) <= 200:
@@ -64,7 +57,7 @@ for particle_code in PARTICLE_CODES:
     #         p.join()
     for data_dir in DATA_DIRS:
         get_event_particle_code(data_dir, particle_code, mask_list)
-PARTICLE_CODES_FILE = MASK_ROOT.joinpath('particle_codes.pickle')
+PARTICLE_CODES_FILE = MASK_ROOT.joinpath('muon_neutrino.pickle')
 with open(PARTICLE_CODES_FILE, 'wb') as f:
     pickle.dump(mask_list, f)
 for max_doms in MAX_DOMS:
@@ -84,6 +77,8 @@ for max_doms in MAX_DOMS:
     #         processes.append(p)
     #     for p in processes:
     #         p.join()
-MAX_DOMS_FILE = MASK_ROOT.joinpath('max_doms.pickle')
+MAX_DOMS_FILE = MASK_ROOT.joinpath('dom_interval_min0_max200.pickle')
 with open(MAX_DOMS_FILE, 'wb') as f:
     pickle.dump(mask_list, f)
+
+print('Done!')

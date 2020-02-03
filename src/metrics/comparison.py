@@ -98,7 +98,8 @@ class RetroCrsComparison():
                 [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
             ).float().to(self.device)
         elif angle_type == 'zenith':
-            reversed_angles = torch.tensor(np.pi - angles).float().to(self.device)
+            # reversed_angles = torch.tensor(np.pi - angles).float().to(self.device)
+            reversed_angles = np.pi - angles
         else:
             print('Unknown angle type')
         return reversed_angles
@@ -183,6 +184,7 @@ class RetroCrsComparison():
 
     def calculate_energy_bins(self):
         no_of_bins = 12
+        # bins = []
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
         )
@@ -192,6 +194,7 @@ class RetroCrsComparison():
 
     def bootstrap(self, series, R=1000):
         n = series.size
+        percentiles = [0.25, 0.75]
         column_names = [
             'q1',
             'q1_minus',
@@ -220,20 +223,87 @@ class RetroCrsComparison():
         q1_mean = df.q1.mean()
         q3_mean = df.q3.mean()
         resolution = (q3_mean - q1_mean) / 1.35
-        resolution_error = np.sqrt(
-            (1 / 1.35)**2 * (df.q3_plus.mean())**2
-            + (- 1 / 1.35)**2 * (df.q1_plus.mean())**2
-        )
+        resolution_error = np.sqrt(e_quartiles[0]**2 + e_quartiles[1]**2) / 1.35
         return [resolution, resolution_error]
 
 
-    def plot_error_in_energy_bin(self, values, name, bin_no):
+    def convert_iqr_to_sigma(self, quartiles, e_quartiles):
+        factor = 1 / 1.349
+        sigma = np.abs(quartiles[1] - quartiles[0]) * factor
+        e_sigma = factor * np.sqrt(e_quartiles[0]**2 + e_quartiles[1]**2)        
+        return sigma, e_sigma
+
+
+    def estimate_percentile(self, data, percentiles, n_bootstraps=1000):
+        data = np.array(data)
+        n = data.shape[0]
+        data.sort()
+        i_means, means = [], []
+        i_plussigmas, plussigmas = [], []
+        i_minussigmas, minussigmas = [], []
+        for percentile in percentiles:
+            sigma = np.sqrt(percentile * n * (1 - percentile))
+            mean = n * percentile
+            i_means.append(int(mean))
+            i_plussigmas.append(int(mean + sigma + 1))
+            i_minussigmas.append(int(mean - sigma))
+        bootstrap_indices = np.random.choice(np.arange(0, n), size=(n, n_bootstraps))
+        bootstrap_indices.sort(axis=0)
+        bootstrap_samples = data[bootstrap_indices]
+        for i in range(len(i_means)):                
+            try:    
+                mean = bootstrap_samples[i_means[i], :]
+                means.append(np.mean(mean))
+                plussigma = bootstrap_samples[i_plussigmas[i], :]
+                plussigmas.append(np.mean(plussigma))
+                minussigma = bootstrap_samples[i_minussigmas[i], :]
+                minussigmas.append(np.mean(minussigma))
+            except IndexError:
+                means.append(np.nan)
+                plussigmas.append(np.nan)
+                minussigmas.append(np.nan)
+        return means, plussigmas, minussigmas
+
+
+    def calculate_performance(self, values):
+        means, plussigmas, minussigmas = self.estimate_percentile(values, [0.25, 0.75])
+        e_quartiles = []
+        e_quartiles.append((plussigmas[0] - minussigmas[0]) / 2)
+        e_quartiles.append((plussigmas[1] - minussigmas[1]) / 2)
+        sigma, e_sigma = self.convert_iqr_to_sigma(means, e_quartiles)
+        if e_sigma != e_sigma:
+            sigma = np.nan
+        return sigma, e_sigma
+
+
+    def plot_error_in_energy_bin(self, values, name, bin_no, energy_range):
         file_name = get_project_root().joinpath(
             'plots/error_distribution_' + name + '_' + str(bin_no) + '.pdf'
         )
         fig, ax = plt.subplots()
-        ax.hist(values, bins='fd')
+        ax.hist(values, bins='fd', density=True)
+        ax.set(
+            xlabel='Error',
+            ylabel='Frequency',
+            title='Network performance in energy bin {}'.format(energy_range)
+        )
         fig.savefig(str(file_name))
+        if self.config.wandb == True:
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png', dpi=600)
+            buf.seek(0)
+            im = Image.open(buf)
+            self.wandb.log(
+                {
+                    name + ' error in energy range {}'.format(energy_range): [
+                        self.wandb.Image(im)
+                    ]
+                }
+            )
+            buf.close()
+        else:
+            fig.savefig(str(file_name))
+        plt.close(fig)
 
 
     def create_comparison_plot(self, bins):
@@ -252,6 +322,7 @@ class RetroCrsComparison():
             own_performance = []
             own_std = []
             width = []
+            error_point_width = []
             for i in range(len(bins)):
                 indexer = (
                     (self.comparison_df.binned == bins[i])
@@ -260,23 +331,48 @@ class RetroCrsComparison():
                 no_of_samples_in_bin.append(len(self.comparison_df[indexer]))
                 bin_center.append(bins[i].mid)
                 width.append(bins[i].length)
-                opponent = self.bootstrap(
-                    self.comparison_df[indexer].opponent_error
+                error_point_width.append(bins[i].length / 2)
+                opponent = self.calculate_performance(
+                    self.comparison_df[indexer].opponent_error.values
                 )
-                opponent_performance.append(opponent[0])
-                opponent_std.append(opponent[1])
-                own = self.bootstrap(
-                    self.comparison_df[indexer].own_error
+                own = self.calculate_performance(
+                    self.comparison_df[indexer].own_error.values
                 )
-                own_performance.append(own[0])
-                own_std.append(own[1])
                 self.plot_error_in_energy_bin(
                     self.comparison_df[indexer].opponent_error,
                     metric,
-                    i
+                    i,
+                    bins[i]
                 )
+                opponent_performance.append(np.rad2deg(opponent[0]))
+                opponent_std.append(np.rad2deg(opponent[1]))
+                own_performance.append(np.rad2deg(own[0]))
+                own_std.append(np.rad2deg(own[1]))
             fig1, ax1 = plt.subplots()
-            ax1.bar(
+            markers, caps, bars = ax1.errorbar(
+                bin_center,
+                opponent_performance,
+                yerr=opponent_std,
+                xerr=error_point_width,
+                marker='x',
+                ls='none',
+                label='retro_crs'
+            )
+            [bar.set_alpha(0.5) for bar in bars]
+            [cap.set_alpha(0.5) for cap in caps]
+            markers, caps, bars = ax1.errorbar(
+                bin_center,
+                own_performance,
+                yerr=own_std,
+                xerr=error_point_width,
+                marker='x',
+                ls='none',
+                label='own'
+            )
+            [bar.set_alpha(0.5) for bar in bars]
+            [cap.set_alpha(0.5) for cap in caps]
+            ax2 = ax1.twinx()
+            ax2.bar(
                 bin_center,
                 no_of_samples_in_bin,
                 align='center',
@@ -284,39 +380,11 @@ class RetroCrsComparison():
                 width=width,
                 edgecolor='black'
             )
-            ax2 = ax1.twinx()
-            markers, caps, bars = ax2.errorbar(
-                bin_center,
-                opponent_performance,
-                yerr=opponent_std,
-                # xerr=width,
-                fmt='o',
-                ecolor='black',
-                capsize=2,
-                capthick=2,
-                label='retro_crs',
-                markerfacecolor='blue'
-            )
-            [bar.set_alpha(0.5) for bar in bars]
-            [cap.set_alpha(0.5) for cap in caps]
-            markers, caps, bars = ax2.errorbar(
-                bin_center,
-                own_performance,
-                yerr=own_std,
-                # xerr=width,
-                fmt='o',
-                ecolor='black',
-                capsize=2,
-                capthick=2,
-                label='own',
-                markerfacecolor='green'
-            )
-            [bar.set_alpha(0.5) for bar in bars]
-            [cap.set_alpha(0.5) for cap in caps]
-            ax1.set_yscale('log')
-            ax1.set(xlabel='Energy', ylabel='Frequency', title=metric)
-            ax2.set(ylabel='Error')
-            ax2.legend()
+            ax2.set_yscale('log')
+            ax1.set(xlabel='Log(E) [E/GeV]', title=metric)
+            ax1.set(ylabel='Error [Deg]')
+            ax2.set(ylabel='Events')
+            ax1.legend()
             if self.config.wandb == True:
                 buf = io.BytesIO()
                 fig1.savefig(buf, format='png', dpi=600)

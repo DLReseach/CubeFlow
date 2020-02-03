@@ -13,7 +13,8 @@ class PickleGenerator(torch.utils.data.Dataset):
         self.test = test
         self.data_dir = Path.home().joinpath(
             self.config.data_dir +
-            self.config.data_type
+            self.config.data_type +
+            '/pickles'
         )
         self.file_extension = '.pickle'
         self.on_epoch_end()
@@ -65,8 +66,7 @@ class PickleGenerator(torch.utils.data.Dataset):
         y = torch.from_numpy(y).float()
         comparisons = torch.from_numpy(comparisons).float()
         # energy = torch.(energy).float()
-        # return X, y, comparisons, energy
-        return X, y
+        return X, y, comparisons, energy
 
     def on_epoch_end(self):
         self.indices = np.arange(len(self.ids))
