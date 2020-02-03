@@ -52,21 +52,24 @@ class PickleGenerator(torch.utils.data.Dataset):
                 self.config.transform
             )
             y[i] = loaded_file[transform][target]
-        for i, comparison in enumerate(self.config.comparison_metrics):
-            comparison = self.config.opponent + '_' + comparison
-            transform = self.check_entry_in_transform(
-                loaded_file,
-                comparison,
-                self.config.transform
-            )
-            comparisons[i] = loaded_file[transform][comparison]
-        energy = loaded_file['raw']['true_primary_energy']
+        if self.test:
+            for i, comparison in enumerate(self.config.comparison_metrics):
+                comparison = self.config.opponent + '_' + comparison
+                transform = self.check_entry_in_transform(
+                    loaded_file,
+                    comparison,
+                    self.config.transform
+                )
+                comparisons[i] = loaded_file[transform][comparison]
+            energy = loaded_file['raw']['true_primary_energy']
         X = np.transpose(X, (1, 0))
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
-        comparisons = torch.from_numpy(comparisons).float()
-        # energy = torch.(energy).float()
-        return X, y, comparisons, energy
+        if self.test:
+            comparisons = torch.from_numpy(comparisons).float()
+            return X, y, comparisons, energy
+        else:
+            return X, y
 
     def on_epoch_end(self):
         self.indices = np.arange(len(self.ids))

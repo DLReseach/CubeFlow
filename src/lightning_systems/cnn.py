@@ -38,6 +38,16 @@ class CnnSystem(pl.LightningModule):
             out_channels=256,
             kernel_size=5
         )
+        self.conv5 = torch.nn.Conv1d(
+            in_channels=256,
+            out_channels=512,
+            kernel_size=5
+        )
+        self.conv6 = torch.nn.Conv1d(
+            in_channels=512,
+            out_channels=1024,
+            kernel_size=5
+        )
         self.linear1 = torch.nn.Linear(
             in_features=11264,
             out_features=len(self.config.targets)
@@ -49,10 +59,11 @@ class CnnSystem(pl.LightningModule):
         x = F.max_pool1d(F.leaky_relu(self.conv2(x)), 2)
         x = F.leaky_relu(self.conv3(x))
         x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
+        x = F.leaky_relu(self.conv5(x))
+        x = F.max_pool1d(F.leaky_relu(self.conv6(x)), 2)
         x = torch.flatten(x, start_dim=1, end_dim=2)
         x = self.linear1(x)
         return x
-
 
     def on_epoch_start(self):
         if self.config.wandb == True:
@@ -60,24 +71,21 @@ class CnnSystem(pl.LightningModule):
         else:
             pass
 
-
     def training_step(self, batch, batch_idx):
-        x, y, comparisons, energy = batch
+        x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         if self.config.wandb == True:
             self.logclass.update({'train_loss': loss})
         return {'loss': loss}
 
-
     def validation_step(self, batch, batch_idx):
-        x, y, comparisons, energy = batch
+        x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         if self.config.wandb == True:
             self.logclass.update({'val_loss': loss})
         return {'val_loss': loss}
-
 
     def validation_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
@@ -86,7 +94,6 @@ class CnnSystem(pl.LightningModule):
             'log': {'val_loss': avg_loss}
         }
         return {'val_loss': avg_loss}
-
 
     def test_step(self, batch, batch_nb):
         x, y, comparisons, energy = batch
@@ -98,19 +105,16 @@ class CnnSystem(pl.LightningModule):
         self.comparisonclass.update_values(y_hat, y, comparisons, energy)
         return {'test_loss': loss}
 
-
     def test_end(self, outputs):
         self.comparisonclass.testing_ended()
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         return {'test_loss': avg_loss}
-
 
     def on_epoch_end(self):
         if self.config.wandb == True:
             self.logclass.log_metrics()
         else:
             pass
-
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
@@ -129,7 +133,6 @@ class CnnSystem(pl.LightningModule):
         )
         return [optimizer], [scheduler_warmup]
 
-
     def optimizer_step(
         self,
         current_epoch,
@@ -142,7 +145,6 @@ class CnnSystem(pl.LightningModule):
         optimizer.zero_grad()
         if batch_nb == 0 and self.config.wandb == True:
             self.wandb.log({'learning_rate': optimizer.param_groups[0]['lr']})
-        
 
     @pl.data_loader
     def train_dataloader(self):
@@ -160,7 +162,6 @@ class CnnSystem(pl.LightningModule):
         print('No. of train samples:', no_of_samples)
         return dl
 
-
     @pl.data_loader
     def val_dataloader(self):
         self.val_dataset = PickleGenerator(
@@ -177,12 +178,11 @@ class CnnSystem(pl.LightningModule):
         print('No. of validation samples:', no_of_samples)
         return dl
 
-
     @pl.data_loader
     def test_dataloader(self):
         self.test_dataset = PickleGenerator(
             self.config,
-            self.sets['test'],
+            self.sets['validate'],
             test=True
         )
         dl = DataLoader(
