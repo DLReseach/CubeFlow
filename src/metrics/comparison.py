@@ -183,7 +183,7 @@ class RetroCrsComparison():
 
 
     def calculate_energy_bins(self):
-        no_of_bins = 12
+        no_of_bins = 24
         # bins = []
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
@@ -339,7 +339,7 @@ class RetroCrsComparison():
                     self.comparison_df[indexer].own_error.values
                 )
                 self.plot_error_in_energy_bin(
-                    self.comparison_df[indexer].opponent_error,
+                    np.rad2deg(self.comparison_df[indexer].opponent_error),
                     metric,
                     i,
                     bins[i]
@@ -372,13 +372,10 @@ class RetroCrsComparison():
             [bar.set_alpha(0.5) for bar in bars]
             [cap.set_alpha(0.5) for cap in caps]
             ax2 = ax1.twinx()
-            ax2.bar(
-                bin_center,
-                no_of_samples_in_bin,
-                align='center',
-                fill=False,
-                width=width,
-                edgecolor='black'
+            ax2.hist(
+                self.comparison_df.true_energy.values,
+                bins=24,
+                histtype='step'
             )
             ax2.set_yscale('log')
             ax1.set(xlabel='Log(E) [E/GeV]', title=metric)
