@@ -45,16 +45,21 @@ class RetroCrsComparison():
         self.transformers = {}
         for target in self.config.targets:
             if target in transformers:
-                self.transformers[feature] = transformers[feature]
+                self.transformers[target] = transformers[target]
+        for comparison in self.config.comparison_metrics:
+            if self.config.opponent + '_' + comparison in transformers:
+                self.transformers[self.config.opponent + '_' + comparison] = transformers[self.config.opponent + '_' + comparison]
 
 
-    def invert_transform(self, values):
-        if self.transformers:
-            for i, target in enumerate(self.transformers):
-                values[:, i] = self.transformers[target].inverse_transform(
-                    values[:, i]
-                )
-        return values
+    def invert_transform(self, values, key):
+        if key in self.transformers:
+            return_values = self.transformers[key].inverse_transform(
+                values.reshape(-1, 1)
+            )
+            return_values = torch.from_numpy(return_values)
+        else:
+            return_values = values
+        return return_values
 
 
     def sort_values(self, idx, predictions, truth):
@@ -79,7 +84,8 @@ class RetroCrsComparison():
 
 
     def convert_to_spherical(self, values):
-        values = self.invert_transform(values)
+        for i, target in enumerate(self.config.targets):
+            values[:, i] = self.invert_transform(values[:, i], target)
         x = values[:, 0]
         y = values[:, 1]
         z = values[:, 2]
@@ -144,29 +150,49 @@ class RetroCrsComparison():
                 # print('Delta angle:', delta)
         return delta
 
+    def delta_energy(self, prediction, truth):
+        x = prediction
+        y = truth
+        difference = (y - x) / y
+        flat_list = [item for sublist in difference for item in sublist]
+        flat_tensor = torch.Tensor(flat_list)
+        return flat_tensor
 
     def update_values(self, predictions, truth, comparisons, energy):
         opponent_error = {}
         own_error = {}
-        converted_predictions = self.convert_to_spherical(predictions)
-        converted_truth = self.convert_to_spherical(truth)
-        for i, metric in enumerate(self.config.comparison_metrics):
-            normalized_comparisons = self.convert_to_signed_angle(
-                comparisons[:, i],
-                metric
-            )
-            opponent_error[metric] = self.delta_angle(
-                normalized_comparisons,
-                converted_truth[metric],
-                metric,
-                'opponent'
-            )
-            own_error[metric] = self.delta_angle(
-                converted_predictions[metric],
-                converted_truth[metric],
-                metric,
-                'own'
-            )
+        if self.config.comparison_type == 'polar':
+            converted_predictions = self.convert_to_spherical(predictions)
+            converted_truth = self.convert_to_spherical(truth)
+            for i, metric in enumerate(self.config.comparison_metrics):
+                normalized_comparisons = self.convert_to_signed_angle(
+                    comparisons[:, i],
+                    metric
+                )
+                opponent_error[metric] = self.delta_angle(
+                    normalized_comparisons,
+                    converted_truth[metric],
+                    metric,
+                    'opponent'
+                )
+                own_error[metric] = self.delta_angle(
+                    converted_predictions[metric],
+                    converted_truth[metric],
+                    metric,
+                    'own'
+                )
+        elif self.config.comparison_type == 'energy':
+            predictions = self.invert_transform(predictions, 'true_primary_energy')
+            truth = self.invert_transform(truth, 'true_primary_energy')
+            for i, metric in enumerate(self.config.comparison_metrics):
+                opponent_error[metric] = self.delta_energy(
+                    comparisons,
+                    truth
+                )
+                own_error[metric] = self.delta_energy(
+                    predictions,
+                    truth
+                )
         for metric in self.config.comparison_metrics:
             temp_df = pd.DataFrame(
                 data={
@@ -180,7 +206,6 @@ class RetroCrsComparison():
                 temp_df,
                 ignore_index=True
             )
-
 
     def calculate_energy_bins(self):
         no_of_bins = 24
@@ -236,6 +261,7 @@ class RetroCrsComparison():
 
     def estimate_percentile(self, data, percentiles, n_bootstraps=1000):
         data = np.array(data)
+        # print(data)
         n = data.shape[0]
         data.sort()
         i_means, means = [], []
@@ -338,16 +364,28 @@ class RetroCrsComparison():
                 own = self.calculate_performance(
                     self.comparison_df[indexer].own_error.values
                 )
-                self.plot_error_in_energy_bin(
-                    np.rad2deg(self.comparison_df[indexer].opponent_error),
-                    metric,
-                    i,
-                    bins[i]
-                )
-                opponent_performance.append(np.rad2deg(opponent[0]))
-                opponent_std.append(np.rad2deg(opponent[1]))
-                own_performance.append(np.rad2deg(own[0]))
-                own_std.append(np.rad2deg(own[1]))
+                if self.config.comparison_type == 'polar':
+                    self.plot_error_in_energy_bin(
+                        np.rad2deg(self.comparison_df[indexer].opponent_error),
+                        metric,
+                        i,
+                        bins[i]
+                    )
+                    opponent_performance.append(np.rad2deg(opponent[0]))
+                    opponent_std.append(np.rad2deg(opponent[1]))
+                    own_performance.append(np.rad2deg(own[0]))
+                    own_std.append(np.rad2deg(own[1]))
+                elif self.config.comparison_type == 'energy':
+                    self.plot_error_in_energy_bin(
+                        self.comparison_df[indexer].opponent_error,
+                        metric,
+                        i,
+                        bins[i]
+                    )
+                    opponent_performance.append(opponent[0])
+                    opponent_std.append(opponent[1])
+                    own_performance.append(own[0])
+                    own_std.append(own[1])
             fig1, ax1 = plt.subplots()
             markers, caps, bars = ax1.errorbar(
                 bin_center,
@@ -379,7 +417,10 @@ class RetroCrsComparison():
             )
             ax2.set_yscale('log')
             ax1.set(xlabel='Log(E) [E/GeV]', title=metric)
-            ax1.set(ylabel='Error [Deg]')
+            if self.config.comparison_type == 'polar':
+                ax1.set(ylabel='Error [Deg]')
+            elif self.config.comparison_type == 'energy':
+                ax1.set(ylabel='Relative error')
             ax2.set(ylabel='Events')
             ax1.legend()
             if self.config.wandb == True:

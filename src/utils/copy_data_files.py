@@ -6,7 +6,7 @@ TARGET_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-
 
 SOURCE_DIRS = sorted([
     folder for folder in SOURCE_ROOT.iterdir() if folder.is_dir()
-])[0:400]
+])[0:10]
 TARGET_DIRS = sorted([
     folder.stem for folder in TARGET_ROOT.iterdir() if folder.is_dir()
 ])
