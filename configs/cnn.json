@@ -3,7 +3,7 @@
   "particle_type": 140000,
   "dev_run": false,
   "wandb": true,
-  "num_epochs": 1,
+  "num_epochs": 100,
   "patience": 5,
   "log_frac": 0.05,
   "no_dev_examples": 4,
