@@ -76,3 +76,12 @@ def h5_data_reader(data_file, group, idx):
         else:
             data = f[group][idx]
     return data
+
+
+def get_files_and_dirs(config):
+    files_and_dirs = {}
+    dir_in_repo = Path(config.data_dir).joinpath(config.data_type)
+    files_and_dirs['data_dir'] = Path.home().joinpath(dir_in_repo).joinpath('pickles')
+    files_and_dirs['transformer_dir'] = Path.home().joinpath(dir_in_repo).joinpath('transformers')
+    files_and_dirs['masks_dir'] = Path.home().joinpath(dir_in_repo).joinpath('masks')
+    return files_and_dirs

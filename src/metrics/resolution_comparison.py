@@ -8,8 +8,6 @@ import numpy as np
 import math
 from PIL import Image
 import io
-from sklearn.preprocessing import QuantileTransformer
-from sklearn.preprocessing import RobustScaler
 from utils.math_funcs import unit_vector
 from utils.utils import get_project_root
 from utils.utils import get_time
@@ -17,12 +15,12 @@ from utils.utils import get_time
 import matplotlib.pyplot as plt
 
 
-class RetroCrsComparison():
-    def __init__(self, wandb, config):
+class ResolutionComparison():
+    def __init__(self, wandb, config, device):
         super().__init__()
         self.wandb = wandb
         self.config = config
-        self.get_transformers()
+        self.device = device
         self.column_names = [
             'own_error',
             'opponent_error',
@@ -30,60 +28,43 @@ class RetroCrsComparison():
             'metric'
         ]
         self.comparison_df = pd.DataFrame(columns=self.column_names)
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-
-    def get_transformers(self):
-        root = Path.home()
-        transformer_file = root.joinpath(
-            self.config.data_dir + self.config.data_type + '/transformers/'
-            + str(self.config.particle_type) + '_' + self.config.transform
-            + '.pickle'
-        )
-        transformers = joblib.load(transformer_file)
-        self.transformers = {}
-        for target in self.config.targets:
-            if target in transformers:
-                self.transformers[target] = transformers[target]
-        for comparison in self.config.comparison_metrics:
-            if self.config.opponent + '_' + comparison in transformers:
-                self.transformers[self.config.opponent + '_' + comparison] = transformers[self.config.opponent + '_' + comparison]
-
-
-    def invert_transform(self, values, key):
-        if key in self.transformers:
-            return_values = self.transformers[key].inverse_transform(
-                values.reshape(-1, 1)
-            )
-            return_values = torch.from_numpy(return_values)
-        else:
-            return_values = values
-        return return_values
-
-
-    def sort_values(self, idx, predictions, truth):
-        sorted_idx = sorted(idx)
-        sorted_predictions = torch.stack(
-            [
-                y for _, y in sorted(
-                    zip(idx, predictions),
-                    key=lambda pair: pair[0]
-                )
-            ]
-        )
-        sorted_truth = torch.stack(
-            [
-                y for _, y in sorted(
-                    zip(idx, truth),
-                    key=lambda pair: pair[0]
-                )
-            ]
-        )
-        return sorted_idx, sorted_predictions, sorted_truth
+    def match_comparison_and_values(self, predictions, truth, comparisons):
+        matched_metrics = {}
+        for comparison in comparisons:
+            if comparison == 'azimuth' or comparison == 'zenith':
+                needed_targets = [
+                    'true_primary_direction_x',
+                    'true_primary_direction_y',
+                    'true_primary_direction_z'
+                ]
+                needed_targets_test = all(x in self.config.targets for x in needed_targets)
+                assert needed_targets_test, 'Targets missing for {} comparison'.format(comparison)
+                target_indices = []
+                for target in needed_targets:
+                    target_indices.append(self.config.targets.index(target))
+                converted_predictions = self.convert_to_spherical(predictions[:, target_indices])[comparison]
+                converted_truth = self.convert_to_spherical(truth[:, target_indices])[comparison]
+                normalized_comparisons = self.convert_to_signed_angle(comparisons[comparison], comparison)
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = converted_predictions
+                matched_metrics[comparison]['truth'] = converted_truth
+                matched_metrics[comparison]['opponent'] = normalized_comparisons
+            elif comparison == 'energy':
+                needed_targets_test = all(x in self.config.targets for x in needed_targets)
+                assert needed_targets_test, 'Targets missing for {} comparison'.format(comparison)
+                target_indices = []
+                for target in needed_targets:
+                    target_indices.append(self.config.targets.index(target))
+                log_transformed_truth = np.log10()
+                log_transformed_comparisons = np.log10(comparisons[comparison])
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = predictions[:, target_indices]
+                matched_metrics[comparison]['truth'] = truth[:, target_indices]
+                matched_metrics[comparison]['opponent'] = log_transformed_comparisons
+        return matched_metrics
 
     def convert_to_spherical(self, values):
-        for i, target in enumerate(self.config.targets):
-            values[:, i] = self.invert_transform(values[:, i], target)
         x = values[:, 0]
         y = values[:, 1]
         z = values[:, 2]
@@ -102,50 +83,23 @@ class RetroCrsComparison():
                 [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
             ).float().to(self.device)
         elif angle_type == 'zenith':
-            # reversed_angles = torch.tensor(np.pi - angles).float().to(self.device)
             reversed_angles = np.pi - angles
         else:
             print('Unknown angle type')
         return reversed_angles
 
-
-    def get_comparisons(self, file, idx):
-        metrics = {}
-        with h5.File(file, 'r') as f:
-            for metric in self.config.comparison_metrics:
-                dataset = 'raw/' + self.config.opponent + '_' + metric
-                metrics[metric] = f[dataset][idx]
-                # if metric == 'azimuth':
-                    # print('Comparison azimuths:', metrics[metric])
-                metrics[metric] = self.convert_to_signed_angle(
-                    metrics[metric],
-                    metric
-                )
-                # if metric == 'azimuth':
-                    # print('Comparison reversed azimuths:', metrics[metric])
-            dataset = 'raw/' + 'true_primary_energy'
-            true_energy = torch.from_numpy(f[dataset][idx]).float().to(self.device)
-        return metrics, true_energy
-
-
-    def delta_angle(self, prediction, truth, angle_type, opponent_type):
+    def delta_angle(self, prediction, truth, angle_type):
         x = prediction
         y = truth
         difference = x - y
         if angle_type == 'zenith':
             delta = difference
         elif angle_type == 'azimuth':
-            # delta = torch.atan2(torch.sin(difference), torch.cos(difference))
-            # delta = ((difference + np.pi) % (2 * np.pi)) - np.pi
             delta = torch.where(
                 abs(difference) > np.pi,
                 - 2 * torch.sign(difference) * np.pi + difference,
                 difference
             )
-            # if opponent_type == 'opponent':
-                # print('Truth:', y)
-                # print('Prediction:', x)
-                # print('Delta angle:', delta)
         return delta
 
     def delta_energy(self, prediction, truth):
@@ -153,51 +107,41 @@ class RetroCrsComparison():
         y = truth
         difference = (y - x) / y
         flat_list = [item for sublist in difference for item in sublist]
-        flat_tensor = torch.Tensor(flat_list)
+        flat_tensor = torch.tensor(flat_list)
         return flat_tensor
 
     def update_values(self, predictions, truth, comparisons, energy):
         opponent_error = {}
         own_error = {}
-        if self.config.comparison_type == 'polar':
-            converted_predictions = self.convert_to_spherical(predictions)
-            converted_truth = self.convert_to_spherical(truth)
-            for i, metric in enumerate(self.config.comparison_metrics):
-                normalized_comparisons = self.convert_to_signed_angle(
-                    comparisons[:, i],
+        matched_metrics = self.match_comparison_and_values(predictions, truth, comparisons)
+        for metric in matched_metrics:
+            if metric == 'azimuth' or metric == 'zenith':
+                opponent_error[metric] = self.delta_angle(
+                    matched_metrics[metric]['opponent'],
+                    matched_metrics[metric]['truth'],
                     metric
                 )
-                opponent_error[metric] = self.delta_angle(
-                    normalized_comparisons,
-                    converted_truth[metric],
-                    metric,
-                    'opponent'
-                )
                 own_error[metric] = self.delta_angle(
-                    converted_predictions[metric],
-                    converted_truth[metric],
-                    metric,
-                    'own'
+                    matched_metrics[metric]['own'],
+                    matched_metrics[metric]['truth'],
+                    metric
                 )
-        elif self.config.comparison_type == 'energy':
-            predictions = self.invert_transform(predictions, 'true_primary_energy')
-            truth = self.invert_transform(truth, 'true_primary_energy')
-            for i, metric in enumerate(self.config.comparison_metrics):
+            elif metric == 'energy':
                 opponent_error[metric] = self.delta_energy(
-                    comparisons,
-                    truth
+                    matched_metrics[metric]['opponent'],
+                    matched_metrics[metric]['truth']
                 )
                 own_error[metric] = self.delta_energy(
-                    predictions,
-                    truth
+                    matched_metrics[metric]['own'],
+                    matched_metrics[metric]['truth']
                 )
-        for metric in self.config.comparison_metrics:
+        for metric in matched_metrics:
             temp_df = pd.DataFrame(
                 data={
                     'own_error': own_error[metric].tolist(),
                     'opponent_error': opponent_error[metric].tolist(),
                     'true_energy': energy.tolist(),
-                    'metric': [metric] * comparisons.size(0)
+                    'metric': [metric] * self.config.batch_size
                 }
             )
             self.comparison_df = self.comparison_df.append(
@@ -207,55 +151,17 @@ class RetroCrsComparison():
 
     def calculate_energy_bins(self):
         no_of_bins = 24
-        # bins = []
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
         )
         bins = self.comparison_df.binned.unique()
         return bins
 
-
-    def bootstrap(self, series, R=1000):
-        n = series.size
-        percentiles = [0.25, 0.75]
-        column_names = [
-            'q1',
-            'q1_minus',
-            'q1_plus',
-            'q3',
-            'q3_minus',
-            'q3_plus'
-        ]
-        df = pd.DataFrame(columns=column_names)
-        for i in range(R):
-            bs_sample = series.sample(n=n, replace=True)
-            temp_df = pd.DataFrame(
-                data={
-                    'q1': [bs_sample.quantile(q=0.25)],
-                    'q1_minus': [bs_sample.quantile(q=0.21)],
-                    'q1_plus': [bs_sample.quantile(q=0.29)],
-                    'q3': [bs_sample.quantile(q=0.75)],
-                    'q3_minus': [bs_sample.quantile(q=0.71)],
-                    'q3_plus': [bs_sample.quantile(q=0.79)]
-                }
-            )
-            df = df.append(
-                temp_df,
-                ignore_index=True
-            )
-        q1_mean = df.q1.mean()
-        q3_mean = df.q3.mean()
-        resolution = (q3_mean - q1_mean) / 1.35
-        resolution_error = np.sqrt(e_quartiles[0]**2 + e_quartiles[1]**2) / 1.35
-        return [resolution, resolution_error]
-
-
     def convert_iqr_to_sigma(self, quartiles, e_quartiles):
         factor = 1 / 1.349
         sigma = np.abs(quartiles[1] - quartiles[0]) * factor
         e_sigma = factor * np.sqrt(e_quartiles[0]**2 + e_quartiles[1]**2)        
         return sigma, e_sigma
-
 
     def estimate_percentile(self, data, percentiles, n_bootstraps=1000):
         data = np.array(data)
@@ -287,7 +193,6 @@ class RetroCrsComparison():
                 minussigmas.append(np.nan)
         return means, plussigmas, minussigmas
 
-
     def calculate_performance(self, values):
         means, plussigmas, minussigmas = self.estimate_percentile(values, [0.25, 0.75])
         e_quartiles = []
@@ -298,7 +203,6 @@ class RetroCrsComparison():
             sigma = np.nan
         return sigma, e_sigma
 
-
     def plot_error_in_energy_bin(self, values, name, bin_no, energy_range):
         file_name = get_project_root().joinpath(
             'plots/error_distribution_' + name + '_' + str(bin_no) + '.pdf'
@@ -308,26 +212,10 @@ class RetroCrsComparison():
         ax.set(
             xlabel='Error',
             ylabel='Frequency',
-            title='Network performance in energy bin {}'.format(energy_range)
+            title='Network {} performance in energy bin {}'.format(name, energy_range)
         )
         fig.savefig(str(file_name))
-        if self.config.wandb == True:
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png', dpi=600)
-            buf.seek(0)
-            im = Image.open(buf)
-            self.wandb.log(
-                {
-                    name + ' error in energy range {}'.format(energy_range): [
-                        self.wandb.Image(im)
-                    ]
-                }
-            )
-            buf.close()
-        else:
-            fig.savefig(str(file_name))
         plt.close(fig)
-
 
     def create_comparison_plot(self, bins):
         for metric in self.config.comparison_metrics:

@@ -7,16 +7,20 @@ import math
 from data_loader.pickle_generator import PickleGenerator
 from loggers.loggers import WandbLogger
 from metrics.comparison import RetroCrsComparison
+from metrics.resolution_comparison import ResolutionComparison
+from transforms.invert_transforms import TransformsInverter
 
 
 class CnnSystem(pl.LightningModule):
-    def __init__(self, sets, config, wandb):
+    def __init__(self, sets, config, files_and_dirs, wandb, device):
         super(CnnSystem, self).__init__()
         self.sets = sets
         self.config = config
+        self.files_and_dirs = files_and_dirs
         self.wandb = wandb
+        self.device = device
         self.logclass = WandbLogger(self.wandb, ['train_loss', 'val_loss'])
-        self.comparisonclass = RetroCrsComparison(self.wandb, self.config)
+        self.comparisonclass = ResolutionComparison(self.wandb, self.config, self.device)
 
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
@@ -87,9 +91,8 @@ class CnnSystem(pl.LightningModule):
         x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        # x_test, y_test = self.test_dataset[batch_nb]
-        # assert torch.all(x_test.eq(x)), 'Whoops, x and x_test are not the same'
-        # assert torch.all(y_test.eq(y)), 'Whoops, y and y_test are not the same'
+        transform_object = TransformsInverter(y_hat, self.config, self.files_and_dirs)
+        transformed_y_hat = transform_object.invert_transform()
         self.comparisonclass.update_values(y_hat, y, comparisons, energy)
         return {'test_loss': loss}
 
@@ -144,7 +147,8 @@ class CnnSystem(pl.LightningModule):
         dl = DataLoader(
             self.train_dataset,
             batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers
+            num_workers=self.config.num_workers,
+            drop_last=True
         )
         no_of_samples = len(self.train_dataset)
         print('No. of train samples:', no_of_samples)
@@ -154,13 +158,14 @@ class CnnSystem(pl.LightningModule):
     def val_dataloader(self):
         self.val_dataset = PickleGenerator(
             self.config,
-            self.sets['validate'],
+            self.sets['val'],
             test=False
         ) 
         dl = DataLoader(
             self.val_dataset,
             batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers
+            num_workers=self.config.num_workers,
+            drop_last=True
         )
         no_of_samples = len(self.val_dataset)
         print('No. of validation samples:', no_of_samples)
@@ -170,13 +175,14 @@ class CnnSystem(pl.LightningModule):
     def test_dataloader(self):
         self.test_dataset = PickleGenerator(
             self.config,
-            self.sets['validate'],
+            self.sets['val'],
             test=True
         )
         dl = DataLoader(
             self.test_dataset,
             batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers
+            num_workers=self.config.num_workers,
+            drop_last=True
         )
         no_of_samples = len(self.test_dataset)
         print('No. of test samples:', no_of_samples)
