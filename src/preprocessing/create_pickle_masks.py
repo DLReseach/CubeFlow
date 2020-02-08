@@ -4,8 +4,8 @@ from multiprocessing import Pool, cpu_count
 from multiprocessing import Process, Manager
 from utils.utils import get_project_root
 
-DATA_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2/pickles')
-MASK_ROOT = Path.home().joinpath('small_data_test/oscnext-genie-level5-v01-01-pass2/masks')
+DATA_ROOT = Path.home().joinpath('extra_small_data_test/oscnext-genie-level5-v01-01-pass2/pickles')
+MASK_ROOT = Path.home().joinpath('extra_small_data_test/oscnext-genie-level5-v01-01-pass2/masks')
 
 MASK_ROOT.mkdir(exist_ok=True)
 
