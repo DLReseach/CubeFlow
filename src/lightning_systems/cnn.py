@@ -2,25 +2,28 @@ import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-from warmup_scheduler import GradualWarmupScheduler
-import math
+import io
+import numpy as np
+from datetime import datetime
 from data_loader.pickle_generator import PickleGenerator
-from loggers.loggers import WandbLogger
-from metrics.comparison import RetroCrsComparison
 from metrics.resolution_comparison import ResolutionComparison
 from transforms.invert_transforms import TransformsInverter
 
 
 class CnnSystem(pl.LightningModule):
-    def __init__(self, sets, config, files_and_dirs, wandb, device):
+    def __init__(self, sets, config, files_and_dirs, val_freq, wandb, hparams, val_check_interval):
         super(CnnSystem, self).__init__()
         self.sets = sets
         self.config = config
         self.files_and_dirs = files_and_dirs
+        self.val_freq = val_freq
         self.wandb = wandb
-        self.device = device
-        self.logclass = WandbLogger(self.wandb, ['train_loss', 'val_loss'])
-        self.comparisonclass = ResolutionComparison(self.wandb, self.config, self.device)
+        self.hparams = hparams
+        self.val_check_interval = val_check_interval
+        self.train_loss = []
+        self.train_batches_per_second = []
+        self.val_batches_per_second = []
+        self.comparisonclass = ResolutionComparison(self.wandb, self.config)
 
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
@@ -58,25 +61,32 @@ class CnnSystem(pl.LightningModule):
         return x
 
     def on_epoch_start(self):
-        if self.config.wandb == True:
-            self.logclass.reset()
-        else:
-            pass
+        print(
+            '''
+{}: Begining epoch {}
+            '''
+            .format(datetime.now().strftime('%H:%M:%S'), self.current_epoch + 1)
+        )
 
     def training_step(self, batch, batch_idx):
+        time_start = datetime.now()
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        if self.config.wandb == True:
-            self.logclass.update({'train_loss': loss})
+        time_end = datetime.now()
+        time_delta = time_end - time_start
+        self.train_batches_per_second.append(time_delta.total_seconds())
+        self.train_loss.append(loss)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
+        time_start = datetime.now()
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        if self.config.wandb == True:
-            self.logclass.update({'val_loss': loss})
+        time_end = datetime.now()
+        time_delta = time_end - time_start
+        self.val_batches_per_second.append(time_delta.total_seconds())
         return {'val_loss': loss}
 
     def validation_end(self, outputs):
@@ -85,6 +95,28 @@ class CnnSystem(pl.LightningModule):
             'progress_bar': avg_loss,
             'log': {'val_loss': avg_loss}
         }
+        if self.global_step != 0:
+            avg_train_loss = torch.stack(self.train_loss).mean()
+            self.train_loss = []
+            if self.config.wandb:
+                metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
+                self.wandb.log(metrics, step=self.global_step)
+            print('''
+{}: Step {}
+          Train loss: {:.3f} / {:.1f} batches/s
+          Val loss: {:.3f} / {:.1f} batches/s
+                '''
+                .format(
+                    datetime.now().strftime('%H:%M:%S'),
+                    self.global_step,
+                    avg_train_loss,
+                    self.val_check_interval / np.sum(self.train_batches_per_second),
+                    avg_loss,
+                    self.val_batches / np.sum(self.val_batches_per_second)
+                )
+            )
+        self.train_batches_per_second = []
+        self.val_batches_per_second = []
         return {'val_loss': avg_loss}
 
     def test_step(self, batch, batch_nb):
@@ -101,28 +133,17 @@ class CnnSystem(pl.LightningModule):
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         return {'test_loss': avg_loss}
 
-    def on_epoch_end(self):
-        if self.config.wandb == True:
-            self.logclass.log_metrics()
-        else:
-            pass
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(),
             lr=self.config.min_learning_rate
         )
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            optimizer,
-            gamma=0.5
-        )
-        scheduler_warmup = GradualWarmupScheduler(
-            optimizer,
-            multiplier=8,
-            total_epoch=10,
-            after_scheduler=scheduler
-        )
-        return [optimizer], [scheduler_warmup]
+        # scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        #     optimizer,
+        #     gamma=0.9
+        # )
+        # return [optimizer], [scheduler]
+        return optimizer
 
     def optimizer_step(
         self,
@@ -132,10 +153,17 @@ class CnnSystem(pl.LightningModule):
         optimizer_i,
         second_order_closure=None
     ):
+        if self.trainer.global_step < (self.train_batches + self.val_batches):
+            lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
+            for pg in optimizer.param_groups:
+                pg['lr'] = lr_scale * self.config.max_learning_rate
+        else:
+            for pg in optimizer.param_groups:
+                pg['lr'] = 0.9999 * pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
-        if batch_nb == 0 and self.config.wandb == True:
-            self.wandb.log({'learning_rate': optimizer.param_groups[0]['lr']})
+        if self.config.wandb == True:
+            self.wandb.log({'learning_rate': optimizer.param_groups[0]['lr']}, step=self.global_step)
 
     @pl.data_loader
     def train_dataloader(self):
@@ -151,6 +179,7 @@ class CnnSystem(pl.LightningModule):
             drop_last=True
         )
         no_of_samples = len(self.train_dataset)
+        self.train_batches = np.floor(no_of_samples / self.config.batch_size)
         print('No. of train samples:', no_of_samples)
         return dl
 
@@ -168,6 +197,7 @@ class CnnSystem(pl.LightningModule):
             drop_last=True
         )
         no_of_samples = len(self.val_dataset)
+        self.val_batches = np.floor(no_of_samples / self.config.batch_size)
         print('No. of validation samples:', no_of_samples)
         return dl
 

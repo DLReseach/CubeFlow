@@ -16,11 +16,10 @@ import matplotlib.pyplot as plt
 
 
 class ResolutionComparison():
-    def __init__(self, wandb, config, device):
+    def __init__(self, wandb, config):
         super().__init__()
         self.wandb = wandb
         self.config = config
-        self.device = device
         self.column_names = [
             'own_error',
             'opponent_error',
@@ -51,12 +50,14 @@ class ResolutionComparison():
                 matched_metrics[comparison]['truth'] = converted_truth
                 matched_metrics[comparison]['opponent'] = normalized_comparisons
             elif comparison == 'energy':
+                needed_targets = [
+                    'true_primary_energy'
+                ]
                 needed_targets_test = all(x in self.config.targets for x in needed_targets)
                 assert needed_targets_test, 'Targets missing for {} comparison'.format(comparison)
                 target_indices = []
                 for target in needed_targets:
                     target_indices.append(self.config.targets.index(target))
-                log_transformed_truth = np.log10()
                 log_transformed_comparisons = np.log10(comparisons[comparison])
                 matched_metrics[comparison] = {}
                 matched_metrics[comparison]['own'] = predictions[:, target_indices]
@@ -81,7 +82,7 @@ class ResolutionComparison():
             ]
             reversed_angles = torch.tensor(
                 [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
-            ).float().to(self.device)
+            ).float()
         elif angle_type == 'zenith':
             reversed_angles = np.pi - angles
         else:
