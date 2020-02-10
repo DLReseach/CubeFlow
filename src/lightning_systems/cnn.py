@@ -101,6 +101,8 @@ class CnnSystem(pl.LightningModule):
             if self.config.wandb:
                 metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
                 self.wandb.log(metrics, step=self.global_step)
+            print(self.train_batches_per_second)
+            print(sum(self.train_batches_per_second))
             print('''
 {}: Step {} / epoch {}
           Train loss: {:.3f} / {:.1f} batches/s
