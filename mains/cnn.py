@@ -55,7 +55,6 @@ def main():
     mask_and_split = MaskAndSplit(config, files_and_dirs)
     sets = mask_and_split.split()
     val_check_interval = int(config.val_check_frequency * len(sets['train']) / config.batch_size)
-    print(val_check_interval)
     model = CnnSystem(sets, config, files_and_dirs, val_check_interval, wandb, hparams, val_check_interval)
     
     if config.wandb:

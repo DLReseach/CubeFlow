@@ -72,7 +72,6 @@ class CnnSystem(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         if self.global_step % self.val_check_interval == 0:
             self.train_time_start = datetime.now()
-            print('Train time start:', self.train_time_start)
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
@@ -83,11 +82,8 @@ class CnnSystem(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         if self.first_val and self.global_step != 0:
             self.train_time_end = datetime.now()
-            print('Train time end:', self.train_time_end)
             self.train_time_delta = (self.train_time_end - self.train_time_start).total_seconds()
-            print('Train time delta:', self.train_time_delta)
             self.val_time_start = datetime.now()
-            print('Val time start:', self.val_time_start)
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
@@ -104,9 +100,7 @@ class CnnSystem(pl.LightningModule):
             avg_train_loss = torch.stack(self.train_loss).mean()
             self.train_loss = []
             self.val_time_end = datetime.now()
-            print('Val time end:', self.val_time_end)
             self.val_time_delta = (self.val_time_end - self.val_time_start).total_seconds()
-            print('Val time delta:', self.val_time_delta)
             if self.config.wandb:
                 metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
                 self.wandb.log(metrics, step=self.global_step)
