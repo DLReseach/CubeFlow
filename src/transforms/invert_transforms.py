@@ -26,11 +26,11 @@ class TransformsInverter():
             for i, target in enumerate(self.config.targets):
                 if target in list(self.transformers.keys()):
                     temp = self.transformers[target].inverse_transform(
-                        self.y[:, i].numpy().reshape(-1, 1)
+                        self.y[:, i].cpu().reshape(-1, 1)
                     ).flatten()
                     self.y[:, i] = torch.from_numpy(temp)
                     temp = self.transformers[target].inverse_transform(
-                        self.y_hat[:, i].numpy().reshape(-1, 1)
+                        self.y_hat[:, i].cpu().reshape(-1, 1)
                     ).flatten()
                     self.y_hat[:, i] = torch.from_numpy(temp)
         return self.y, self.y_hat
