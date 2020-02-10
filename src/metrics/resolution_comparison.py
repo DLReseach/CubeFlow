@@ -60,9 +60,22 @@ class ResolutionComparison():
                     target_indices.append(self.config.targets.index(target))
                 log_transformed_comparisons = np.log10(comparisons[comparison])
                 matched_metrics[comparison] = {}
-                matched_metrics[comparison]['own'] = predictions[:, target_indices]
-                matched_metrics[comparison]['truth'] = truth[:, target_indices]
+                matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
+                matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
                 matched_metrics[comparison]['opponent'] = log_transformed_comparisons
+            elif comparison == 'time':
+                needed_targets = [
+                    'true_primary_time'
+                ]
+                needed_targets_test = all(x in self.config.targets for x in needed_targets)
+                assert needed_targets_test, 'Targets missing for {} comparison'.format(comparison)
+                target_indices = []
+                for target in needed_targets:
+                    target_indices.append(self.config.targets.index(target))
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
+                matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
+                matched_metrics[comparison]['opponent'] = comparisons[comparison].flatten()
         return matched_metrics
 
     def convert_to_spherical(self, values):
@@ -107,9 +120,13 @@ class ResolutionComparison():
         x = prediction
         y = truth
         difference = (y - x) / y
-        flat_list = [item for sublist in difference for item in sublist]
-        flat_tensor = torch.tensor(flat_list)
-        return flat_tensor
+        return difference
+
+    def delta_time(self, prediction, truth):
+        x = prediction
+        y = truth
+        difference = x - y
+        return difference
 
     def update_values(self, predictions, truth, comparisons, energy):
         opponent_error = {}
@@ -136,6 +153,15 @@ class ResolutionComparison():
                     matched_metrics[metric]['own'],
                     matched_metrics[metric]['truth']
                 )
+            elif metric == 'time':
+                opponent_error[metric] = self.delta_time(
+                    matched_metrics[metric]['opponent'],
+                    matched_metrics[metric]['truth']
+                )
+                own_error[metric] = self.delta_time(
+                    matched_metrics[metric]['own'],
+                    matched_metrics[metric]['truth']
+                )
         for metric in matched_metrics:
             temp_df = pd.DataFrame(
                 data={
@@ -151,7 +177,7 @@ class ResolutionComparison():
             )
 
     def calculate_energy_bins(self):
-        no_of_bins = 24
+        no_of_bins = 12
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
         )
@@ -250,7 +276,7 @@ class ResolutionComparison():
                 own = self.calculate_performance(
                     self.comparison_df[indexer].own_error.values
                 )
-                if self.config.comparison_type == 'polar':
+                if metric == 'azimuth' or metric == 'zenith':
                     self.plot_error_in_energy_bin(
                         np.rad2deg(self.comparison_df[indexer].opponent_error),
                         metric,
@@ -261,7 +287,18 @@ class ResolutionComparison():
                     opponent_std.append(np.rad2deg(opponent[1]))
                     own_performance.append(np.rad2deg(own[0]))
                     own_std.append(np.rad2deg(own[1]))
-                elif self.config.comparison_type == 'energy':
+                elif metric == 'energy':
+                    self.plot_error_in_energy_bin(
+                        self.comparison_df[indexer].opponent_error,
+                        metric,
+                        i,
+                        bins[i]
+                    )
+                    opponent_performance.append(opponent[0])
+                    opponent_std.append(opponent[1])
+                    own_performance.append(own[0])
+                    own_std.append(own[1])
+                elif metric == 'time':
                     self.plot_error_in_energy_bin(
                         self.comparison_df[indexer].opponent_error,
                         metric,
@@ -303,10 +340,12 @@ class ResolutionComparison():
             )
             ax2.set_yscale('log')
             ax1.set(xlabel='Log(E) [E/GeV]', title=metric)
-            if self.config.comparison_type == 'polar':
+            if self.config.comparison_type == 'azimuth' or self.config.comparison_type == 'zenith':
                 ax1.set(ylabel='Error [Deg]')
             elif self.config.comparison_type == 'energy':
                 ax1.set(ylabel='Relative error')
+            elif self.config.comparison_type == 'time':
+                ax1.set(ylabel='Error [ns]')
             ax2.set(ylabel='Events')
             ax1.legend()
             if self.config.wandb == True:
@@ -328,5 +367,7 @@ class ResolutionComparison():
 
 
     def testing_ended(self):
+        self.comparison_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        self.comparison_df.dropna(inplace=True)
         bins = self.calculate_energy_bins()
         self.create_comparison_plot(bins)

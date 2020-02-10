@@ -102,13 +102,14 @@ class CnnSystem(pl.LightningModule):
                 metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
                 self.wandb.log(metrics, step=self.global_step)
             print('''
-{}: Step {}
+{}: Step {} / epoch {}
           Train loss: {:.3f} / {:.1f} batches/s
-          Val loss: {:.3f} / {:.1f} batches/s
+          Val loss:   {:.3f} / {:.1f} batches/s
                 '''
                 .format(
                     datetime.now().strftime('%H:%M:%S'),
                     self.global_step,
+                    self.current_epoch + 1,
                     avg_train_loss,
                     self.val_check_interval / np.sum(self.train_batches_per_second),
                     avg_loss,
@@ -123,9 +124,9 @@ class CnnSystem(pl.LightningModule):
         x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        transform_object = TransformsInverter(y_hat, self.config, self.files_and_dirs)
-        transformed_y_hat = transform_object.invert_transform()
-        self.comparisonclass.update_values(y_hat, y, comparisons, energy)
+        transform_object = TransformsInverter(y, y_hat, self.config, self.files_and_dirs)
+        transformed_y, transformed_y_hat = transform_object.transform_inversion()
+        self.comparisonclass.update_values(transformed_y_hat, transformed_y, comparisons, energy)
         return {'test_loss': loss}
 
     def test_end(self, outputs):
@@ -159,7 +160,7 @@ class CnnSystem(pl.LightningModule):
                 pg['lr'] = lr_scale * self.config.max_learning_rate
         else:
             for pg in optimizer.param_groups:
-                pg['lr'] = 0.9999 * pg['lr']
+                pg['lr'] = 0.999 * pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
         if self.config.wandb == True:

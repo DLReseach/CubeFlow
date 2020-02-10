@@ -68,9 +68,14 @@ def main():
         mode='min'
     )
 
+    if config.gpulab:
+        gpus = config.gpulab_gpus
+    else:
+        gpus = config.gpus
+
     trainer = Trainer(
         show_progress_bar=False,
-        gpus=config.gpus,
+        gpus=gpus,
         max_epochs=config.num_epochs,
         fast_dev_run=config.dev_run,
         early_stop_callback=None if config.patience == 0 else early_stop_callback,

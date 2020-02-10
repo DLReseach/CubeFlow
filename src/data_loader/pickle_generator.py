@@ -11,11 +11,16 @@ class PickleGenerator(torch.utils.data.Dataset):
         self.config = config
         self.ids = ids
         self.test = test
-        self.data_dir = Path.home().joinpath(
-            self.config.data_dir +
-            self.config.data_type +
-            '/pickles'
-        )
+        if self.config.gpulab:
+            self.data_dir = Path(self.config.gpulab_data_dir).joinpath(
+                self.config.data_type + '/pickles'
+            )
+        else:
+            self.data_dir = Path.home().joinpath(
+                self.config.data_dir +
+                self.config.data_type +
+                '/pickles'
+            )
         self.file_extension = '.pickle'
         self.on_epoch_end()
 

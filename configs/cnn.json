@@ -5,11 +5,12 @@
     "dom_interval_min0_max200",
     "muon_neutrino"
   ],
-  "dev_run": true,
+  "dev_run": false,
   "wandb": false,
   "test": true,
   "gpus": 0,
   "gpulab": false,
+  "gpulab_gpus": [1],
   "num_epochs": 1,
   "patience": 5,
   "val_check_frequency": 0.1,
@@ -30,13 +31,10 @@
     "dom_time"
   ],
   "targets": [
-    "true_primary_direction_x",
-    "true_primary_direction_y",
-    "true_primary_direction_z"
+    "true_primary_time"
   ],
   "comparison_metrics": [
-    "azimuth",
-    "zenith"
+    "time"
   ],
   "opponent": "retro_crs_prefit",
   "comparison_type": "energy",
@@ -51,5 +49,6 @@
   "batch_size": 64,
   "shuffle": true,
   "max_to_keep": 5,
-  "data_dir": "small_data_test/"
+  "data_dir": "small_data_test/",
+  "gpulab_data_dir": "/home/bjoernhm/CubeML/data/"
 }
