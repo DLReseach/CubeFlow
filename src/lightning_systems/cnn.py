@@ -23,6 +23,7 @@ class CnnSystem(pl.LightningModule):
         self.train_loss = []
         self.train_batches_per_second = []
         self.val_batches_per_second = []
+        self.first_val = False
         self.comparisonclass = ResolutionComparison(self.wandb, self.config)
 
         self.conv1 = torch.nn.Conv1d(
@@ -69,24 +70,28 @@ class CnnSystem(pl.LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
-        time_start = datetime.now()
+        if self.global_step % self.val_check_interval == 0:
+            self.train_time_start = datetime.now()
+            print('Train time start:', self.train_time_start)
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        time_end = datetime.now()
-        time_delta = time_end - time_start
-        self.train_batches_per_second.append(time_delta.total_seconds())
         self.train_loss.append(loss)
+        self.first_val = True
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
-        time_start = datetime.now()
+        if self.first_val and self.global_step != 0:
+            self.train_time_end = datetime.now()
+            print('Train time end:', self.train_time_end)
+            self.train_time_delta = (self.train_time_end - self.train_time_start).total_seconds()
+            print('Train time delta:', self.train_time_delta)
+            self.val_time_start = datetime.now()
+            print('Val time start:', self.val_time_start)
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        time_end = datetime.now()
-        time_delta = time_end - time_start
-        self.val_batches_per_second.append(time_delta.total_seconds())
+        self.first_val = False
         return {'val_loss': loss}
 
     def validation_end(self, outputs):
@@ -98,11 +103,13 @@ class CnnSystem(pl.LightningModule):
         if self.global_step != 0:
             avg_train_loss = torch.stack(self.train_loss).mean()
             self.train_loss = []
+            self.val_time_end = datetime.now()
+            print('Val time end:', self.val_time_end)
+            self.val_time_delta = (self.val_time_end - self.val_time_start).total_seconds()
+            print('Val time delta:', self.val_time_delta)
             if self.config.wandb:
                 metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
                 self.wandb.log(metrics, step=self.global_step)
-            print(self.train_batches_per_second)
-            print(sum(self.train_batches_per_second))
             print('''
 {}: Step {} / epoch {}
           Train loss: {:.3f} / {:.1f} batches/s
@@ -113,9 +120,9 @@ class CnnSystem(pl.LightningModule):
                     self.global_step,
                     self.current_epoch + 1,
                     avg_train_loss,
-                    self.val_check_interval / np.sum(self.train_batches_per_second),
+                    self.val_check_interval / self.train_time_delta,
                     avg_loss,
-                    self.val_batches / np.sum(self.val_batches_per_second)
+                    self.val_batches / self.val_time_delta
                 )
             )
         self.train_batches_per_second = []
