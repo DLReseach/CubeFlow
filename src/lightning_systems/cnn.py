@@ -24,6 +24,7 @@ class CnnSystem(pl.LightningModule):
         self.train_batches_per_second = []
         self.val_batches_per_second = []
         self.first_val = False
+        self.first_train = True
         self.comparisonclass = ResolutionComparison(self.wandb, self.config)
 
         self.conv1 = torch.nn.Conv1d(
@@ -70,13 +71,14 @@ class CnnSystem(pl.LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
-        if self.global_step % self.val_check_interval == 0:
+        if self.first_train:
             self.train_time_start = datetime.now()
+            self.first_train = False
+            self.first_val = True
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         self.train_loss.append(loss)
-        self.first_val = True
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
@@ -84,10 +86,10 @@ class CnnSystem(pl.LightningModule):
             self.train_time_end = datetime.now()
             self.train_time_delta = (self.train_time_end - self.train_time_start).total_seconds()
             self.val_time_start = datetime.now()
+            self.first_val = False
         x, y = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
-        self.first_val = False
         return {'val_loss': loss}
 
     def validation_end(self, outputs):
@@ -101,6 +103,7 @@ class CnnSystem(pl.LightningModule):
             self.train_loss = []
             self.val_time_end = datetime.now()
             self.val_time_delta = (self.val_time_end - self.val_time_start).total_seconds()
+            self.first_train = True
             if self.config.wandb:
                 metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
                 self.wandb.log(metrics, step=self.global_step)
@@ -163,7 +166,7 @@ class CnnSystem(pl.LightningModule):
                 pg['lr'] = lr_scale * self.config.max_learning_rate
         else:
             for pg in optimizer.param_groups:
-                pg['lr'] = 0.999 * pg['lr']
+                pg['lr'] = 0.99999 * pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
         if self.config.wandb == True:

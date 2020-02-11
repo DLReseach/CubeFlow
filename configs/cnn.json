@@ -2,23 +2,21 @@
   "exp_name": "cnn_4_dir_14",
   "particle_type": 140000,
   "masks": [
-    "dom_interval_min0_max200",
+    "dom_interval_SplitInIcePulses_min0_max200",
     "muon_neutrino"
   ],
   "dev_run": false,
-  "wandb": false,
+  "wandb": true,
   "test": true,
   "gpus": 0,
-  "gpulab": false,
-  "gpulab_gpus": [1],
-  "num_epochs": 1,
+  "gpulab": true,
+  "gpulab_gpus": "1",
+  "num_epochs": 100,
   "patience": 5,
   "val_check_frequency": 0.1,
-  "log_frac": 0.05,
   "no_dev_examples": 4,
   "num_workers": 10,
   "data_type": "oscnext-genie-level5-v01-01-pass2",
-  "no_of_files": 10,
   "mask": "SplitInIcePulses",
   "transform": "transform1",
   "max_doms": 200,
@@ -31,10 +29,10 @@
     "dom_time"
   ],
   "targets": [
-    "true_primary_time"
+    "true_primary_energy"
   ],
   "comparison_metrics": [
-    "time"
+    "energy"
   ],
   "opponent": "retro_crs_prefit",
   "comparison_type": "energy",
