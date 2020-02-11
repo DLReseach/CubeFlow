@@ -65,7 +65,7 @@ def main():
         monitor='val_loss',
         min_delta=0.00,
         patience=config.patience,
-        verbose=False,
+        verbose=True,
         mode='min'
     )
 
