@@ -10,7 +10,8 @@ import joblib
 from argparse import Namespace
 # from torch_lr_finder import LRFinder
 
-from src.lightning_systems.cnn import CnnSystem
+from src.lightning_systems.cnn_conv1d import CnnSystemConv1d
+from src.lightning_systems.cnn_conv2d import CnnSystemConv2d
 from preprocessing.cnn_preprocessing import CnnPreprocess
 from utils.config import process_config
 from utils.utils import get_args
@@ -55,7 +56,7 @@ def main():
     mask_and_split = MaskAndSplit(config, files_and_dirs)
     sets = mask_and_split.split()
     val_check_interval = int(config.val_check_frequency * len(sets['train']) / config.batch_size)
-    model = CnnSystem(sets, config, files_and_dirs, val_check_interval, wandb, hparams, val_check_interval)
+    model = CnnSystemConv1d(sets, config, files_and_dirs, val_check_interval, wandb, hparams, val_check_interval)
     
     if config.wandb:
         wandb.watch(model, log='gradients')
@@ -70,8 +71,13 @@ def main():
 
     if config.gpulab:
         gpus = config.gpulab_gpus
+        use_amp = True
     else:
         gpus = config.gpus
+        if gpus > 0:
+            use_amp = True
+        else:
+            use_amp = False
 
     trainer = Trainer(
         show_progress_bar=False,
@@ -79,7 +85,8 @@ def main():
         max_epochs=config.num_epochs,
         fast_dev_run=config.dev_run,
         early_stop_callback=None if config.patience == 0 else early_stop_callback,
-        val_check_interval=val_check_interval
+        val_check_interval=val_check_interval,
+        use_amp=use_amp
     )
     trainer.fit(model)
 

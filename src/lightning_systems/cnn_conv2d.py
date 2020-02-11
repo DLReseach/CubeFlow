@@ -10,9 +10,9 @@ from metrics.resolution_comparison import ResolutionComparison
 from transforms.invert_transforms import TransformsInverter
 
 
-class CnnSystem(pl.LightningModule):
+class CnnSystemConv2d(pl.LightningModule):
     def __init__(self, sets, config, files_and_dirs, val_freq, wandb, hparams, val_check_interval):
-        super(CnnSystem, self).__init__()
+        super(CnnSystemConv2d, self).__init__()
         self.sets = sets
         self.config = config
         self.files_and_dirs = files_and_dirs
@@ -27,22 +27,22 @@ class CnnSystem(pl.LightningModule):
         self.first_train = True
         self.comparisonclass = ResolutionComparison(self.wandb, self.config)
 
-        self.conv1 = torch.nn.Conv1d(
-            in_channels=len(self.config.features),
+        self.conv1 = torch.nn.Conv2d(
+            in_channels=1,
             out_channels=32,
             kernel_size=5
         )
-        self.conv2 = torch.nn.Conv1d(
+        self.conv2 = torch.nn.Conv2d(
             in_channels=32,
             out_channels=64,
             kernel_size=5
         )
-        self.conv3 = torch.nn.Conv1d(
+        self.conv3 = torch.nn.Conv2d(
             in_channels=64,
             out_channels=128,
             kernel_size=5
         )
-        self.conv4 = torch.nn.Conv1d(
+        self.conv4 = torch.nn.Conv2d(
             in_channels=128,
             out_channels=256,
             kernel_size=5
@@ -55,9 +55,9 @@ class CnnSystem(pl.LightningModule):
 
     def forward(self, x):
         x = F.leaky_relu(self.conv1(x))
-        x = F.max_pool1d(F.leaky_relu(self.conv2(x)), 2)
+        x = F.max_pool2d(F.leaky_relu(self.conv2(x)), 2)
         x = F.leaky_relu(self.conv3(x))
-        x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
+        x = F.max_pool2d(F.leaky_relu(self.conv4(x)), 2)
         x = torch.flatten(x, start_dim=1, end_dim=2)
         x = self.linear1(x)
         return x
@@ -177,7 +177,8 @@ class CnnSystem(pl.LightningModule):
         self.train_dataset = PickleGenerator(
             self.config,
             self.sets['train'],
-            test=False
+            test=False,
+            conv_type='conv2d'
         )
         dl = DataLoader(
             self.train_dataset,
@@ -195,7 +196,8 @@ class CnnSystem(pl.LightningModule):
         self.val_dataset = PickleGenerator(
             self.config,
             self.sets['val'],
-            test=False
+            test=False,
+            conv_type='conv2d'
         ) 
         dl = DataLoader(
             self.val_dataset,
@@ -213,7 +215,8 @@ class CnnSystem(pl.LightningModule):
         self.test_dataset = PickleGenerator(
             self.config,
             self.sets['val'],
-            test=True
+            test=True,
+            conv_type='conv2d'
         )
         dl = DataLoader(
             self.test_dataset,

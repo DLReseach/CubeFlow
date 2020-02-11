@@ -7,10 +7,11 @@ from utils.utils import get_project_root
 
 
 class PickleGenerator(torch.utils.data.Dataset):
-    def __init__(self, config, ids, test):
+    def __init__(self, config, ids, test, conv_type):
         self.config = config
         self.ids = ids
         self.test = test
+        self.conv_type = conv_type
         if self.config.gpulab:
             self.data_dir = Path(self.config.gpulab_data_dir).joinpath(
                 self.config.data_type + '/pickles'
@@ -63,7 +64,10 @@ class PickleGenerator(torch.utils.data.Dataset):
                 comparison = self.config.opponent + '_' + comparison_type
                 comparisons[comparison_type] = torch.tensor(loaded_file['raw'][comparison])
             energy = loaded_file['raw']['true_primary_energy']
-        X = np.transpose(X, (1, 0))
+        if self.conv_type == 'conv1d':
+            X = np.transpose(X, (1, 0))
+        elif self.conv_type == 'conv2d':
+            X = X.reshape(1, self.config.max_doms, len(self.config.features))
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
         if self.test:
