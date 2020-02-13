@@ -1,29 +1,18 @@
-import os
-import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 import wandb as wandb
-import numpy as np
 import matplotlib.cbook
 import warnings
-import joblib
 from argparse import Namespace
 # from torch_lr_finder import LRFinder
 
-from src.lightning_systems.cnn_conv1d import CnnSystemConv1d
-from src.lightning_systems.cnn_conv2d import CnnSystemConv2d
-from preprocessing.cnn_preprocessing import CnnPreprocess
+from lightning_systems.cnn_conv1d import CnnSystemConv1d
+from lightning_systems.cnn_conv2d import CnnSystemConv2d
 from utils.config import process_config
 from utils.utils import get_args
-from utils.utils import get_project_root
-from utils.utils import get_time
-from utils.utils import print_data_set_sizes
 from utils.utils import create_experiment_name
-from utils.utils import set_random_seed
 from utils.utils import get_files_and_dirs
 from preprocessing.mask_and_split import MaskAndSplit
-from utils.math_funcs import angle_between
-from plots.plot_functions import histogram
 
 warnings.filterwarnings(
     'ignore',
@@ -37,8 +26,7 @@ def main():
     try:
         args = get_args()
         config = process_config(args.config)
-
-    except:
+    except Exception:
         print('missing or invalid arguments')
         exit(0)
 
@@ -55,43 +43,67 @@ def main():
     files_and_dirs = get_files_and_dirs(config)
     mask_and_split = MaskAndSplit(config, files_and_dirs)
     sets = mask_and_split.split()
-    val_check_interval = int(config.val_check_frequency * len(sets['train']) / config.batch_size)
-    model = CnnSystemConv1d(sets, config, files_and_dirs, val_check_interval, wandb, hparams, val_check_interval)
-    
+    val_check_interval = int(
+        config.val_check_frequency * len(sets['train']) / config.batch_size
+    )
+    model = CnnSystemConv2d(
+        sets,
+        config,
+        files_and_dirs,
+        val_check_interval,
+        wandb,
+        hparams,
+        val_check_interval
+    )
+
     if config.wandb:
         wandb.watch(model, log='gradients')
 
-    early_stop_callback = EarlyStopping(
-        monitor='val_loss',
-        min_delta=0.00,
-        patience=config.patience,
-        verbose=True,
-        mode='min'
-    )
+    if config.patience == 0:
+        early_stop_callback = None
+    else:
+        early_stop_callback = EarlyStopping(
+            monitor='val_loss',
+            min_delta=0.00,
+            patience=config.patience,
+            verbose=True,
+            mode='min'
+        )
 
     if config.gpulab:
         gpus = config.gpulab_gpus
-        use_amp = True
+        use_amp = False
+        if len(gpus) > 1:
+            distributed_backend = 'ddp'
+        else:
+            distributed_backend = None
     else:
         gpus = config.gpus
         if gpus > 0:
-            use_amp = True
+            use_amp = False
+            if gpus > 1:
+                distributed_backend = 'ddp'
+            else:
+                distributed_backend = None
         else:
             use_amp = False
+            distributed_backend = None
 
     trainer = Trainer(
         show_progress_bar=False,
         gpus=gpus,
         max_epochs=config.num_epochs,
         fast_dev_run=config.dev_run,
-        early_stop_callback=None if config.patience == 0 else early_stop_callback,
+        early_stop_callback=early_stop_callback,
         val_check_interval=val_check_interval,
-        use_amp=use_amp
+        use_amp=use_amp,
+        distributed_backend=distributed_backend
     )
     trainer.fit(model)
 
     if config.test:
         trainer.test()
+
 
 if __name__ == '__main__':
     main()

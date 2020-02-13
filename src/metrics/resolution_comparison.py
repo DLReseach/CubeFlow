@@ -27,6 +27,12 @@ class ResolutionComparison():
             'metric'
         ]
         self.comparison_df = pd.DataFrame(columns=self.column_names)
+        if self.config.gpulab:
+            self.device = 'cuda:' + self.config.gpulab_gpus
+        else:
+            self.device = 'cuda:' + self.config.gpus
+            if self.config.gpus == 0:
+                self.device = 'cpu'
 
     def match_comparison_and_values(self, predictions, truth, comparisons):
         matched_metrics = {}
@@ -48,7 +54,7 @@ class ResolutionComparison():
                 matched_metrics[comparison] = {}
                 matched_metrics[comparison]['own'] = converted_predictions
                 matched_metrics[comparison]['truth'] = converted_truth
-                matched_metrics[comparison]['opponent'] = normalized_comparisons
+                matched_metrics[comparison]['opponent'] = normalized_comparisons.to(self.device)
             elif comparison == 'energy':
                 needed_targets = [
                     'true_primary_energy'
@@ -58,11 +64,11 @@ class ResolutionComparison():
                 target_indices = []
                 for target in needed_targets:
                     target_indices.append(self.config.targets.index(target))
-                log_transformed_comparisons = np.log10(comparisons[comparison])
+                log_transformed_comparisons = np.log10(comparisons[comparison].cpu())
                 matched_metrics[comparison] = {}
                 matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
                 matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
-                matched_metrics[comparison]['opponent'] = log_transformed_comparisons
+                matched_metrics[comparison]['opponent'] = log_transformed_comparisons.to(self.device)
             elif comparison == 'time':
                 needed_targets = [
                     'true_primary_time'
@@ -340,11 +346,11 @@ class ResolutionComparison():
             )
             ax2.set_yscale('log')
             ax1.set(xlabel='Log(E) [E/GeV]', title=metric)
-            if self.config.comparison_type == 'azimuth' or self.config.comparison_type == 'zenith':
+            if metric == 'azimuth' or metric == 'zenith':
                 ax1.set(ylabel='Error [Deg]')
-            elif self.config.comparison_type == 'energy':
+            elif metric == 'energy':
                 ax1.set(ylabel='Relative error')
-            elif self.config.comparison_type == 'time':
+            elif metric == 'time':
                 ax1.set(ylabel='Error [ns]')
             ax2.set(ylabel='Events')
             ax1.legend()

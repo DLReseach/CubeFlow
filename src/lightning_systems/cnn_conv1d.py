@@ -32,15 +32,24 @@ class CnnSystemConv1d(pl.LightningModule):
             out_channels=32,
             kernel_size=5
         )
+        self.batchnorm1 = torch.nn.BatchNorm1d(
+            num_features=32
+        )
         self.conv2 = torch.nn.Conv1d(
             in_channels=32,
             out_channels=64,
             kernel_size=5
         )
+        self.batchnorm2 = torch.nn.BatchNorm1d(
+            num_features=64
+        )
         self.conv3 = torch.nn.Conv1d(
             in_channels=64,
             out_channels=128,
             kernel_size=5
+        )
+        self.batchnorm3 = torch.nn.BatchNorm1d(
+            num_features=128
         )
         self.conv4 = torch.nn.Conv1d(
             in_channels=128,
@@ -55,10 +64,14 @@ class CnnSystemConv1d(pl.LightningModule):
 
     def forward(self, x):
         x = F.leaky_relu(self.conv1(x))
+        x = self.batchnorm1(x)
         x = F.max_pool1d(F.leaky_relu(self.conv2(x)), 2)
+        x = self.batchnorm2(x)
         x = F.leaky_relu(self.conv3(x))
+        x = self.batchnorm3(x)
         x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
         x = torch.flatten(x, start_dim=1, end_dim=2)
+        x = F.dropout(x, p=0.5)
         x = self.linear1(x)
         return x
 
@@ -143,13 +156,17 @@ class CnnSystemConv1d(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=self.config.min_learning_rate
+            lr=self.config.min_learning_rate,
+            # weight_decay=0.9,
         )
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(
-        #     optimizer,
-        #     gamma=0.9
-        # )
-        # return [optimizer], [scheduler]
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            factor=0.9,
+            verbose=True,
+            min_lr=self.config.min_learning_rate,
+            patience=1
+        )
+        return [optimizer], [scheduler]
         return optimizer
 
     def optimizer_step(
@@ -164,9 +181,6 @@ class CnnSystemConv1d(pl.LightningModule):
             lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
             for pg in optimizer.param_groups:
                 pg['lr'] = lr_scale * self.config.max_learning_rate
-        else:
-            for pg in optimizer.param_groups:
-                pg['lr'] = 0.99999 * pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
         if self.config.wandb == True:

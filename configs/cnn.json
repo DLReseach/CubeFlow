@@ -1,21 +1,21 @@
 {
-  "exp_name": "cnn_4_dir_14",
+  "exp_name": "cnn1d_4_direction_muon",
   "particle_type": 140000,
   "masks": [
     "dom_interval_SplitInIcePulses_min0_max200",
     "muon_neutrino"
   ],
-  "dev_run": true,
-  "wandb": false,
+  "dev_run": false,
+  "wandb": true,
   "test": true,
   "gpus": 0,
-  "gpulab": false,
+  "gpulab": true,
   "gpulab_gpus": "1",
-  "num_epochs": 100,
-  "patience": 5,
+  "num_epochs": 5,
+  "patience": 3,
   "val_check_frequency": 0.1,
   "no_dev_examples": 4,
-  "num_workers": 10,
+  "num_workers": 4,
   "data_type": "oscnext-genie-level5-v01-01-pass2",
   "mask": "SplitInIcePulses",
   "transform": "transform1",
@@ -29,16 +29,19 @@
     "dom_time"
   ],
   "targets": [
-    "true_primary_energy"
+    "true_primary_direction_x",
+    "true_primary_direction_y",
+    "true_primary_direction_z"
   ],
   "comparison_metrics": [
-    "energy"
+    "azimuth",
+    "zenith"
   ],
   "opponent": "retro_crs_prefit",
   "comparison_type": "energy",
-  "train_fraction": 0.9,
-  "val_fraction": 0.05,
-  "test_fraction": 0.05,
+  "train_fraction": 0.6,
+  "val_fraction": 0.1,
+  "test_fraction": 0.3,
   "random_state": 29897070,
   "num_iter_per_epoch": 10,
   "min_learning_rate": 1e-4,
