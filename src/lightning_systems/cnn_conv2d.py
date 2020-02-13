@@ -30,36 +30,47 @@ class CnnSystemConv2d(pl.LightningModule):
         self.conv1 = torch.nn.Conv2d(
             in_channels=1,
             out_channels=32,
-            kernel_size=5
+            kernel_size=(3, 5),
+            padding=2
         )
         self.conv2 = torch.nn.Conv2d(
             in_channels=32,
             out_channels=64,
-            kernel_size=5
+            kernel_size=(3, 5),
+            padding=2
         )
         self.conv3 = torch.nn.Conv2d(
             in_channels=64,
             out_channels=128,
-            kernel_size=5
+            kernel_size=(3, 5),
+            padding=2
         )
         self.conv4 = torch.nn.Conv2d(
             in_channels=128,
             out_channels=256,
-            kernel_size=5
+            kernel_size=(3, 5),
+            padding=2
         )
         self.linear1 = torch.nn.Linear(
-            in_features=11264,
+            in_features=13568,
             out_features=len(self.config.targets)
         )
 
 
     def forward(self, x):
+        # print('Input:', x.size())
         x = F.leaky_relu(self.conv1(x))
+        # print('conv1:', x.size())
         x = F.max_pool2d(F.leaky_relu(self.conv2(x)), 2)
+        # print('max_pool1:', x.size())
         x = F.leaky_relu(self.conv3(x))
+        # print('conv3:', x.size())
         x = F.max_pool2d(F.leaky_relu(self.conv4(x)), 2)
-        x = torch.flatten(x, start_dim=1, end_dim=2)
+        # print('max_pool2:', x.size())
+        x = x.view(self.config.batch_size, -1)
+        # print('flatten:', x.size())
         x = self.linear1(x)
+        # print('linear:', x.size())
         return x
 
     def on_epoch_start(self):

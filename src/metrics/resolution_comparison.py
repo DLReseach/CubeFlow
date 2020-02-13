@@ -29,10 +29,10 @@ class ResolutionComparison():
         self.comparison_df = pd.DataFrame(columns=self.column_names)
         if self.config.gpulab:
             self.device = 'cuda:' + self.config.gpulab_gpus
-        else:
+        elif self.config.gpus > 0:
             self.device = 'cuda:' + self.config.gpus
-            if self.config.gpus == 0:
-                self.device = 'cpu'
+        elif self.config.gpus == 0:
+            self.device = 'cpu'
 
     def match_comparison_and_values(self, predictions, truth, comparisons):
         matched_metrics = {}
@@ -371,9 +371,18 @@ class ResolutionComparison():
                 file_name = get_project_root().joinpath('plots/' + metric + '.pdf')
                 fig1.savefig(str(file_name))
 
+    def icecube_2d_histogram(self):
+        for metric in self.config.comparison_metrics:
+            indexer = self.comparison_df.metric == metric
+            fig, ax = plt.subplots()
+            ax.hist2d(self.comparison_df[indexer].true_energy.values, self.comparison_df[indexer].own_error.values, cmap='oranges')
+            file_name = get_project_root().joinpath('plots/' + 'icecube_plot_test' + metric + '.pdf')
+            fig.savefig(file_name)
+            plt.close(fig)
 
     def testing_ended(self):
         self.comparison_df.replace([np.inf, -np.inf], np.nan, inplace=True)
         self.comparison_df.dropna(inplace=True)
         bins = self.calculate_energy_bins()
         self.create_comparison_plot(bins)
+        self.icecube_2d_histogram()
