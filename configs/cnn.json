@@ -1,17 +1,18 @@
 {
-  "exp_name": "cnn1d_4_direction_muon",
+  "exp_name": "cnn1d_4_dir_energy_time_muon",
   "particle_type": 140000,
   "masks": [
     "dom_interval_SplitInIcePulses_min0_max200",
-    "muon_neutrino"
+    "muon_neutrino",
+    "energy_interval_min0.0_max3.0"
   ],
   "dev_run": false,
-  "wandb": false,
+  "wandb": true,
   "test": true,
   "gpus": 0,
-  "gpulab": false,
+  "gpulab": true,
   "gpulab_gpus": "1",
-  "num_epochs": 1,
+  "num_epochs": 100,
   "patience": 3,
   "val_check_frequency": 0.1,
   "no_dev_examples": 4,
@@ -29,14 +30,21 @@
     "dom_time"
   ],
   "targets": [
-    "true_primary_energy"
+    "true_primary_direction_x",
+    "true_primary_direction_y",
+    "true_primary_direction_z",
+    "true_primary_energy",
+    "true_primary_time"
   ],
   "comparison_metrics": [
-    "energy"
+    "azimuth",
+    "zenith",
+    "energy",
+    "time"
   ],
   "opponent": "retro_crs_prefit",
   "comparison_type": "energy",
-  "train_fraction": 0.1,
+  "train_fraction": 0.9,
   "val_fraction": 0.05,
   "test_fraction": 0.05,
   "random_state": 29897070,
@@ -47,6 +55,6 @@
   "batch_size": 64,
   "shuffle": true,
   "max_to_keep": 5,
-  "data_dir": "data/",
+  "data_dir": "small_data_test/",
   "gpulab_data_dir": "/home/bjoernhm/CubeML/data/"
 }

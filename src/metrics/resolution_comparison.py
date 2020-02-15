@@ -64,11 +64,10 @@ class ResolutionComparison():
                 target_indices = []
                 for target in needed_targets:
                     target_indices.append(self.config.targets.index(target))
-                log_transformed_comparisons = np.log10(comparisons[comparison].cpu())
                 matched_metrics[comparison] = {}
-                matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
-                matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
-                matched_metrics[comparison]['opponent'] = log_transformed_comparisons.to(self.device)
+                matched_metrics[comparison]['own'] = 10**predictions[:, target_indices].flatten()
+                matched_metrics[comparison]['truth'] = 10**truth[:, target_indices].flatten()
+                matched_metrics[comparison]['opponent'] = comparisons[comparison]
             elif comparison == 'time':
                 needed_targets = [
                     'true_primary_time'
@@ -125,7 +124,7 @@ class ResolutionComparison():
     def delta_energy(self, prediction, truth):
         x = prediction
         y = truth
-        difference = (y - x) / y
+        difference = (x - y) / y
         return difference
 
     def delta_time(self, prediction, truth):
@@ -183,7 +182,7 @@ class ResolutionComparison():
             )
 
     def calculate_energy_bins(self):
-        no_of_bins = 12
+        no_of_bins = 18
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
         )
@@ -321,7 +320,7 @@ class ResolutionComparison():
                 opponent_performance,
                 yerr=opponent_std,
                 xerr=error_point_width,
-                marker='x',
+                marker='.',
                 ls='none',
                 label='retro_crs'
             )
@@ -332,7 +331,7 @@ class ResolutionComparison():
                 own_performance,
                 yerr=own_std,
                 xerr=error_point_width,
-                marker='x',
+                marker='.',
                 ls='none',
                 label='own'
             )
@@ -371,13 +370,69 @@ class ResolutionComparison():
                 file_name = get_project_root().joinpath('plots/' + metric + '.pdf')
                 fig1.savefig(str(file_name))
 
-    def icecube_2d_histogram(self):
+    def icecube_2d_histogram(self, bins):
         for metric in self.config.comparison_metrics:
             indexer = self.comparison_df.metric == metric
+            x_values = self.comparison_df[indexer].true_energy.values
+            y_values = self.comparison_df[indexer].own_error.values
+            _, x_bin_edges = np.histogram(x_values, bins='fd', range=[0, 3])
+            if metric == 'azimuth':
+                _, y_bin_edges = np.histogram(y_values, bins='fd', range=[-2.5, 2.5])
+            if metric == 'energy':
+                _, y_bin_edges = np.histogram(y_values, bins='fd', range=[-1, 4])
+            if metric == 'time':
+                _, y_bin_edges = np.histogram(y_values, bins='fd', range=[-150, 250])
+            if metric == 'zenith':
+                _, y_bin_edges = np.histogram(y_values, bins='fd', range=[-2, 2])
+            widths1 = np.linspace(min(x_bin_edges), max(x_bin_edges), int(0.5 + x_bin_edges.shape[0]/4.0))
+            widths2 = np.linspace(min(y_bin_edges), max(y_bin_edges), int(0.5 + y_bin_edges.shape[0]/4.0))
             fig, ax = plt.subplots()
-            ax.hist2d(self.comparison_df[indexer].true_energy.values, self.comparison_df[indexer].own_error.values, cmap='oranges')
-            file_name = get_project_root().joinpath('plots/' + 'icecube_plot_test' + metric + '.pdf')
-            fig.savefig(file_name)
+            counts, xedges, yedges, im = ax.hist2d(
+                self.comparison_df[indexer].true_energy.values,
+                self.comparison_df[indexer].own_error.values,
+                bins=[widths1, widths2],
+                cmap='Oranges'
+            )
+            # centers = (x_bin_edges[:-1] + x_bin_edges[1:]) / 2
+            low = []
+            medians = []
+            high = []
+            centers = []
+            for bin in sorted(bins):
+                low.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.16))
+                low.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.16))
+                medians.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.5))
+                medians.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.5))
+                high.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.84))
+                high.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.84))
+                centers.append(bin.left)
+                centers.append(bin.right)
+            ax.plot(centers, medians, '--', color='red')
+            ax.plot(centers, low, '--', color='red')
+            ax.plot(centers, high, '--', color='red')
+            fig.colorbar(im)
+            if metric == 'energy':
+                ax.set(xlabel='log(E) [E/GeV]', ylabel='Rel. error')
+            elif metric == 'azimuth' or metric == 'zenith':
+                ax.set(xlabel='log(E) [E/GeV]', ylabel='Error [deg]')
+            elif metric == 'time':
+                ax.set(xlabel='log(E) [E/GeV]', ylabel='Error [ns]')
+            if self.config.wandb == True:
+                buf = io.BytesIO()
+                fig.savefig(buf, format='png', dpi=600)
+                buf.seek(0)
+                im = Image.open(buf)
+                self.wandb.log(
+                    {
+                        metric + ' ic_performance': [
+                            self.wandb.Image(im)
+                        ]
+                    }
+                )
+                buf.close()
+            else:
+                file_name = get_project_root().joinpath('plots/' + metric + '.pdf')
+                fig.savefig(str(file_name))
             plt.close(fig)
 
     def testing_ended(self):
@@ -385,4 +440,4 @@ class ResolutionComparison():
         self.comparison_df.dropna(inplace=True)
         bins = self.calculate_energy_bins()
         self.create_comparison_plot(bins)
-        self.icecube_2d_histogram()
+        self.icecube_2d_histogram(bins)

@@ -46,7 +46,7 @@ def main():
     val_check_interval = int(
         config.val_check_frequency * len(sets['train']) / config.batch_size
     )
-    model = CnnSystemConv2d(
+    model = CnnSystemConv1d(
         sets,
         config,
         files_and_dirs,
@@ -74,7 +74,7 @@ def main():
         gpus = config.gpulab_gpus
         use_amp = False
         if len(gpus) > 1:
-            distributed_backend = 'ddp'
+            distributed_backend = 'dp'
         else:
             distributed_backend = None
     else:
@@ -82,7 +82,7 @@ def main():
         if gpus > 0:
             use_amp = False
             if gpus > 1:
-                distributed_backend = 'ddp'
+                distributed_backend = 'dp'
             else:
                 distributed_backend = None
         else:

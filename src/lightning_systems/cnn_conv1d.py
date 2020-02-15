@@ -159,14 +159,14 @@ class CnnSystemConv1d(pl.LightningModule):
             lr=self.config.min_learning_rate,
             # weight_decay=0.9,
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            factor=0.9,
-            verbose=True,
-            min_lr=self.config.min_learning_rate,
-            patience=1
-        )
-        return [optimizer], [scheduler]
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #     optimizer,
+        #     factor=0.9,
+        #     verbose=True,
+        #     min_lr=self.config.min_learning_rate,
+        #     patience=1
+        # )
+        # return [optimizer], [scheduler]
         return optimizer
 
     def optimizer_step(
@@ -181,6 +181,12 @@ class CnnSystemConv1d(pl.LightningModule):
             lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
             for pg in optimizer.param_groups:
                 pg['lr'] = lr_scale * self.config.max_learning_rate
+        else:
+            for pg in optimizer.param_groups:
+                if pg <= self.config.min_learning_rate:
+                    pg['lr'] = pg['lr']
+                else:
+                    pg['lr'] = 0.9999 * pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
         if self.config.wandb == True:
