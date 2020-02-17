@@ -13,6 +13,7 @@ from utils.utils import get_project_root
 from utils.utils import get_time
 
 import matplotlib.pyplot as plt
+plt.rc('text', usetex=True)
 
 
 class ResolutionComparison():
@@ -321,8 +322,9 @@ class ResolutionComparison():
                 yerr=opponent_std,
                 xerr=error_point_width,
                 marker='.',
+                markersize=1,
                 ls='none',
-                label='retro_crs'
+                label=r'$\mathrm{IceCube \ (retro \ crs)}$'
             )
             [bar.set_alpha(0.5) for bar in bars]
             [cap.set_alpha(0.5) for cap in caps]
@@ -332,8 +334,9 @@ class ResolutionComparison():
                 yerr=own_std,
                 xerr=error_point_width,
                 marker='.',
+                markersize=1,
                 ls='none',
-                label='own'
+                label=r'$\mathrm{CubeFlow}$'
             )
             [bar.set_alpha(0.5) for bar in bars]
             [cap.set_alpha(0.5) for cap in caps]
@@ -344,15 +347,29 @@ class ResolutionComparison():
                 histtype='step'
             )
             ax2.set_yscale('log')
-            ax1.set(xlabel='Log(E) [E/GeV]', title=metric)
-            if metric == 'azimuth' or metric == 'zenith':
-                ax1.set(ylabel='Error [Deg]')
+            ax1.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
+            if metric == 'azimuth':
+                ax1.set(
+                    title=r'$\mathrm{Azimuth \ reconstruction \ comparison}$',
+                    ylabel=r'$\mathrm{Resolution} \; [\mathrm{Deg}]$'
+                )
+            if metric == 'zenith':
+                ax1.set(
+                    title=r'$\mathrm{Zenith \ reconstruction \ comparison}$',
+                    ylabel=r'$\mathrm{Resolution} \; [\mathrm{Deg}]$'
+                )
             elif metric == 'energy':
-                ax1.set(ylabel='Relative error')
+                ax1.set(
+                    title=r'$\mathrm{Energy \ reconstruction \ comparison}$',
+                    ylabel=r'$\mathrm{Resolution} \; [\%]$'
+                )
             elif metric == 'time':
-                ax1.set(ylabel='Error [ns]')
-            ax2.set(ylabel='Events')
+                ax1.set(
+                    title=r'$\mathrm{Time \ reconstruction \ comparison}$',
+                    ylabel=r'$\mathrm{Resolution} \; [\mathrm{ns}]$')
+            ax2.set(ylabel=r'$\mathrm{Events}$')
             ax1.legend()
+            fig1.tight_layout()
             if self.config.wandb == True:
                 buf = io.BytesIO()
                 fig1.savefig(buf, format='png', dpi=600)
@@ -407,16 +424,33 @@ class ResolutionComparison():
                 high.append(self.comparison_df[(indexer) & (self.comparison_df['binned'] == bin)].own_error.quantile(0.84))
                 centers.append(bin.left)
                 centers.append(bin.right)
-            ax.plot(centers, medians, '--', color='red')
-            ax.plot(centers, low, '--', color='red')
-            ax.plot(centers, high, '--', color='red')
+            ax.plot(centers, medians, linestyle='solid', color='red', label=r'$50 \%$')
+            ax.plot(centers, low, linestyle='dotted', color='red', label=r'$16 \%$')
+            ax.plot(centers, high, linestyle='dashed', color='red', label=r'$84 \%$')
             fig.colorbar(im)
+            ax.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
             if metric == 'energy':
-                ax.set(xlabel='log(E) [E/GeV]', ylabel='Rel. error')
-            elif metric == 'azimuth' or metric == 'zenith':
-                ax.set(xlabel='log(E) [E/GeV]', ylabel='Error [deg]')
+                ax.set(
+                    title=r'$\mathrm{Energy \ reconstruction \ results}$',
+                    ylabel=r'$\frac{E_{\mathrm{reco}} - E_{\mathrm{true}}}{E_{\mathrm{true}}} \; [\%]$'
+                )
+            elif metric == 'azimuth':
+                ax.set(
+                    title=r'$\mathrm{Azimuth \ reconstruction \ results}$',
+                    ylabel=r'$\theta_{\mathrm{azimuth,reco}} - \theta_{\mathrm{azimuth,true}} \; [\mathrm{deg}]$'
+                )
+            elif metric == 'zenith':
+                ax.set(
+                    title=r'$\mathrm{Zenith \ reconstruction \ results}$',
+                    ylabel=r'$\theta_{\mathrm{zenith,reco}} - \theta_{\mathrm{zenith,true}} \; [\mathrm{deg}]$'
+                )
             elif metric == 'time':
-                ax.set(xlabel='log(E) [E/GeV]', ylabel='Error [ns]')
+                ax.set(
+                    title=r'$\mathrm{Time \ reconstruction \ results}$',
+                    ylabel=r'$t_{\mathrm{reco}} - t_{\mathrm{true}} \; [\mathrm{ns}]$'
+                )
+            ax.legend()
+            fig.tight_layout()
             if self.config.wandb == True:
                 buf = io.BytesIO()
                 fig.savefig(buf, format='png', dpi=600)

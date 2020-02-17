@@ -1,9 +1,11 @@
+import os
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 import wandb as wandb
 import matplotlib.cbook
 import warnings
 from argparse import Namespace
+import slack
 # from torch_lr_finder import LRFinder
 
 from lightning_systems.cnn_conv1d import CnnSystemConv1d
@@ -18,6 +20,9 @@ warnings.filterwarnings(
     'ignore',
     category=matplotlib.cbook.mplDeprecation
 )
+
+slack_token = os.environ["SLACK_API_TOKEN"]
+client = slack.WebClient(token=slack_token)
 
 
 def main():
@@ -59,16 +64,16 @@ def main():
     if config.wandb:
         wandb.watch(model, log='gradients')
 
-    if config.patience == 0:
-        early_stop_callback = None
-    else:
-        early_stop_callback = EarlyStopping(
-            monitor='val_loss',
-            min_delta=0.00,
-            patience=config.patience,
-            verbose=True,
-            mode='min'
-        )
+    # if config.patience == 0:
+    #     early_stop_callback = None
+    # else:
+    early_stop_callback = EarlyStopping(
+        monitor='val_loss',
+        min_delta=0.001,
+        patience=config.patience,
+        verbose=True,
+        mode='min'
+    )
 
     if config.gpulab:
         gpus = config.gpulab_gpus
@@ -99,11 +104,16 @@ def main():
         use_amp=use_amp,
         distributed_backend=distributed_backend
     )
+
     trainer.fit(model)
 
     if config.test:
         trainer.test()
 
+    client.chat_postMessage(
+        channel='training',
+        text='Script done.'
+    )
 
 if __name__ == '__main__':
     main()
