@@ -51,7 +51,7 @@ def main():
     val_check_interval = int(
         config.val_check_frequency * len(sets['train']) / config.batch_size
     )
-    model = CnnSystemConv1d(
+    model = CnnSystemConv2d(
         sets,
         config,
         files_and_dirs,

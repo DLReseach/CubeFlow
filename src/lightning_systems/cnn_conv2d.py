@@ -1,8 +1,10 @@
+import os
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 import io
+import slack
 import numpy as np
 from datetime import datetime
 from data_loader.pickle_generator import PickleGenerator
@@ -25,6 +27,9 @@ class CnnSystemConv2d(pl.LightningModule):
         self.val_batches_per_second = []
         self.first_val = False
         self.first_train = True
+        self.first_test = True
+        self.slack_token = os.environ["SLACK_API_TOKEN"]
+        self.client = slack.WebClient(token=self.slack_token)
         self.comparisonclass = ResolutionComparison(self.wandb, self.config)
 
         self.conv1 = torch.nn.Conv2d(
@@ -78,8 +83,13 @@ class CnnSystemConv2d(pl.LightningModule):
             '''
 {}: Begining epoch {}
             '''
-            .format(datetime.now().strftime('%H:%M:%S'), self.current_epoch + 1)
+            .format(datetime.now().strftime('%H:%M:%S'), self.current_epoch)
         )
+        self.client.chat_postMessage(
+            channel='training',
+            text='Epoch {} begun.'.format(self.current_epoch)
+        )
+
 
     def training_step(self, batch, batch_idx):
         if self.first_train:
@@ -126,7 +136,7 @@ class CnnSystemConv2d(pl.LightningModule):
                 .format(
                     datetime.now().strftime('%H:%M:%S'),
                     self.global_step,
-                    self.current_epoch + 1,
+                    self.current_epoch,
                     avg_train_loss,
                     self.val_check_interval / self.train_time_delta,
                     avg_loss,
@@ -137,7 +147,19 @@ class CnnSystemConv2d(pl.LightningModule):
         self.val_batches_per_second = []
         return {'val_loss': avg_loss}
 
+    def on_epoch_end(self):
+        self.client.chat_postMessage(
+            channel='training',
+            text='Epoch {} done'.format(self.current_epoch)
+        )
+
     def test_step(self, batch, batch_nb):
+        if self.first_test:
+            self.client.chat_postMessage(
+                channel='training',
+                text='Testing started.'
+            )
+            self.first_test = False
         x, y, comparisons, energy = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
@@ -154,14 +176,18 @@ class CnnSystemConv2d(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=self.config.min_learning_rate
+            lr=self.config.min_learning_rate,
+            # weight_decay=0.9,
         )
-        # scheduler = torch.optim.lr_scheduler.ExponentialLR(
-        #     optimizer,
-        #     gamma=0.9
-        # )
-        # return [optimizer], [scheduler]
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            factor=0.99,
+            patience=1,
+            verbose=True,
+            min_lr=self.config.min_learning_rate
+        )
+        return [optimizer], [scheduler]
+        # return optimizer
 
     def optimizer_step(
         self,
@@ -175,9 +201,6 @@ class CnnSystemConv2d(pl.LightningModule):
             lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
             for pg in optimizer.param_groups:
                 pg['lr'] = lr_scale * self.config.max_learning_rate
-        else:
-            for pg in optimizer.param_groups:
-                pg['lr'] = 0.99999 * pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
         if self.config.wandb == True:

@@ -31,3 +31,4 @@ dependencies:
         - paramiko
         - scp
         - pyyaml
+        - slackclient

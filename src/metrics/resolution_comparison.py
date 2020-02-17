@@ -425,8 +425,8 @@ class ResolutionComparison():
                 centers.append(bin.left)
                 centers.append(bin.right)
             ax.plot(centers, medians, linestyle='solid', color='red', label=r'$50 \%$')
-            ax.plot(centers, low, linestyle='dotted', color='red', label=r'$16 \%$')
-            ax.plot(centers, high, linestyle='dashed', color='red', label=r'$84 \%$')
+            ax.plot(centers, low, linestyle='dashed', color='red', label=r'$16 \%$')
+            ax.plot(centers, high, linestyle='dotted', color='red', label=r'$84 \%$')
             fig.colorbar(im)
             ax.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
             if metric == 'energy':

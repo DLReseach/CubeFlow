@@ -3,14 +3,13 @@
   "particle_type": 140000,
   "masks": [
     "dom_interval_SplitInIcePulses_min0_max200",
-    "muon_neutrino",
-    "energy_interval_min0.0_max3.0"
+    "muon_neutrino"
   ],
   "dev_run": false,
-  "wandb": true,
+  "wandb": false,
   "test": true,
   "gpus": 0,
-  "gpulab": true,
+  "gpulab": false,
   "gpulab_gpus": "1",
   "num_epochs": 30,
   "patience": 3,
