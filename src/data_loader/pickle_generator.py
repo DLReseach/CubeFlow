@@ -66,8 +66,6 @@ class PickleGenerator(torch.utils.data.Dataset):
             energy = loaded_file['raw']['true_primary_energy']
         if self.conv_type == 'conv1d':
             X = np.transpose(X, (1, 0))
-        elif self.conv_type == 'conv2d':
-            X = X.reshape(1, self.config.max_doms, len(self.config.features))
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
         if self.test:

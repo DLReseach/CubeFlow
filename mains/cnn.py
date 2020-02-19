@@ -51,7 +51,7 @@ def main():
     val_check_interval = int(
         config.val_check_frequency * len(sets['train']) / config.batch_size
     )
-    model = CnnSystemConv2d(
+    model = CnnSystemConv1d(
         sets,
         config,
         files_and_dirs,
@@ -69,7 +69,7 @@ def main():
     # else:
     early_stop_callback = EarlyStopping(
         monitor='val_loss',
-        min_delta=0.001,
+        min_delta=0.0001,
         patience=config.patience,
         verbose=True,
         mode='min'

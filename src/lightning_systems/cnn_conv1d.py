@@ -56,28 +56,40 @@ class CnnSystemConv1d(pl.LightningModule):
         self.batchnorm3 = torch.nn.BatchNorm1d(
             num_features=128
         )
-        self.conv4 = torch.nn.Conv1d(
-            in_channels=128,
-            out_channels=256,
-            kernel_size=5
-        )
         self.linear1 = torch.nn.Linear(
-            in_features=11264,
+            in_features=2688,
+            out_features=2048
+        )
+        self.batchnorm4 = torch.nn.BatchNorm1d(
+            num_features=2048
+        )
+        self.linear2 = torch.nn.Linear(
+            in_features=2048,
+            out_features=1024
+        )
+        self.batchnorm5 = torch.nn.BatchNorm1d(
+            num_features=1024
+        )
+        self.linear3 = torch.nn.Linear(
+            in_features=1024,
             out_features=len(self.config.targets)
         )
 
 
     def forward(self, x):
-        x = F.leaky_relu(self.conv1(x))
+        x = F.max_pool1d(F.leaky_relu(self.conv1(x)), 2)
         x = self.batchnorm1(x)
         x = F.max_pool1d(F.leaky_relu(self.conv2(x)), 2)
         x = self.batchnorm2(x)
-        x = F.leaky_relu(self.conv3(x))
+        x = F.max_pool1d(F.leaky_relu(self.conv3(x)), 2)
         x = self.batchnorm3(x)
-        x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
         x = torch.flatten(x, start_dim=1, end_dim=2)
+        x = F.leaky_relu(self.linear1(x))
+        x = self.batchnorm4(x)
+        x = F.leaky_relu(self.linear2(x))
+        x = self.batchnorm5(x)
         x = F.dropout(x, p=0.5)
-        x = self.linear1(x)
+        x = self.linear3(x)
         return x
 
     def on_epoch_start(self):
@@ -181,15 +193,12 @@ class CnnSystemConv1d(pl.LightningModule):
             lr=self.config.min_learning_rate,
             # weight_decay=0.9,
         )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            factor=0.99,
-            patience=1,
-            verbose=True,
-            min_lr=self.config.min_learning_rate
-        )
-        return [optimizer], [scheduler]
-        # return optimizer
+        # scheduler = torch.optim.lr_scheduler.ExponentialLR(
+        #     optimizer,
+        #     gamma=0.99
+        # )
+        # return [optimizer], [scheduler]
+        return optimizer
 
     def optimizer_step(
         self,
@@ -203,6 +212,13 @@ class CnnSystemConv1d(pl.LightningModule):
             lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
             for pg in optimizer.param_groups:
                 pg['lr'] = lr_scale * self.config.max_learning_rate
+        else:
+            lr_scale = 0.999999
+            for pg in optimizer.param_groups:
+                if pg['lr'] >= self.config.min_learning_rate:
+                    pg['lr'] = lr_scale * pg['lr']
+                else:
+                    pg['lr'] = pg['lr']
         optimizer.step()   
         optimizer.zero_grad()
         if self.config.wandb == True:

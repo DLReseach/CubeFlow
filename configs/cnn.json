@@ -1,17 +1,17 @@
 {
-  "exp_name": "cnn1d_4_dir_energy_time_muon",
+  "exp_name": "cnn1d_3_lin_3_energy_0_to_4_muon",
   "particle_type": 140000,
   "masks": [
     "dom_interval_SplitInIcePulses_min0_max200",
     "muon_neutrino"
   ],
   "dev_run": false,
-  "wandb": false,
+  "wandb": true,
   "test": true,
   "gpus": 0,
-  "gpulab": false,
+  "gpulab": true,
   "gpulab_gpus": "1",
-  "num_epochs": 30,
+  "num_epochs": 20,
   "patience": 3,
   "val_check_frequency": 0.1,
   "no_dev_examples": 4,
