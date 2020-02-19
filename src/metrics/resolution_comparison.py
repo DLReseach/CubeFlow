@@ -66,9 +66,9 @@ class ResolutionComparison():
                 for target in needed_targets:
                     target_indices.append(self.config.targets.index(target))
                 matched_metrics[comparison] = {}
-                matched_metrics[comparison]['own'] = 10**predictions[:, target_indices].flatten()
-                matched_metrics[comparison]['truth'] = 10**truth[:, target_indices].flatten()
-                matched_metrics[comparison]['opponent'] = comparisons[comparison]
+                matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
+                matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
+                matched_metrics[comparison]['opponent'] = torch.log10(comparisons[comparison])
             elif comparison == 'time':
                 needed_targets = [
                     'true_primary_time'
@@ -183,7 +183,7 @@ class ResolutionComparison():
             )
 
     def calculate_energy_bins(self):
-        no_of_bins = 18
+        no_of_bins = 24
         self.comparison_df['binned'] = pd.cut(
             self.comparison_df['true_energy'], no_of_bins
         )
@@ -227,7 +227,7 @@ class ResolutionComparison():
         return means, plussigmas, minussigmas
 
     def calculate_performance(self, values):
-        means, plussigmas, minussigmas = self.estimate_percentile(values, [0.25, 0.75])
+        means, plussigmas, minussigmas = self.estimate_percentile(values, [0.16, 0.84])
         e_quartiles = []
         e_quartiles.append((plussigmas[0] - minussigmas[0]) / 2)
         e_quartiles.append((plussigmas[1] - minussigmas[1]) / 2)
@@ -284,7 +284,7 @@ class ResolutionComparison():
                 )
                 if metric == 'azimuth' or metric == 'zenith':
                     self.plot_error_in_energy_bin(
-                        np.rad2deg(self.comparison_df[indexer].opponent_error),
+                        np.rad2deg(self.comparison_df[indexer].own_error),
                         metric,
                         i,
                         bins[i]
@@ -295,7 +295,7 @@ class ResolutionComparison():
                     own_std.append(np.rad2deg(own[1]))
                 elif metric == 'energy':
                     self.plot_error_in_energy_bin(
-                        self.comparison_df[indexer].opponent_error,
+                        self.comparison_df[indexer].own_error,
                         metric,
                         i,
                         bins[i]
@@ -306,7 +306,7 @@ class ResolutionComparison():
                     own_std.append(own[1])
                 elif metric == 'time':
                     self.plot_error_in_energy_bin(
-                        self.comparison_df[indexer].opponent_error,
+                        self.comparison_df[indexer].own_error,
                         metric,
                         i,
                         bins[i]
@@ -316,18 +316,6 @@ class ResolutionComparison():
                     own_performance.append(own[0])
                     own_std.append(own[1])
             fig1, ax1 = plt.subplots()
-            markers, caps, bars = ax1.errorbar(
-                bin_center,
-                opponent_performance,
-                yerr=opponent_std,
-                xerr=error_point_width,
-                marker='.',
-                markersize=1,
-                ls='none',
-                label=r'$\mathrm{IceCube \ (retro \ crs)}$'
-            )
-            [bar.set_alpha(0.5) for bar in bars]
-            [cap.set_alpha(0.5) for cap in caps]
             markers, caps, bars = ax1.errorbar(
                 bin_center,
                 own_performance,
@@ -340,13 +328,28 @@ class ResolutionComparison():
             )
             [bar.set_alpha(0.5) for bar in bars]
             [cap.set_alpha(0.5) for cap in caps]
+            markers, caps, bars = ax1.errorbar(
+                bin_center,
+                opponent_performance,
+                yerr=opponent_std,
+                xerr=error_point_width,
+                marker='.',
+                markersize=1,
+                ls='none',
+                label=r'$\mathrm{IceCube \ (retro \ crs)}$'
+            )
+            [bar.set_alpha(0.5) for bar in bars]
+            [cap.set_alpha(0.5) for cap in caps]
             ax2 = ax1.twinx()
             ax2.hist(
                 self.comparison_df.true_energy.values,
-                bins=24,
-                histtype='step'
+                bins=len(bins),
+                histtype='step',
+                color='grey'
             )
-            ax2.set_yscale('log')
+            ax2.set_yscale('symlog')
+            ax2.set_ylim(ymin=0)
+            ax1.set_ylim(ymin=0)
             ax1.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
             if metric == 'azimuth':
                 ax1.set(
