@@ -10,7 +10,7 @@ from src.utils.utils import get_project_root
 from multiprocessing import Pool
 
 remote_path = Path('/groups/hep/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/tarballs')
-local_path = Path('/home/ehrhorn/data/CubeData/oscnext-genie-level5-v01-01-pass2')
+local_path = Path('/datadrive/CubeData/data/oscnext-genie-level5-v01-01-pass2/pickles')
 done_dirs_file = Path('/home/ehrhorn/repos/CubeFlow/done_dirs.pickle')
 tar_dir = 'lustre/hpc/hep/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/pickles/'
 
