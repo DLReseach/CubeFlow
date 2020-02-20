@@ -69,7 +69,7 @@ class PickleGenerator(torch.utils.data.Dataset):
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
         if self.test:
-            return X, y, comparisons, energy
+            return X, y, comparisons, energy, event_length
         else:
             return X, y
 

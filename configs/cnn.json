@@ -11,7 +11,7 @@
   "gpus": 0,
   "gpulab": true,
   "gpulab_gpus": "1",
-  "num_epochs": 20,
+  "num_epochs": 1,
   "patience": 3,
   "val_check_frequency": 0.1,
   "no_dev_examples": 4,
@@ -29,17 +29,10 @@
     "dom_time"
   ],
   "targets": [
-    "true_primary_direction_x",
-    "true_primary_direction_y",
-    "true_primary_direction_z",
-    "true_primary_energy",
-    "true_primary_time"
+    "true_primary_energy"
   ],
   "comparison_metrics": [
-    "azimuth",
-    "zenith",
-    "energy",
-    "time"
+    "energy"
   ],
   "opponent": "retro_crs_prefit",
   "comparison_type": "energy",

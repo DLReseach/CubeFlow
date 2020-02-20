@@ -35,7 +35,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
             out_channels=32,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm1 = torch.nn.BatchNorm1d(
             num_features=32
@@ -43,7 +43,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv2 = torch.nn.Conv1d(
             in_channels=32,
             out_channels=64,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm2 = torch.nn.BatchNorm1d(
             num_features=64
@@ -51,27 +51,35 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv3 = torch.nn.Conv1d(
             in_channels=64,
             out_channels=128,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm3 = torch.nn.BatchNorm1d(
             num_features=128
         )
-        self.linear1 = torch.nn.Linear(
-            in_features=2688,
-            out_features=2048
+        self.conv4 = torch.nn.Conv1d(
+            in_channels=128,
+            out_channels=256,
+            kernel_size=3
         )
         self.batchnorm4 = torch.nn.BatchNorm1d(
-            num_features=2048
+            num_features=256
         )
-        self.linear2 = torch.nn.Linear(
-            in_features=2048,
-            out_features=1024
+        self.linear1 = torch.nn.Linear(
+            in_features=2560,
+            out_features=2048
         )
         self.batchnorm5 = torch.nn.BatchNorm1d(
-            num_features=1024
+            num_features=2048
         )
-        self.linear3 = torch.nn.Linear(
-            in_features=1024,
+        # self.linear2 = torch.nn.Linear(
+        #     in_features=2048,
+        #     out_features=1024
+        # )
+        # self.batchnorm6 = torch.nn.BatchNorm1d(
+        #     num_features=1024
+        # )
+        self.linear2 = torch.nn.Linear(
+            in_features=2048,
             out_features=len(self.config.targets)
         )
 
@@ -83,13 +91,15 @@ class CnnSystemConv1d(pl.LightningModule):
         x = self.batchnorm2(x)
         x = F.max_pool1d(F.leaky_relu(self.conv3(x)), 2)
         x = self.batchnorm3(x)
+        x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
+        x = self.batchnorm4(x)
         x = torch.flatten(x, start_dim=1, end_dim=2)
         x = F.leaky_relu(self.linear1(x))
-        x = self.batchnorm4(x)
-        x = F.leaky_relu(self.linear2(x))
         x = self.batchnorm5(x)
+        # x = F.leaky_relu(self.linear2(x))
+        # x = self.batchnorm6(x)
         x = F.dropout(x, p=0.5)
-        x = self.linear3(x)
+        x = self.linear2(x)
         return x
 
     def on_epoch_start(self):
@@ -174,12 +184,12 @@ class CnnSystemConv1d(pl.LightningModule):
                 text='Testing started.'
             )
             self.first_test = False
-        x, y, comparisons, energy = batch
+        x, y, comparisons, energy, event_length = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         transform_object = TransformsInverter(y, y_hat, self.config, self.files_and_dirs)
         transformed_y, transformed_y_hat = transform_object.transform_inversion()
-        self.comparisonclass.update_values(transformed_y_hat, transformed_y, comparisons, energy)
+        self.comparisonclass.update_values(transformed_y_hat, transformed_y, comparisons, energy, event_length)
         return {'test_loss': loss}
 
     def test_end(self, outputs):
