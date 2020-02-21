@@ -195,7 +195,7 @@ class ResolutionComparison():
         return bins
 
     def calculate_dom_bins(self):
-        no_of_bins = 24
+        no_of_bins = 20
         self.comparison_df['dom_binned'] = pd.cut(
             self.comparison_df['event_length'], no_of_bins
         )
@@ -375,15 +375,24 @@ class ResolutionComparison():
             )
             [bar.set_alpha(0.5) for bar in bars]
             [cap.set_alpha(0.5) for cap in caps]
-            rel_improvement = np.divide(np.array(opponent_performance) - np.array(own_performance), np.array(opponent_performance))
+            rel_improvement = np.divide(np.array(own_performance) - np.array(opponent_performance), np.array(opponent_performance))
             ratio_ax.plot(bin_center, rel_improvement, '.')
+            ratio_ax.set(ylabel=r'$\mathrm{Rel. \ imp.}$')
             hist_ax = reso_ax.twinx()
-            hist_ax.hist(
-                self.comparison_df.true_energy.values,
-                bins=len(bins),
-                histtype='step',
-                color='grey'
-            )
+            if bin_type == 'energy':
+                hist_ax.hist(
+                    self.comparison_df.true_energy.values,
+                    bins=len(bins),
+                    histtype='step',
+                    color='grey'
+                )
+            elif bin_type == 'doms':
+                hist_ax.hist(
+                    self.comparison_df.event_length.values,
+                    bins=len(bins),
+                    histtype='step',
+                    color='grey'
+                )
             hist_ax.set_yscale('symlog')
             hist_ax.set_ylim(ymin=0)
             if metric == 'energy':
@@ -417,7 +426,7 @@ class ResolutionComparison():
             hist_ax.set(ylabel=r'$\mathrm{Events}$')
             reso_ax.legend()
             fig1.tight_layout()
-            if self.config.wandb == True:
+            if self.config.wandb == True and bin_type == 'energy':
                 buf = io.BytesIO()
                 fig1.savefig(buf, format='png', dpi=600)
                 buf.seek(0)
@@ -430,9 +439,11 @@ class ResolutionComparison():
                     }
                 )
                 buf.close()
-            else:
-                file_name = get_project_root().joinpath('temp/' + bin_type + '_' + metric + '.png')
-                fig1.savefig(str(file_name))
+            file_name = get_project_root().joinpath('temp/' + bin_type + '_' + metric + '.png')
+            fig1.savefig(str(file_name))
+            if self.config.wandb and bin_type == 'doms':
+                self.wandb.save(file_name)
+            plt.close(fig1)
 
     def icecube_2d_histogram(self, bins):
         for metric in self.config.comparison_metrics:
@@ -579,7 +590,7 @@ class ResolutionComparison():
 
     def testing_ended(self):
         self.comparison_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        self.comparison_df.to_csv('comparison_dataframe.csv')
+        self.comparison_df.to_pickle('comparison_dataframe.gzip')
         if self.config.wandb:
             self.wandb.save('comparison_dataframe.csv')
         self.comparison_df.dropna(inplace=True)

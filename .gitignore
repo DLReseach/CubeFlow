@@ -21,3 +21,5 @@ data/old_oscnext-genie-level5-v01-01-pass2/
 masks/
 program.prof
 scratchpad.py
+comparison_dataframe.gzip
+temp/

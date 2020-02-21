@@ -71,15 +71,15 @@ class CnnSystemConv1d(pl.LightningModule):
         self.batchnorm5 = torch.nn.BatchNorm1d(
             num_features=2048
         )
-        # self.linear2 = torch.nn.Linear(
-        #     in_features=2048,
-        #     out_features=1024
-        # )
-        # self.batchnorm6 = torch.nn.BatchNorm1d(
-        #     num_features=1024
-        # )
         self.linear2 = torch.nn.Linear(
             in_features=2048,
+            out_features=1024
+        )
+        self.batchnorm6 = torch.nn.BatchNorm1d(
+            num_features=1024
+        )
+        self.linear3 = torch.nn.Linear(
+            in_features=1024,
             out_features=len(self.config.targets)
         )
 
@@ -96,10 +96,10 @@ class CnnSystemConv1d(pl.LightningModule):
         x = torch.flatten(x, start_dim=1, end_dim=2)
         x = F.leaky_relu(self.linear1(x))
         x = self.batchnorm5(x)
-        # x = F.leaky_relu(self.linear2(x))
-        # x = self.batchnorm6(x)
+        x = F.leaky_relu(self.linear2(x))
+        x = self.batchnorm6(x)
         x = F.dropout(x, p=0.5)
-        x = self.linear2(x)
+        x = self.linear3(x)
         return x
 
     def on_epoch_start(self):
