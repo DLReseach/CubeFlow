@@ -25,6 +25,12 @@ def get_project_root() -> Path:
 
 def get_time():
     ts = time.time()
+    st = datetime.datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+    return st
+
+
+def get_date_and_time():
+    ts = time.time()
     st = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S')
     return st
 

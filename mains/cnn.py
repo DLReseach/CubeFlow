@@ -58,7 +58,8 @@ def main():
         val_check_interval,
         wandb,
         hparams,
-        val_check_interval
+        val_check_interval,
+        experiment_name
     )
 
     if config.wandb:
@@ -110,10 +111,11 @@ def main():
     if config.test:
         trainer.test()
 
-    client.chat_postMessage(
-        channel='training',
-        text='Script done.'
-    )
+    if not config.dev_run:
+        client.chat_postMessage(
+            channel='training',
+            text='Script done.'
+        )
 
 if __name__ == '__main__':
     main()

@@ -13,7 +13,7 @@ from transforms.invert_transforms import TransformsInverter
 
 
 class CnnSystemConv1d(pl.LightningModule):
-    def __init__(self, sets, config, files_and_dirs, val_freq, wandb, hparams, val_check_interval):
+    def __init__(self, sets, config, files_and_dirs, val_freq, wandb, hparams, val_check_interval, experiment_name):
         super(CnnSystemConv1d, self).__init__()
         self.sets = sets
         self.config = config
@@ -22,15 +22,19 @@ class CnnSystemConv1d(pl.LightningModule):
         self.wandb = wandb
         self.hparams = hparams
         self.val_check_interval = val_check_interval
+        self.experiment_name = experiment_name
         self.train_loss = []
         self.train_batches_per_second = []
         self.val_batches_per_second = []
+        self.train_true_energy = []
+        self.train_event_length = []
         self.first_val = False
         self.first_train = True
         self.first_test = True
-        self.slack_token = os.environ["SLACK_API_TOKEN"]
-        self.client = slack.WebClient(token=self.slack_token)
-        self.comparisonclass = ResolutionComparison(self.wandb, self.config)
+        if not self.config.dev_run:
+            self.slack_token = os.environ["SLACK_API_TOKEN"]
+            self.client = slack.WebClient(token=self.slack_token)
+        self.comparisonclass = ResolutionComparison(self.wandb, self.config, self.experiment_name)
 
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
@@ -109,10 +113,11 @@ class CnnSystemConv1d(pl.LightningModule):
             '''
             .format(datetime.now().strftime('%H:%M:%S'), self.current_epoch)
         )
-        self.client.chat_postMessage(
-            channel='training',
-            text='Epoch {} begun.'.format(self.current_epoch)
-        )
+        if not self.config.dev_run:
+            self.client.chat_postMessage(
+                channel='training',
+                text='Epoch {} begun.'.format(self.current_epoch)
+            )
 
 
     def training_step(self, batch, batch_idx):
@@ -120,7 +125,9 @@ class CnnSystemConv1d(pl.LightningModule):
             self.train_time_start = datetime.now()
             self.first_train = False
             self.first_val = True
-        x, y = batch
+        x, y, true_energy, event_length = batch
+        self.train_true_energy.extend(true_energy.numpy())
+        self.train_event_length.extend(event_length.numpy())
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         self.train_loss.append(loss)
@@ -132,7 +139,7 @@ class CnnSystemConv1d(pl.LightningModule):
             self.train_time_delta = (self.train_time_end - self.train_time_start).total_seconds()
             self.val_time_start = datetime.now()
             self.first_val = False
-        x, y = batch
+        x, y, true_energy, event_length = batch
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         return {'val_loss': loss}
@@ -172,17 +179,19 @@ class CnnSystemConv1d(pl.LightningModule):
         return {'val_loss': avg_loss}
 
     def on_epoch_end(self):
-        self.client.chat_postMessage(
-            channel='training',
-            text='Epoch {} done'.format(self.current_epoch)
-        )
+        if not self.config.dev_run:
+            self.client.chat_postMessage(
+                channel='training',
+                text='Epoch {} done'.format(self.current_epoch)
+            )
 
     def test_step(self, batch, batch_nb):
         if self.first_test:
-            self.client.chat_postMessage(
-                channel='training',
-                text='Testing started.'
-            )
+            if not self.config.dev_run:
+                self.client.chat_postMessage(
+                    channel='training',
+                    text='Testing started.'
+                )
             self.first_test = False
         x, y, comparisons, energy, event_length = batch
         y_hat = self.forward(x)
@@ -193,7 +202,7 @@ class CnnSystemConv1d(pl.LightningModule):
         return {'test_loss': loss}
 
     def test_end(self, outputs):
-        self.comparisonclass.testing_ended()
+        self.comparisonclass.testing_ended(self.train_true_energy, self.train_event_length)
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         return {'test_loss': avg_loss}
 

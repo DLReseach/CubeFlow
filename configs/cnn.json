@@ -5,11 +5,11 @@
     "dom_interval_SplitInIcePulses_min0_max200",
     "muon_neutrino"
   ],
-  "dev_run": false,
+  "dev_run": true,
   "wandb": true,
   "test": true,
   "gpus": 0,
-  "gpulab": true,
+  "gpulab": false,
   "gpulab_gpus": "1",
   "num_epochs": 20,
   "patience": 3,
