@@ -126,8 +126,8 @@ class CnnSystemConv1d(pl.LightningModule):
             self.first_train = False
             self.first_val = True
         x, y, true_energy, event_length = batch
-        self.train_true_energy.extend(true_energy.numpy())
-        self.train_event_length.extend(event_length.numpy())
+        self.train_true_energy.extend(true_energy.cpu().numpy())
+        self.train_event_length.extend(event_length.cpu().numpy())
         y_hat = self.forward(x)
         loss = F.mse_loss(y_hat, y)
         self.train_loss.append(loss)
