@@ -14,6 +14,7 @@ from utils.config import process_config
 from utils.utils import get_args
 from utils.utils import create_experiment_name
 from utils.utils import get_files_and_dirs
+from utils.utils import get_time
 from preprocessing.mask_and_split import MaskAndSplit
 
 # warnings.filterwarnings(
@@ -21,7 +22,9 @@ from preprocessing.mask_and_split import MaskAndSplit
 #     category=matplotlib.cbook.mplDeprecation
 # )
 
-warnings.filterwarnings('ignore', module='matplotlib')
+# warnings.filterwarnings('ignore', module='matplotlib')
+
+# warnings.filterwarnings("ignore")
 
 slack_token = os.environ["SLACK_API_TOKEN"]
 client = slack.WebClient(token=slack_token)
@@ -118,6 +121,8 @@ def main():
             channel='training',
             text='Script done.'
         )
+    
+    print('{}: Script done!'.format(get_time()))
 
 if __name__ == '__main__':
     main()

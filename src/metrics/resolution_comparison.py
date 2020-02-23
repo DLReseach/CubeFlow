@@ -1,7 +1,5 @@
-import torch
 import pandas as pd
 import numpy as np
-import pickle
 from utils.utils import get_project_root
 from utils.utils import get_time
 from plotting.calculate_and_plot import calculate_and_plot
@@ -13,100 +11,75 @@ class ResolutionComparison():
         self.wandb = wandb
         self.config = config
         self.experiment_name = experiment_name
+
         self.column_names = [
             'file_number',
-            'own_prediction',
-            'opponent_prediction',
-            'truth',
-            'own_error',
-            'opponent_error',
-            'true_energy',
-            'event_length',
-            'metric'
+            'energy',
+            'event_length'
         ]
-        self.comparison_df = pd.DataFrame(columns=self.column_names)
-        if self.config.gpulab:
-            self.device = 'cuda:' + self.config.gpulab_gpus
-        elif self.config.gpus > 0:
-            self.device = 'cuda:' + self.config.gpus
-        elif self.config.gpus == 0:
-            self.device = 'cpu'
+        self.column_names += ['opponent_' + name + '_error' for name in self.config.comparison_metrics]
+        self.column_names += ['own_' + name + '_error' for name in self.config.comparison_metrics]
+        self.data = {name: [] for name in self.column_names}
 
-    def match_comparison_and_values(self, predictions, truth, comparisons):
+    def match_comparison_and_values(self, df):
         matched_metrics = {}
-        for comparison in comparisons:
+        for comparison in self.config.comparison_metrics:
             if comparison == 'azimuth' or comparison == 'zenith':
                 needed_targets = [
                     'true_primary_direction_x',
                     'true_primary_direction_y',
                     'true_primary_direction_z'
                 ]
-                needed_targets_test = all(
-                    x in self.config.targets for x in needed_targets
-                )
-                assert needed_targets_test, \
-                    'Targets missing for {} comparison'.format(comparison)
-                target_indices = []
-                for target in needed_targets:
-                    target_indices.append(self.config.targets.index(target))
+                needed_own = [
+                    'own_primary_direction_x',
+                    'own_primary_direction_y',
+                    'own_primary_direction_z'
+                ]
                 converted_predictions = self.convert_to_spherical(
-                    predictions[:, target_indices]
+                    df[needed_own].values
                 )[comparison]
                 converted_truth = self.convert_to_spherical(
-                    truth[:, target_indices]
+                    df[needed_targets].values
                 )[comparison]
                 normalized_comparisons = self.convert_to_signed_angle(
-                    comparisons[comparison],
+                    df['opponent_' + comparison].values,
                     comparison
                 )
                 matched_metrics[comparison] = {}
                 matched_metrics[comparison]['own'] = converted_predictions
                 matched_metrics[comparison]['truth'] = converted_truth
-                matched_metrics[comparison]['opponent'] = normalized_comparisons.to(self.device)
+                matched_metrics[comparison]['opponent'] = normalized_comparisons
             elif comparison == 'energy':
                 needed_targets = [
                     'true_primary_energy'
                 ]
-                needed_targets_test = all(
-                    x in self.config.targets for x in needed_targets
-                )
-                assert needed_targets_test, \
-                    'Targets missing for {} comparison'.format(comparison)
-                target_indices = []
-                for target in needed_targets:
-                    target_indices.append(self.config.targets.index(target))
+                needed_own = [
+                    'own_primary_energy'
+                ]
                 matched_metrics[comparison] = {}
-                matched_metrics[comparison]['own'] = 10**(predictions[:, target_indices]).flatten()
-                matched_metrics[comparison]['truth'] = 10**(truth[:, target_indices]).flatten()
-                # matched_metrics[comparison]['opponent'] = torch.log10(
-                #     comparisons[comparison]
-                # )
-                matched_metrics[comparison]['opponent'] = comparisons[comparison]
+                matched_metrics[comparison]['own'] = np.power(10, df[needed_own].values).flatten()
+                matched_metrics[comparison]['truth'] = np.power(10, df[needed_targets].values).flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
             elif comparison == 'time':
                 needed_targets = [
                     'true_primary_time'
                 ]
-                needed_targets_test = all(
-                    x in self.config.targets for x in needed_targets
-                )
-                assert needed_targets_test, \
-                    'Targets missing for {} comparison'.format(comparison)
-                target_indices = []
-                for target in needed_targets:
-                    target_indices.append(self.config.targets.index(target))
+                needed_own = [
+                    'own_primary_time'
+                ]
                 matched_metrics[comparison] = {}
-                matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
-                matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
-                matched_metrics[comparison]['opponent'] = comparisons[comparison].flatten()
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
         return matched_metrics
 
     def convert_to_spherical(self, values):
         x = values[:, 0]
         y = values[:, 1]
         z = values[:, 2]
-        r = torch.sqrt(x**2 + y**2 + z**2)
-        theta = torch.acos(z / r)
-        phi = torch.atan2(y, x)
+        r = np.sqrt(x**2 + y**2 + z**2)
+        theta = np.arccos(z / r)
+        phi = np.arctan2(y, x)
         return {'azimuth': phi, 'zenith': theta}
 
     def convert_to_signed_angle(self, angles, angle_type):
@@ -114,9 +87,9 @@ class ResolutionComparison():
             signed_angles = [
                 entry if entry < np.pi else entry - 2 * np.pi for entry in angles
             ]
-            reversed_angles = torch.tensor(
+            reversed_angles = (
                 [entry - np.pi if entry > 0 else entry + np.pi for entry in signed_angles]
-            ).float()
+            )
         elif angle_type == 'zenith':
             reversed_angles = np.pi - angles
         else:
@@ -130,9 +103,9 @@ class ResolutionComparison():
         if angle_type == 'zenith':
             delta = difference
         elif angle_type == 'azimuth':
-            delta = torch.where(
+            delta = np.where(
                 abs(difference) > np.pi,
-                - 2 * torch.sign(difference) * np.pi + difference,
+                - 2 * np.sign(difference) * np.pi + difference,
                 difference
             )
         return delta
@@ -149,10 +122,9 @@ class ResolutionComparison():
         difference = x - y
         return difference
 
-    def update_values(self, predictions, truth, comparisons, energy, event_length, file_number):
+    def calculate_errors(self, matched_metrics):
         opponent_error = {}
         own_error = {}
-        matched_metrics = self.match_comparison_and_values(predictions, truth, comparisons)
         for metric in matched_metrics:
             if metric == 'azimuth' or metric == 'zenith':
                 opponent_error[metric] = self.delta_angle(
@@ -183,60 +155,36 @@ class ResolutionComparison():
                     matched_metrics[metric]['own'],
                     matched_metrics[metric]['truth']
                 )
-        for metric in matched_metrics:
-            temp_df = pd.DataFrame(
-                data={
-                    'file_number': file_number,
-                    'own_prediction': matched_metrics[metric]['own'].tolist(),
-                    'opponent_prediction': matched_metrics[metric]['opponent'].tolist(),
-                    'truth': matched_metrics[metric]['truth'].tolist(),
-                    'own_error': own_error[metric].tolist(),
-                    'opponent_error': opponent_error[metric].tolist(),
-                    'true_energy': energy.tolist(),
-                    'event_length': event_length.tolist(),
-                    'metric': [metric] * self.config.val_batch_size
-                }
-            )
-            self.comparison_df = self.comparison_df.append(
-                temp_df,
-                ignore_index=True
-            )
+            self.data['opponent_' + metric + '_error'] = opponent_error[metric]
+            self.data['own_' + metric + '_error'] = own_error[metric]
+        
+        
 
-    def testing_ended(self, train_true_energy=None, train_event_length=None):
-        if self.config.save_train_dists:
-            print('{}: Creating train dist df'.format(get_time()))
-            TRAIN_DATA_DF = pd.DataFrame(
-                list(zip(train_true_energy, train_event_length)),
-                columns=['train_true_energy', 'train_event_length']
-            )
-        PROJECT_ROOT = get_project_root()
-        RUN_ROOT = PROJECT_ROOT.joinpath('runs')
-        RUN_ROOT.mkdir(exist_ok=True)
-        RUN_ROOT = RUN_ROOT.joinpath(self.experiment_name)
-        RUN_ROOT.mkdir(exist_ok=True)
-        print('{}: Parqueting comparison df'.format(get_time()))
-        self.comparison_df.to_parquet(
-            str(RUN_ROOT) + '/comparison_dataframe_parquet.gzip',
+    def testing_ended(self, file_name, save_path, train_true_energy=None, train_event_length=None):
+        print('{}: Loading predictions file'.format(get_time()))
+        predictions_df = pd.read_parquet(file_name, engine='fastparquet')
+        self.data['file_number'] = predictions_df.file_number.values
+        self.data['energy'] = predictions_df.energy.values
+        self.data['event_length'] = predictions_df.event_length.values
+        print('{}: Matching metrics'.format(get_time()))
+        matched_metrics = self.match_comparison_and_values(predictions_df)
+        print('{}: Calculating errors'.format(get_time()))
+        self.calculate_errors(matched_metrics)
+        error_df = pd.DataFrame().from_dict(self.data)
+        print('{}: Saving errors file'.format(get_time()))
+        file_name = save_path.joinpath('error_dataframe_parquet.gzip')
+        error_df.to_parquet(
+            str(file_name),
             compression='gzip'
         )
-        if self.config.save_train_dists:
-            TRAIN_DATA_PATH = PROJECT_ROOT.joinpath('train_distributions')
-            TRAIN_DATA_PATH.mkdir(exist_ok=True)
-            print('{}: Parqueting train dist df'.format(get_time()))
-            TRAIN_DATA_DF.to_parquet(
-                str(TRAIN_DATA_PATH) + '/train_data_parquet.gzip',
-                compression='gzip'
-            )
-        if self.config.wandb:
-            print('{}: Uploading comparison df to wandb'.format(get_time()))
-            self.wandb.save(str(RUN_ROOT) + '/comparison_dataframe.gzip')
         print('{}: Starting calculate_and_plot'.format(get_time()))
         calculate_and_plot(
-            RUN_ROOT,
+            file_name,
+            save_path,
             self.config,
             self.wandb,
             dom_plots=False,
-            use_train_dists=True,
+            use_train_dists=False,
             only_use_metrics=None,
             legends=True,
             reso_hists=False

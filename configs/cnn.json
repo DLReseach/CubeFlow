@@ -6,7 +6,7 @@
     "muon_neutrino"
   ],
   "dev_run": false,
-  "wandb": true,
+  "wandb": false,
   "test": true,
   "gpus": 0,
   "gpulab": true,

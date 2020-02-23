@@ -59,10 +59,10 @@ class PickleGenerator(torch.utils.data.Dataset):
             )
             y[i] = loaded_file[transform][target]
         if self.test:
-            comparisons = {}
+            comparisons = []
             for i, comparison_type in enumerate(self.config.comparison_metrics):
                 comparison = self.config.opponent + '_' + comparison_type
-                comparisons[comparison_type] = torch.tensor(loaded_file['raw'][comparison])
+                comparisons.append(loaded_file['raw'][comparison])
         if self.test or self.config.save_train_dists:
             energy = loaded_file['raw']['true_primary_energy']
         if self.conv_type == 'conv1d':

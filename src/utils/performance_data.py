@@ -2,29 +2,16 @@ import numpy as np
 
 
 class PerformanceData():
-    def __init__(self, comparison_df, bins, metric, bin_type, percentiles):
-        self.comparison_df = comparison_df
+    def __init__(self, metrics, df, bins, bin_type, percentiles):
+        self.metrics = metrics
+        self.df = df
         self.bins = bins
-        self.metric = metric
         self.bin_type = bin_type
         self.percentiles = percentiles
         self.bin_centers = [ibin.mid for ibin in self.bins]
         self.bin_widths = [ibin.length / 2 for ibin in self.bins]
+        self.performances_dict = {}
         performances = self.create_performance_data()
-        self.own_performances = performances[0]
-        self.own_sigmas = performances[2]
-        self.opponent_performances = performances[1]
-        self.opponent_sigmas = performances[3]
-        self.relative_improvement = performances[4]
-        self.relative_improvement_sigmas = performances[5]
-        self.own_lows = performances[6]
-        self.own_medians = performances[7]
-        self.own_highs = performances[8]
-        self.own_centers = performances[9]
-        self.opponent_lows = performances[10]
-        self.opponent_medians = performances[11]
-        self.opponent_highs = performances[12]
-        self.opponent_centers = performances[13]
 
     def convert_iqr_to_sigma(self, quartiles, e_quartiles):
         factor = 1 / 1.349
@@ -79,93 +66,92 @@ class PerformanceData():
         return sigma, e_sigma
 
     def create_performance_data(self):
-        own_performances = []
-        opponent_performances = []
-        own_sigmas = []
-        opponent_sigmas = []
-        own_lows = []
-        own_medians = []
-        own_highs = []
-        own_centers = []
-        opponent_lows = []
-        opponent_medians = []
-        opponent_highs = []
-        opponent_centers = []
-        for ibin in self.bins:
-            indexer = (self.comparison_df['metric'] == self.metric)\
-                & (self.comparison_df[self.bin_type + '_binned'] == ibin)
-            own_performance_temp = self.calculate_performance(
-                self.comparison_df[indexer].own_error.values,
-                self.percentiles
+        for metric in self.metrics:
+            self.performances_dict[metric] = {}
+            own_performances = []
+            opponent_performances = []
+            own_sigmas = []
+            opponent_sigmas = []
+            own_lows = []
+            own_medians = []
+            own_highs = []
+            own_centers = []
+            opponent_lows = []
+            opponent_medians = []
+            opponent_highs = []
+            opponent_centers = []
+            for ibin in self.bins:
+                indexer = (self.df[self.bin_type + '_binned'] == ibin)
+                own_performance_temp = self.calculate_performance(
+                    self.df[indexer]['own_' + metric + '_error'].values,
+                    self.percentiles
+                )
+                own_performances.append(own_performance_temp[0])
+                own_sigmas.append(own_performance_temp[1])
+                own_lows.append(
+                    self.df[indexer]['own_' + metric + '_error'].quantile(0.16)
+                )
+                own_lows.append(
+                    self.df[indexer]['own_' + metric + '_error'].quantile(0.16)
+                )
+                own_medians.append(
+                    self.df[indexer]['own_' + metric + '_error'].quantile(0.5)
+                )
+                own_medians.append(
+                    self.df[indexer]['own_' + metric + '_error'].quantile(0.5)
+                )
+                own_highs.append(
+                    self.df[indexer]['own_' + metric + '_error'].quantile(0.84)
+                )
+                own_highs.append(
+                    self.df[indexer]['own_' + metric + '_error'].quantile(0.84)
+                )
+                own_centers.append(ibin.left)
+                own_centers.append(ibin.right)
+                opponent_performance_temp = self.calculate_performance(
+                    self.df[indexer]['opponent_' + metric + '_error'].values,
+                    self.percentiles
+                )
+                opponent_performances.append(opponent_performance_temp[0])
+                opponent_sigmas.append(opponent_performance_temp[1])
+                opponent_lows.append(
+                    self.df[indexer]['opponent_' + metric + '_error'].quantile(0.16)
+                )
+                opponent_lows.append(
+                    self.df[indexer]['opponent_' + metric + '_error'].quantile(0.16)
+                )
+                opponent_medians.append(
+                    self.df[indexer]['opponent_' + metric + '_error'].quantile(0.5)
+                )
+                opponent_medians.append(
+                    self.df[indexer]['opponent_' + metric + '_error'].quantile(0.5)
+                )
+                opponent_highs.append(
+                    self.df[indexer]['opponent_' + metric + '_error'].quantile(0.84)
+                )
+                opponent_highs.append(
+                    self.df[indexer]['opponent_' + metric + '_error'].quantile(0.84)
+                )
+                opponent_centers.append(ibin.left)
+                opponent_centers.append(ibin.right)
+            relative_improvement = np.divide(
+                np.array(own_performances) - np.array(opponent_performances),
+                np.array(opponent_performances)
             )
-            own_performances.append(own_performance_temp[0])
-            own_sigmas.append(own_performance_temp[1])
-            own_lows.append(
-                self.comparison_df[indexer].own_error.quantile(0.16)
-            )
-            own_lows.append(
-                self.comparison_df[indexer].own_error.quantile(0.16)
-            )
-            own_medians.append(
-                self.comparison_df[indexer].own_error.quantile(0.5)
-            )
-            own_medians.append(
-                self.comparison_df[indexer].own_error.quantile(0.5)
-            )
-            own_highs.append(
-                self.comparison_df[indexer].own_error.quantile(0.84)
-            )
-            own_highs.append(
-                self.comparison_df[indexer].own_error.quantile(0.84)
-            )
-            own_centers.append(ibin.left)
-            own_centers.append(ibin.right)
-            opponent_performance_temp = self.calculate_performance(
-                self.comparison_df[indexer].opponent_error.values,
-                self.percentiles
-            )
-            opponent_performances.append(opponent_performance_temp[0])
-            opponent_sigmas.append(opponent_performance_temp[1])
-            opponent_lows.append(
-                self.comparison_df[indexer].opponent_error.quantile(0.16)
-            )
-            opponent_lows.append(
-                self.comparison_df[indexer].opponent_error.quantile(0.16)
-            )
-            opponent_medians.append(
-                self.comparison_df[indexer].opponent_error.quantile(0.5)
-            )
-            opponent_medians.append(
-                self.comparison_df[indexer].opponent_error.quantile(0.5)
-            )
-            opponent_highs.append(
-                self.comparison_df[indexer].opponent_error.quantile(0.84)
-            )
-            opponent_highs.append(
-                self.comparison_df[indexer].opponent_error.quantile(0.84)
-            )
-            opponent_centers.append(ibin.left)
-            opponent_centers.append(ibin.right)
-        relative_improvement = np.divide(
-            np.array(own_performances) - np.array(opponent_performances),
-            np.array(opponent_performances)
-        )
-        term1 = (np.array(own_sigmas) / np.array(opponent_performances))**2
-        term2 = (np.array(opponent_sigmas) * np.array(own_performances) / np.array(opponent_performances)**2)**2
-        relative_improvement_sigmas = np.sqrt(term1 + term2)
-        return (
-            own_performances,
-            opponent_performances,
-            own_sigmas,
-            opponent_sigmas,
-            relative_improvement,
-            relative_improvement_sigmas,
-            own_lows,
-            own_medians,
-            own_highs,
-            own_centers,
-            opponent_lows,
-            opponent_medians,
-            opponent_highs,
-            opponent_centers
-        )
+            term1 = (np.array(own_sigmas) / np.array(opponent_performances))**2
+            term2 = (np.array(opponent_sigmas) * np.array(own_performances) / np.array(opponent_performances)**2)**2
+            relative_improvement_sigmas = np.sqrt(term1 + term2)
+            self.performances_dict[metric]['own_performances'] = own_performances
+            self.performances_dict[metric]['opponent_performances'] = opponent_performances
+            self.performances_dict[metric]['own_sigmas'] = own_sigmas
+            self.performances_dict[metric]['opponent_sigmas'] = opponent_sigmas
+            self.performances_dict[metric]['relative_improvement'] = relative_improvement
+            self.performances_dict[metric]['relative_improvement_sigmas'] = relative_improvement_sigmas
+            self.performances_dict[metric]['own_lows'] = own_lows
+            self.performances_dict[metric]['own_medians'] = own_medians
+            self.performances_dict[metric]['own_highs'] = own_highs
+            self.performances_dict[metric]['own_centers'] = own_centers
+            self.performances_dict[metric]['opponent_lows'] = opponent_lows
+            self.performances_dict[metric]['opponent_medians'] = opponent_medians
+            self.performances_dict[metric]['opponent_highs'] = opponent_highs
+            self.performances_dict[metric]['opponent_centers'] = opponent_centers

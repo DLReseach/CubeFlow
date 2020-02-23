@@ -6,12 +6,15 @@ import pytorch_lightning as pl
 import io
 import slack
 import numpy as np
+import pandas as pd
+from pathlib import Path
 from datetime import datetime
 from data_loader.pickle_generator import PickleGenerator
 from metrics.resolution_comparison import ResolutionComparison
 from transforms.invert_transforms import TransformsInverter
 from losses.losses import logcosh_loss
 from utils.utils import get_time
+from utils.utils import get_project_root
 
 
 class CnnSystemConv1d(pl.LightningModule):
@@ -25,6 +28,13 @@ class CnnSystemConv1d(pl.LightningModule):
         self.hparams = hparams
         self.val_check_interval = val_check_interval
         self.experiment_name = experiment_name
+
+        self.PROJECT_ROOT = get_project_root()
+        self.RUN_ROOT = self.PROJECT_ROOT.joinpath('runs')
+        self.RUN_ROOT.mkdir(exist_ok=True)
+        self.RUN_ROOT = self.RUN_ROOT.joinpath(self.experiment_name)
+        self.RUN_ROOT.mkdir(exist_ok=True)
+
         self.train_loss = []
         self.train_batches_per_second = []
         self.val_batches_per_second = []
@@ -33,9 +43,23 @@ class CnnSystemConv1d(pl.LightningModule):
         self.first_val = False
         self.first_train = True
         self.first_test = True
+
+        self.column_names = [
+            'file_number',
+            'energy',
+            'event_length'
+        ]
+        self.column_names += ['opponent_' + name for name in self.config.comparison_metrics]
+        self.column_names += ['own_' + name.replace('true_', '') for name in self.config.targets]
+        self.column_names += [name for name in self.config.targets]
+        self.data = {name: [] for name in self.column_names}
+
+        self.transform_object = TransformsInverter(self.config, self.files_and_dirs)
+
         if not self.config.dev_run:
             self.slack_token = os.environ["SLACK_API_TOKEN"]
             self.client = slack.WebClient(token=self.slack_token)
+
         self.comparisonclass = ResolutionComparison(self.wandb, self.config, self.experiment_name)
 
         self.conv1 = torch.nn.Conv1d(
@@ -213,9 +237,17 @@ class CnnSystemConv1d(pl.LightningModule):
         y_hat = self.forward(x)
         # loss = F.mse_loss(y_hat, y)
         loss = logcosh_loss(y_hat, y)
-        transform_object = TransformsInverter(y, y_hat, self.config, self.files_and_dirs)
-        transformed_y, transformed_y_hat = transform_object.transform_inversion()
-        self.comparisonclass.update_values(transformed_y_hat, transformed_y, comparisons, energy, event_length, file_number)
+        # transformed_y, transformed_y_hat = self.transform_object.transform_inversion(y, y_hat)
+        values = [
+            list(file_number),
+            energy.tolist(),
+            event_length.tolist(),
+            *[comparison.tolist() for comparison in comparisons],
+            *[y_hat[:, i].tolist() for i in range(y_hat.size(1))],
+            *[y[:, i].tolist() for i in range(y.size(1))]
+        ]
+        for i, key in enumerate(self.data):
+            self.data[key].extend(values[i])
         return {'test_loss': loss}
 
     def test_end(self, outputs):
@@ -232,7 +264,17 @@ class CnnSystemConv1d(pl.LightningModule):
                 channel='training',
                 text='Testing ended.'
             )
-        self.comparisonclass.testing_ended(self.train_true_energy, self.train_event_length)
+        comparison_df = pd.DataFrame().from_dict(self.data)
+        print('{}: Saving predictions file'.format(get_time()))
+        file_name = self.RUN_ROOT.joinpath('comparison_dataframe_parquet.gzip')
+        comparison_df.to_parquet(
+            str(file_name),
+            compression='gzip'
+        )
+        if self.config.wandb:
+            print('{}: Uploading comparison df to wandb'.format(get_time()))
+            self.wandb.save(str(file_name))
+        self.comparisonclass.testing_ended(file_name, self.RUN_ROOT, self.train_true_energy, self.train_event_length)
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         return {'test_loss': avg_loss}
 

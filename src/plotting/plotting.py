@@ -2,6 +2,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from types import SimpleNamespace
+
 # from matplotlib.backends.backend_pgf import FigureCanvasPgf
 
 # mpl.backend_bases.register_backend('pdf', FigureCanvasPgf)
@@ -78,7 +80,7 @@ def plot_error_in_bin(own, opponent, metric, bins_range, bins_type, legends=True
     return fig
 
 
-def comparison_plot(performance_data, train_data, legends=True):
+def comparison_plot(metric, performance_data, train_data, legends=True):
     fig, (reso_ax, ratio_ax) = plt.subplots(
         2,
         1,
@@ -92,7 +94,7 @@ def comparison_plot(performance_data, train_data, legends=True):
     if performance_data.bin_type == 'energy':
         if train_data is None:
             hist_ax.hist(
-                performance_data.comparison_df.true_energy.values,
+                performance_data.df.energy.values,
                 bins=len(performance_data.bins),
                 histtype='step',
                 color='grey',
@@ -113,7 +115,7 @@ def comparison_plot(performance_data, train_data, legends=True):
     elif performance_data.bin_type == 'doms':
         if train_data is None:
             hist_ax.hist(
-                performance_data.comparison_df.event_length.values,
+                performance_data.df.event_length.values,
                 bins=len(performance_data.bins),
                 histtype='step',
                 color='grey',
@@ -134,8 +136,8 @@ def comparison_plot(performance_data, train_data, legends=True):
     reso_ax.xaxis.set_ticks_position('none')
     markers_own, caps, bars = reso_ax.errorbar(
         performance_data.bin_centers,
-        performance_data.own_performances,
-        yerr=performance_data.own_sigmas,
+        performance_data.performances_dict[metric]['own_performances'],
+        yerr=performance_data.performances_dict[metric]['own_sigmas'],
         xerr=performance_data.bin_widths,
         marker='.',
         ls='none',
@@ -143,8 +145,8 @@ def comparison_plot(performance_data, train_data, legends=True):
     )
     markers, caps, bars = reso_ax.errorbar(
         performance_data.bin_centers,
-        performance_data.opponent_performances,
-        yerr=performance_data.opponent_sigmas,
+        performance_data.performances_dict[metric]['opponent_performances'],
+        yerr=performance_data.performances_dict[metric]['opponent_sigmas'],
         xerr=performance_data.bin_widths,
         marker='.',
         ls='none',
@@ -155,8 +157,8 @@ def comparison_plot(performance_data, train_data, legends=True):
     # ratio_ax.axhline(y=-1, linestyle='dashdot', linewidth=0.5, color='black')
     ratio_ax.errorbar(
         performance_data.bin_centers,
-        performance_data.relative_improvement,
-        yerr=performance_data.relative_improvement_sigmas,
+        performance_data.performances_dict[metric]['relative_improvement'],
+        yerr=performance_data.performances_dict[metric]['relative_improvement_sigmas'],
         xerr=performance_data.bin_widths,
         marker='.',
         ls='none'
@@ -169,33 +171,33 @@ def comparison_plot(performance_data, train_data, legends=True):
     )
     hist_ax.set_yscale('log')
     hist_ax.set_ylim(ymin=1e2)
-    if performance_data.metric == 'energy':
+    if metric == 'energy':
         reso_ax.set_ylim(ymin=0, ymax=2)
     else:
         reso_ax.set_ylim(ymin=0)
     if performance_data.bin_type == 'energy':
-        # ratio_ax.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
-        ratio_ax.set(xlabel=r'$E_{\mathrm{true}} \; [\mathrm{GeV}]$')
+        ratio_ax.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
+        # ratio_ax.set(xlabel=r'$E_{\mathrm{true}} \; [\mathrm{GeV}]$')
     elif performance_data.bin_type == 'doms':
         ratio_ax.set(xlabel=r'No. of DOMs')
     reso_ax.set(
         title=r'{} reconstruction comparison'.format(
-            performance_data.metric.title()
+            metric.title()
         )
     )
-    if performance_data.metric == 'azimuth':
+    if metric == 'azimuth':
         reso_ax.set(
             ylabel=r'$\sigma\left(\theta_{\mathrm{azimuth,reco}} - \theta_{\mathrm{azimuth,true}}\right) \; [\mathrm{Rad}]$'
         )
-    if performance_data.metric == 'zenith':
+    if metric == 'zenith':
         reso_ax.set(
             ylabel=r'$\sigma\left(\theta_{\mathrm{zenith,reco}} - \theta_{\mathrm{zenith,true}}\right) \; [\mathrm{Rad}]$'
         )
-    elif performance_data.metric == 'energy':
+    elif metric == 'energy':
         reso_ax.set(
             ylabel=r'$\sigma\left(\frac{\log_{10}{E_{\mathrm{reco}}} - \log_{10}{E_{\mathrm{true}}}}{\log_{10}{E_{\mathrm{true}}}}\right) \; [\%]$'
         )
-    elif performance_data.metric == 'time':
+    elif metric == 'time':
         reso_ax.set(
             ylabel=r'$\sigma\left(t_{\mathrm{reco}} - t_{\mathrm{true}}\right) \; [\mathrm{ns}]$'
         )
@@ -211,23 +213,22 @@ def comparison_plot(performance_data, train_data, legends=True):
     return fig, markers_own
 
 
-def icecube_2d_histogram(performance_data, legends=True):
+def icecube_2d_histogram(metric, performance_data, legends=True):
     fig, (ax1, ax2) = plt.subplots(
         nrows=1,
         ncols=2,
         figsize=(16.0, 6.0)
     )
-    indexer = performance_data.comparison_df.metric == performance_data.metric
-    x_values = performance_data.comparison_df[indexer].true_energy.values
-    y_values_own = performance_data.comparison_df[indexer].own_error.values
+    x_values = performance_data.df.energy.values
+    y_values_own = performance_data.df['own_' + metric + '_error'].values
     _, x_bin_edges = np.histogram(x_values, bins='fd', range=[0, 4])
-    if performance_data.metric == 'azimuth':
+    if metric == 'azimuth':
         plot_range = [-2.5, 2.5]
-    if performance_data.metric == 'energy':
+    if metric == 'energy':
         plot_range = [-1, 4]
-    if performance_data.metric == 'time':
+    if metric == 'time':
         plot_range = [-150, 250]
-    if performance_data.metric == 'zenith':
+    if metric == 'zenith':
         plot_range = [-2, 2]
     _, y_bin_edges_own = np.histogram(
         y_values_own,
@@ -244,7 +245,7 @@ def icecube_2d_histogram(performance_data, legends=True):
         max(y_bin_edges_own),
         int(0.5 + y_bin_edges_own.shape[0] / 4.0)
     )
-    y_values_opponent = performance_data.comparison_df[indexer].opponent_error.values
+    y_values_opponent = performance_data.df['opponent_' + metric + '_error'].values
     _, y_bin_edges_opponent = np.histogram(
         y_values_opponent,
         bins='fd',
@@ -261,54 +262,54 @@ def icecube_2d_histogram(performance_data, legends=True):
         int(0.5 + y_bin_edges_opponent.shape[0] / 4.0)
     )
     counts_own, xedges_own, yedges_own, im_own = ax1.hist2d(
-        performance_data.comparison_df[indexer].true_energy.values,
-        performance_data.comparison_df[indexer].own_error.values,
+        performance_data.df.energy.values,
+        performance_data.df['own_' + metric + '_error'].values,
         bins=[widths1_own, widths2_own],
         cmap='Oranges'
     )
     ax1.plot(
-        performance_data.own_centers,
-        performance_data.own_medians,
+        performance_data.performances_dict[metric]['own_centers'],
+        performance_data.performances_dict[metric]['own_medians'],
         linestyle='solid',
         color='red',
         alpha=0.5,
         label=r'50 \%  (CubeFlow)'
     )
     ax1.plot(
-        performance_data.own_centers,
-        performance_data.own_lows,
+        performance_data.performances_dict[metric]['own_centers'],
+        performance_data.performances_dict[metric]['own_lows'],
         linestyle='dashed',
         color='red',
         alpha=0.5,
         label=r'16 \% (CubeFlow)'
     )
     ax1.plot(
-        performance_data.own_centers,
-        performance_data.own_highs,
+        performance_data.performances_dict[metric]['own_centers'],
+        performance_data.performances_dict[metric]['own_highs'],
         linestyle='dotted',
         color='red',
         alpha=0.5,
         label=r'84 \% (CubeFlow)'
     )
     ax1.plot(
-        performance_data.opponent_centers,
-        performance_data.opponent_medians,
+        performance_data.performances_dict[metric]['opponent_centers'],
+        performance_data.performances_dict[metric]['opponent_medians'],
         linestyle='solid',
         color='green',
         alpha=0.5,
         label=r'50 \% (IceCube)'
     )
     ax1.plot(
-        performance_data.opponent_centers,
-        performance_data.opponent_lows,
+        performance_data.performances_dict[metric]['opponent_centers'],
+        performance_data.performances_dict[metric]['opponent_lows'],
         linestyle='dashed',
         color='green',
         alpha=0.5,
         label=r'16 \% (IceCube)'
     )
     ax1.plot(
-        performance_data.opponent_centers,
-        performance_data.opponent_highs,
+        performance_data.performances_dict[metric]['opponent_centers'],
+        performance_data.performances_dict[metric]['opponent_highs'],
         linestyle='dotted',
         color='green',
         alpha=0.5,
@@ -318,77 +319,77 @@ def icecube_2d_histogram(performance_data, legends=True):
     cb_own.set_label('Frequency')
     ax1.set(
         title=r'{} reconstruction results, CubeFlow'.format(
-            performance_data.metric.title()
+            metric.title()
         ),
         xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$'
     )
-    if performance_data.metric == 'energy':
+    if metric == 'energy':
         ax1.set(
             ylabel=r'$\frac{\log_{10}{E_{\mathrm{reco}}} - \log_{10}{E_{\mathrm{true}}}}{\log_{10}{E_{\mathrm{true}}}} \; [\%]$'
         )
-    elif performance_data.metric == 'azimuth':
+    elif metric == 'azimuth':
         ax1.set(
             ylabel=r'$\theta_{\mathrm{azimuth,reco}} - \theta_{\mathrm{azimuth,true}} \; [\mathrm{Rad}]$'
         )
-    elif performance_data.metric == 'zenith':
+    elif metric == 'zenith':
         ax1.set(
             ylabel=r'$\theta_{\mathrm{zenith,reco}} - \theta_{\mathrm{zenith,true}} \; [\mathrm{Rad}]$'
         )
-    elif performance_data.metric == 'time':
+    elif metric == 'time':
         ax1.set(
             ylabel=r'$t_{\mathrm{reco}} - t_{\mathrm{true}} \; [\mathrm{ns}]$'
         )
     if legends:
         ax1.legend()
     counts_opponent, xedges_opponent, yedges_opponent, im_opponent = ax2.hist2d(
-        performance_data.comparison_df[indexer].true_energy.values,
-        performance_data.comparison_df[indexer].opponent_error.values,
+        performance_data.df.energy.values,
+        performance_data.df['opponent_' + metric + '_error'].values,
         bins=[widths1_opponent, widths2_opponent],
         cmap='Oranges'
     )
     ax2.plot(
-        performance_data.own_centers,
-        performance_data.own_medians,
+        performance_data.performances_dict[metric]['own_centers'],
+        performance_data.performances_dict[metric]['own_medians'],
         linestyle='solid',
         color='red',
         alpha=0.5,
         label=r'50 \% (CubeFlow)'
     )
     ax2.plot(
-        performance_data.own_centers,
-        performance_data.own_lows,
+        performance_data.performances_dict[metric]['own_centers'],
+        performance_data.performances_dict[metric]['own_lows'],
         linestyle='dashed',
         color='red',
         alpha=0.5,
         label=r'16 \% (CubeFlow)'
     )
     ax2.plot(
-        performance_data.own_centers,
-        performance_data.own_highs,
+        performance_data.performances_dict[metric]['own_centers'],
+        performance_data.performances_dict[metric]['own_highs'],
         linestyle='dotted',
         color='red',
         alpha=0.5,
         label=r'84 \% (CubeFlow)'
     )
     ax2.plot(
-        performance_data.opponent_centers,
-        performance_data.opponent_medians,
+        performance_data.performances_dict[metric]['opponent_centers'],
+        performance_data.performances_dict[metric]['opponent_medians'],
         linestyle='solid',
         alpha=0.5,
         color='green',
         label=r'50 \% (IceCube)'
     )
     ax2.plot(
-        performance_data.opponent_centers,
-        performance_data.opponent_lows,
+        performance_data.performances_dict[metric]['opponent_centers'],
+        performance_data.performances_dict[metric]['opponent_lows'],
         linestyle='dashed',
         alpha=0.5,
         color='green',
         label=r'16 \% (IceCube)'
     )
     ax2.plot(
-        performance_data.opponent_centers,
-        performance_data.opponent_highs,
+        performance_data.performances_dict[metric]['opponent_centers'],
+        performance_data.performances_dict[metric]['opponent_highs'],
         linestyle='dotted',
         alpha=0.5,
         color='green',
@@ -398,22 +399,22 @@ def icecube_2d_histogram(performance_data, legends=True):
     cb_opponent.set_label('Frequency')
     ax2.set(
         title=r'{} reconstruction results, IceCube'.format(
-            performance_data.metric.title()
+            metric.title()
         ),
         xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
-    if performance_data.metric == 'energy':
+    if metric == 'energy':
         ax2.set(
             ylabel=r'$\frac{\log_{10}{E_{\mathrm{reco}}} - \log_{10}{E_{\mathrm{true}}}}{\log_{10}{E_{\mathrm{true}}}} \; [\%]$'
         )
-    elif performance_data.metric == 'azimuth':
+    elif metric == 'azimuth':
         ax2.set(
             ylabel=r'$\theta_{\mathrm{azimuth,reco}} - \theta_{\mathrm{azimuth,true}} \; [\mathrm{Rad}]$'
         )
-    elif performance_data.metric == 'zenith':
+    elif metric == 'zenith':
         ax2.set(
             ylabel=r'$\theta_{\mathrm{zenith,reco}} - \theta_{\mathrm{zenith,true}} \; [\mathrm{Rad}]$'
         )
-    elif performance_data.metric == 'time':
+    elif metric == 'time':
         ax2.set(
             ylabel=r'$t_{\mathrm{reco}} - t_{\mathrm{true}} \; [\mathrm{ns}]$'
         )
