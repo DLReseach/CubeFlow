@@ -12,13 +12,13 @@ process = psutil.Process(os.getpid())
 HOME_PATH = Path().home()
 
 SHELVE_PATH = HOME_PATH.joinpath(
-    'small_data_test/oscnext-genie-level5-v01-01-pass2/shelve/')
-SHELVE_PATH.mkdir(exist_ok=True)
+    'data/oscnext-genie-level5-v01-01-pass2/shelve/')
+SHELVE_PATH.mkdir(exist_ok=True, parents=True)
 SHELVE_NAME = SHELVE_PATH.joinpath('cube_shelve')
 SHELVE_DATA_FILE = Path(str(SHELVE_NAME) + '.dat')
 
 DATA_PATH = HOME_PATH.joinpath(
-    'small_data_test/oscnext-genie-level5-v01-01-pass2/pickles'
+    '/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/pickles'
 )
 PICKLE_DIRS = [
     directory for directory in DATA_PATH.iterdir() if directory.is_dir()

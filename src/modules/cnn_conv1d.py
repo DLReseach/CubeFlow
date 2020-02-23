@@ -19,7 +19,19 @@ from src.modules.utils import get_project_root
 
 
 class CnnSystemConv1d(pl.LightningModule):
-    def __init__(self, sets, config, files_and_dirs, val_freq, wandb, hparams, val_check_interval, experiment_name):
+    def __init__(
+        self,
+        sets,
+        config,
+        files_and_dirs,
+        val_freq,
+        wandb,
+        hparams,
+        val_check_interval,
+        experiment_name,
+        reporter,
+        saver
+    ):
         super(CnnSystemConv1d, self).__init__()
         self.sets = sets
         self.config = config
@@ -29,21 +41,17 @@ class CnnSystemConv1d(pl.LightningModule):
         self.hparams = hparams
         self.val_check_interval = val_check_interval
         self.experiment_name = experiment_name
+        self.reporter = reporter
+        self.saver = saver
 
         self.PROJECT_ROOT = get_project_root()
         self.RUN_ROOT = self.PROJECT_ROOT.joinpath('runs')
         self.RUN_ROOT.mkdir(exist_ok=True)
         self.RUN_ROOT = self.RUN_ROOT.joinpath(self.experiment_name)
         self.RUN_ROOT.mkdir(exist_ok=True)
-
-        self.train_loss = []
-        self.train_batches_per_second = []
-        self.val_batches_per_second = []
-        self.train_true_energy = []
-        self.train_event_length = []
-        self.first_val = False
-        self.first_train = True
-        self.first_test = True
+        if self.config.save_train_dists:
+            self.TRAIN_DISTS_PATH = self.PROJECT_ROOT.joinpath('train_distributions')
+            self.TRAIN_DISTS_PATH.mkdir(exist_ok=True)
 
         self.column_names = [
             'file_number',
@@ -114,7 +122,6 @@ class CnnSystemConv1d(pl.LightningModule):
             out_features=len(self.config.targets)
         )
 
-
     def forward(self, x):
         x = F.max_pool1d(F.leaky_relu(self.conv1(x)), 2)
         x = self.batchnorm1(x)
@@ -134,150 +141,110 @@ class CnnSystemConv1d(pl.LightningModule):
         return x
 
     def on_epoch_start(self):
-        print(
-            '''
-{}: Beginning epoch {}
-            '''
-            .format(get_time(), self.current_epoch)
-        )
-        if not self.config.dev_run:
-            self.client.chat_postMessage(
-                channel='training',
-                text='Epoch {} begun.'.format(self.current_epoch)
-            )
-
+        self.reporter.on_epoch_start()
 
     def training_step(self, batch, batch_idx):
-        if self.first_train:
-            self.train_step = 1
-            self.train_time_start = datetime.now()
-            self.first_train = False
-            self.first_val = True
-        else:
-            self.train_step += 1
-        x, y, true_energy, event_length = batch
-        if self.config.save_train_dists:
-            self.train_true_energy.extend(true_energy.cpu().numpy())
-            self.train_event_length.extend(event_length.cpu().numpy())
+        self.reporter.training_batch_start()
+        x, y, train_true_energy, train_event_length = batch
         y_hat = self.forward(x)
         # loss = F.mse_loss(y_hat, y)
         loss = logcosh_loss(y_hat, y)
-        self.train_loss.append(loss)
+        self.reporter.training_batch_end(
+            loss,
+            train_true_energy,
+            train_event_length
+        )
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
-        if self.first_val and self.global_step != 0:
-            self.train_time_end = datetime.now()
-            self.train_time_delta = (self.train_time_end - self.train_time_start).total_seconds()
-            self.val_time_start = datetime.now()
-            self.first_val = False
-            self.val_step = 1
-        elif self.global_step != 0:
-            self.val_step += 1
-        x, y, true_energy, event_length = batch
-        y_hat = self.forward(x)
-        # loss = F.mse_loss(y_hat, y)
-        loss = logcosh_loss(y_hat, y)
-        return {'val_loss': loss}
-
-    def validation_end(self, outputs):
-        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        output = {
-            'progress_bar': avg_loss,
-            'log': {'val_loss': avg_loss}
-        }
-        if self.global_step != 0:
-            avg_train_loss = torch.stack(self.train_loss).mean()
-            self.train_loss = []
-            self.val_time_end = datetime.now()
-            self.val_time_delta = (self.val_time_end - self.val_time_start).total_seconds()
-            self.first_train = True
-            if self.config.wandb:
-                metrics = {'train_loss': avg_train_loss, 'val_loss': avg_loss}
-                self.wandb.log(metrics, step=self.global_step)
-            print('''
-{}: Step {} / epoch {}
-          Train loss: {:.3f} / {:.1f} events/s
-          Val loss:   {:.3f} / {:.1f} events/s
-                '''
-                .format(
-                    get_time(),
-                    self.global_step,
-                    self.current_epoch,
-                    avg_train_loss,
-                    self.train_step * self.config.batch_size / self.train_time_delta,
-                    avg_loss,
-                    self.val_step * self.config.val_batch_size / self.val_time_delta
-                )
-            )
-        self.train_batches_per_second = []
-        self.val_batches_per_second = []
-        return {'val_loss': avg_loss}
-
-    def on_epoch_end(self):
-        if not self.config.dev_run:
-            self.client.chat_postMessage(
-                channel='training',
-                text='Epoch {} done'.format(self.current_epoch)
-            )
-
-    def test_step(self, batch, batch_nb):
-        if self.first_test:
-            print('{}: Testing started'.format(get_time()))
-            if not self.config.dev_run:
-                self.client.chat_postMessage(
-                    channel='training',
-                    text='Testing started.'
-                )
-            self.test_time_start = datetime.now()
-            self.test_step_i = 1
-            self.first_test = False
-        else:
-            self.test_step_i += 1
+        self.reporter.val_batch_start()
         x, y, comparisons, energy, event_length, file_number = batch
         y_hat = self.forward(x)
         # loss = F.mse_loss(y_hat, y)
         loss = logcosh_loss(y_hat, y)
-        values = [
-            list(file_number),
-            energy.tolist(),
-            event_length.tolist(),
-            *[comparison.tolist() for comparison in comparisons],
-            *[y_hat[:, i].tolist() for i in range(y_hat.size(1))],
-            *[y[:, i].tolist() for i in range(y.size(1))]
-        ]
-        for i, key in enumerate(self.data):
-            self.data[key].extend(values[i])
-        return {'test_loss': loss}
+        self.saver.update(x, y, y_hat, comparisons, energy, event_length, file_number)
+        self.reporter.val_batch_end(loss)
+        return {'val_loss': loss}
 
-    def test_end(self, outputs):
-        self.test_time_end = datetime.now()
-        self.test_time_delta = (self.test_time_end - self.test_time_start).total_seconds()
-        print(
-            '{}: Testing ended, {:.1f} events/s'.format(
-                get_time(),
-                self.test_step_i * self.config.val_batch_size / self.test_time_delta
-            )
-        )
-        if not self.config.dev_run:
-            self.client.chat_postMessage(
-                channel='training',
-                text='Testing ended.'
-            )
-        self.data = self.transform_object.transform_inversion(self.data)
-        comparison_df = pd.DataFrame().from_dict(self.data)
-        print('{}: Saving predictions file'.format(get_time()))
-        file_name = self.RUN_ROOT.joinpath('comparison_dataframe_parquet.gzip')
-        comparison_df.to_parquet(
-            str(file_name),
-            compression='gzip'
-        )
-        if self.config.wandb:
-            print('{}: Uploading comparison df to wandb'.format(get_time()))
-            self.wandb.save(str(file_name))
-        self.comparisonclass.testing_ended(file_name, self.RUN_ROOT, self.train_true_energy, self.train_event_length)
-        avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        return {'test_loss': avg_loss}
+    def validation_end(self, outputs):
+        # output = {
+        #     'progress_bar': avg_val_loss,
+        #     'log': {'val_loss': avg_val_loss}
+        # }
+        # avg_train_loss = torch.stack(self.train_loss).mean()
+        self.saver.reset()
+        # return {'val_loss': avg_val_loss}
+
+    def on_epoch_end(self):
+        self.reporter.on_epoch_end()
+
+    # def test_step(self, batch, batch_nb):
+    #     if self.first_test:
+    #         print('{}: Testing started'.format(get_time()))
+    #         if not self.config.dev_run:
+    #             self.client.chat_postMessage(
+    #                 channel='training',
+    #                 text='Testing started.'
+    #             )
+    #         self.test_time_start = datetime.now()
+    #         self.test_step_i = 1
+    #         self.first_test = False
+    #     else:
+    #         self.test_step_i += 1
+    #     x, y, comparisons, energy, event_length, file_number = batch
+    #     y_hat = self.forward(x)
+    #     # loss = F.mse_loss(y_hat, y)
+    #     loss = logcosh_loss(y_hat, y)
+    #     values = [
+    #         list(file_number),
+    #         energy.tolist(),
+    #         event_length.tolist(),
+    #         *[comparison.tolist() for comparison in comparisons],
+    #         *[y_hat[:, i].tolist() for i in range(y_hat.size(1))],
+    #         *[y[:, i].tolist() for i in range(y.size(1))]
+    #     ]
+    #     for i, key in enumerate(self.data):
+    #         self.data[key].extend(values[i])
+    #     return {'test_loss': loss}
+
+    # def test_end(self, outputs):
+    #     self.test_time_end = datetime.now()
+    #     self.test_time_delta = (self.test_time_end - self.test_time_start).total_seconds()
+    #     print(
+    #         '{}: Testing ended, {:.1f} events/s'.format(
+    #             get_time(),
+    #             self.test_step_i * self.config.val_batch_size / self.test_time_delta
+    #         )
+    #     )
+    #     if not self.config.dev_run:
+    #         self.client.chat_postMessage(
+    #             channel='training',
+    #             text='Testing ended.'
+    #         )
+    #     self.data = self.transform_object.transform_inversion(self.data)
+    #     comparison_df = pd.DataFrame().from_dict(self.data)
+    #     print('{}: Saving predictions file'.format(get_time()))
+    #     file_name = self.RUN_ROOT.joinpath('comparison_dataframe_parquet.gzip')
+    #     comparison_df.to_parquet(
+    #         str(file_name),
+    #         compression='gzip'
+    #     )
+    #     if self.config.wandb:
+    #         print('{}: Uploading comparison df to wandb'.format(get_time()))
+    #         self.wandb.save(str(file_name))
+    #     if self.config.save_train_dists:
+    #         print('{}: Saving train distributions file'.format(get_time()))
+    #         train_dists_dict = {}
+    #         train_dists_dict['train_true_energy'] = self.train_true_energy
+    #         train_dists_dict['train_event_length'] = self.train_event_length
+    #         train_dists_df = pd.DataFrame().from_dict(train_dists_dict)
+    #         train_dists_df.to_parquet(
+    #             str(self.TRAIN_DISTS_PATH.joinpath('train_dists_parquet.gzip')),
+    #             compression='gzip'
+    #         )
+    #     self.comparisonclass.testing_ended(file_name, self.RUN_ROOT, self.train_true_energy, self.train_event_length)
+    #     avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+    #     return {'test_loss': avg_loss}
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
@@ -322,6 +289,7 @@ class CnnSystemConv1d(pl.LightningModule):
             self.config,
             self.sets['train'],
             test=False,
+            val=False,
             conv_type='conv1d'
         )
         dl = DataLoader(
@@ -341,6 +309,7 @@ class CnnSystemConv1d(pl.LightningModule):
             self.config,
             self.sets['val'],
             test=False,
+            val=True,
             conv_type='conv1d'
         ) 
         dl = DataLoader(
@@ -360,6 +329,7 @@ class CnnSystemConv1d(pl.LightningModule):
             self.config,
             self.sets['val'],
             test=True,
+            val=False,
             conv_type='conv1d'
         )
         dl = DataLoader(

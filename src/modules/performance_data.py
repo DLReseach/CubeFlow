@@ -11,7 +11,7 @@ class PerformanceData():
         self.bin_centers = [ibin.mid for ibin in self.bins]
         self.bin_widths = [ibin.length / 2 for ibin in self.bins]
         self.performances_dict = {}
-        performances = self.create_performance_data()
+        self.create_performance_data()
 
     def convert_iqr_to_sigma(self, quartiles, e_quartiles):
         factor = 1 / 1.349

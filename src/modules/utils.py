@@ -84,7 +84,7 @@ def h5_data_reader(data_file, group, idx):
     return data
 
 
-def get_files_and_dirs(config):
+def get_files_and_dirs(config, experiment_name):
     files_and_dirs = {}
     if config.gpulab:
         files_and_dirs['data_dir'] = Path(config.gpulab_data_dir).joinpath(config.data_type).joinpath('pickles')
@@ -95,4 +95,9 @@ def get_files_and_dirs(config):
         files_and_dirs['data_dir'] = Path.home().joinpath(dir_in_repo).joinpath('pickles')
         files_and_dirs['transformer_dir'] = Path.home().joinpath(dir_in_repo).joinpath('transformers')
         files_and_dirs['masks_dir'] = Path.home().joinpath(dir_in_repo).joinpath('masks')
+    files_and_dirs['run_root'] = get_project_root().joinpath('runs').joinpath(experiment_name)
+    try:
+        files_and_dirs['run_root'].mkdir(exist_ok=False)
+    except Exception:
+        print('Whoops. Seems that experiment name already exists.')
     return files_and_dirs

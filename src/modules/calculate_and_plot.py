@@ -46,38 +46,38 @@ def calculate_and_plot(
     legends=True,
     reso_hists=False
 ):
-    comparison_df = pd.read_parquet(file_name, engine='fastparquet')
+    errors_df = pd.read_parquet(file_name, engine='fastparquet')
 
-    comparison_df = comparison_df[comparison_df.energy <= 3.0]
+    # comparison_df = comparison_df[comparison_df.energy <= 3.0]
     # comparison_df.energy = 10**comparison_df.energy.values
 
     if use_train_dists:
         TRAIN_DATA_DF_FILE = get_project_root().joinpath(
-            'train_distributions/train_data_parquet.gzip'
+            'train_distributions/train_dists_parquet.gzip'
         )
         train_data_df = pd.read_parquet(TRAIN_DATA_DF_FILE, engine='fastparquet')
-        train_data_df = train_data_df[train_data_df.train_true_energy <= 3.0]
+        # train_data_df = train_data_df[train_data_df.train_true_energy <= 3.0]
 
     if only_use_metrics is not None:
-        comparison_df = comparison_df[comparison_df.metric.isin(only_use_metrics)]
+        errors_df = errors_df[errors_df.metric.isin(only_use_metrics)]
 
     PLOTS_DIR = RUN_ROOT.joinpath('plots')
     PLOTS_DIR.mkdir(exist_ok=True)
     RESO_PLOTS_DIR = PLOTS_DIR.joinpath('resolution_plots')
     RESO_PLOTS_DIR.mkdir(exist_ok=True)
 
-    comparison_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    comparison_df.dropna(inplace=True)
+    errors_df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    errors_df.dropna(inplace=True)
 
-    energy_bins = calculate_energy_bins(comparison_df)
-    dom_bins = calculate_dom_bins(comparison_df)
+    energy_bins = calculate_energy_bins(errors_df)
+    dom_bins = calculate_dom_bins(errors_df)
 
-    metrics = [metric.replace('own_', '').replace('_error', '') for metric in comparison_df.keys() if not metric.find('own')]
+    metrics = [metric.replace('own_', '').replace('_error', '') for metric in errors_df.keys() if not metric.find('own')]
 
-    print('{}: Calculating performance data'.format(get_time()))
+    print('{}: Calculating performance data for energy bins'.format(get_time()))
     performance_data = PerformanceData(
         metrics,
-        df=comparison_df,
+        df=errors_df,
         bins=energy_bins,
         bin_type='energy',
         percentiles=[0.16, 0.84]
@@ -143,84 +143,84 @@ def calculate_and_plot(
                 buf.close()
                 wandb.save(str(file_name))
         plt.close(fig)
-        # if reso_hists:
-        #     for i, ibin in enumerate(energy_bins):
-        #         indexer = (comparison_df.metric == metric)\
-        #             & (comparison_df.energy_binned == ibin)
-        #         fig = plot_error_in_bin(
-        #             comparison_df[indexer].own_error,
-        #             comparison_df[indexer].opponent_error,
-        #             metric,
-        #             ibin,
-        #             'energy',
-        #             legends
-        #         )
-        #         file_name = RESO_PLOTS_DIR.joinpath(
-        #             '{}_{}_resolution_in_bin_{:02d}.pdf'.format(
-        #                 'energy_bins',
-        #                 metric,
-        #                 i
-        #             )
-        #         )
-        #         fig.savefig(file_name)
-        #         if config is not None:
-        #             if config.wandb:
-        #                 wandb.save(str(file_name))
-        #         plt.close(fig)
+        if reso_hists:
+            for i, ibin in enumerate(energy_bins):
+                indexer = errors_df.energy_binned == ibin
+                fig = plot_error_in_bin(
+                    errors_df[indexer]['own_' + metric + '_error'].values,
+                    errors_df[indexer]['opponent_' + metric + '_error'].values,
+                    metric,
+                    ibin,
+                    'energy',
+                    legends
+                )
+                file_name = RESO_PLOTS_DIR.joinpath(
+                    '{}_{}_resolution_in_bin_{:02d}.pdf'.format(
+                        'energy_bins',
+                        metric,
+                        i
+                    )
+                )
+                fig.savefig(file_name)
+                if config is not None:
+                    if config.wandb:
+                        wandb.save(str(file_name))
+                plt.close(fig)
 
-    # if dom_plots:
-    #     for metric in metrics:
-    #         print(
-    #             '{}: Plotting {} metric, binned in DOMs'
-    #             .format(
-    #                 get_time(),
-    #                 metric
-    #             )
-    #         )
-    #         performance_data = PerformanceData(
-    #             comparison_df=comparison_df,
-    #             bins=dom_bins,
-    #             metric=metric,
-    #             bin_type='doms',
-    #             percentiles=[0.16, 0.84]
-    #         )
-    #         fig, markers_own = comparison_plot(
-    #             performance_data,
-    #             train_data_df.train_event_length.values if use_train_dists else None,
-    #             legends
-    #         )
-    #         file_name = PLOTS_DIR.joinpath(
-    #             '{}_{}_reso_comparison.pdf'.format(
-    #                 'dom_bins',
-    #                 metric
-    #             )
-    #         )
-    #         fig.savefig(file_name)
-    #         if config is not None:
-    #             if config.wandb:
-    #                 wandb.save(str(file_name))
-    #         plt.close(fig)
-    #         if reso_hists:
-    #             for i, ibin in enumerate(dom_bins):
-    #                 indexer = (comparison_df.metric == metric)\
-    #                     & (comparison_df.doms_binned == ibin)
-    #                 fig = plot_error_in_bin(
-    #                     comparison_df[indexer].own_error,
-    #                     comparison_df[indexer].opponent_error,
-    #                     metric,
-    #                     ibin,
-    #                     'dom',
-    #                     legends
-    #                 )
-    #                 file_name = RESO_PLOTS_DIR.joinpath(
-    #                     '{}_{}_resolution_in_bin_{:02d}.pdf'.format(
-    #                         'dom_bins',
-    #                         metric,
-    #                         i
-    #                     )
-    #                 )
-    #                 fig.savefig(file_name)
-    #                 if config is not None:
-    #                     if config.wandb:
-    #                         wandb.save(str(file_name))
-    #                 plt.close(fig)
+    if dom_plots:
+        print('{}: Calculating performance data for DOM bins'.format(get_time()))
+        performance_data = PerformanceData(
+            metrics,
+            df=errors_df,
+            bins=dom_bins,
+            bin_type='doms',
+            percentiles=[0.16, 0.84]
+        )
+        for metric in metrics:
+            print(
+                '{}: Plotting {} metric, binned in DOMs'
+                .format(
+                    get_time(),
+                    metric
+                )
+            )
+            fig, markers_own = comparison_plot(
+                metric,
+                performance_data,
+                train_data_df.train_event_length.values if use_train_dists else None,
+                legends
+            )
+            file_name = PLOTS_DIR.joinpath(
+                '{}_{}_reso_comparison.pdf'.format(
+                    'dom_bins',
+                    metric
+                )
+            )
+            fig.savefig(file_name)
+            if config is not None:
+                if config.wandb:
+                    wandb.save(str(file_name))
+            plt.close(fig)
+            if reso_hists:
+                for i, ibin in enumerate(dom_bins):
+                    indexer = errors_df.doms_binned == ibin
+                    fig = plot_error_in_bin(
+                        errors_df[indexer]['own_' + metric + '_error'].values,
+                        errors_df[indexer]['opponent_' + metric + '_error'].values,
+                        metric,
+                        ibin,
+                        'dom',
+                        legends
+                    )
+                    file_name = RESO_PLOTS_DIR.joinpath(
+                        '{}_{}_resolution_in_bin_{:02d}.pdf'.format(
+                            'dom_bins',
+                            metric,
+                            i
+                        )
+                    )
+                    fig.savefig(file_name)
+                    if config is not None:
+                        if config.wandb:
+                            wandb.save(str(file_name))
+                    plt.close(fig)

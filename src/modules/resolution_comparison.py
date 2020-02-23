@@ -184,9 +184,9 @@ class ResolutionComparison():
             save_path,
             self.config,
             self.wandb,
-            dom_plots=False,
-            use_train_dists=False,
+            dom_plots=True,
+            use_train_dists=True,
             only_use_metrics=None,
             legends=True,
-            reso_hists=False
+            reso_hists=True
         )

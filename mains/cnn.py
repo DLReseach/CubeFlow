@@ -15,15 +15,13 @@ from src.modules.utils import create_experiment_name
 from src.modules.utils import get_files_and_dirs
 from src.modules.utils import get_time
 from src.modules.mask_and_split import MaskAndSplit
+from src.modules.reporter import Reporter
+from src.modules.saver import Saver
 
-# warnings.filterwarnings(
-#     'ignore',
-#     category=matplotlib.cbook.mplDeprecation
-# )
-
-# warnings.filterwarnings('ignore', module='matplotlib')
-
-# warnings.filterwarnings("ignore")
+warnings.filterwarnings(
+    'ignore',
+    category=matplotlib.cbook.mplDeprecation
+)
 
 slack_token = os.environ["SLACK_API_TOKEN"]
 client = slack.WebClient(token=slack_token)
@@ -49,12 +47,16 @@ def main():
 
     hparams = Namespace(**{'learning_rate': config.max_learning_rate})
 
-    files_and_dirs = get_files_and_dirs(config)
+    files_and_dirs = get_files_and_dirs(config, experiment_name)
     mask_and_split = MaskAndSplit(config, files_and_dirs)
     sets = mask_and_split.split()
     val_check_interval = int(
         config.val_check_frequency * len(sets['train']) / config.batch_size
     )
+
+    reporter = Reporter(config, wandb, client)
+    saver = Saver(config, files_and_dirs)
+
     model = CnnSystemConv1d(
         sets,
         config,
@@ -63,7 +65,9 @@ def main():
         wandb,
         hparams,
         val_check_interval,
-        experiment_name
+        experiment_name,
+        reporter,
+        saver
     )
 
     if config.wandb:
@@ -107,7 +111,8 @@ def main():
         early_stop_callback=early_stop_callback,
         val_check_interval=val_check_interval,
         use_amp=use_amp,
-        distributed_backend=distributed_backend
+        distributed_backend=distributed_backend,
+        num_sanity_val_steps=0
     )
 
     trainer.fit(model)

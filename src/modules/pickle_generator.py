@@ -8,10 +8,11 @@ from src.modules.utils import get_project_root
 
 
 class PickleGenerator(torch.utils.data.Dataset):
-    def __init__(self, config, ids, test, conv_type):
+    def __init__(self, config, ids, test, val, conv_type):
         self.config = config
         self.ids = ids
         self.test = test
+        self.val = val
         self.conv_type = conv_type
         if self.config.gpulab:
             self.data_dir = Path(self.config.gpulab_data_dir).joinpath(
@@ -59,20 +60,20 @@ class PickleGenerator(torch.utils.data.Dataset):
                 self.config.transform
             )
             y[i] = loaded_file[transform][target]
-        if self.test:
+        if self.test or self.val:
             comparisons = []
             for i, comparison_type in enumerate(self.config.comparison_metrics):
                 comparison = self.config.opponent + '_' + comparison_type
                 comparisons.append(loaded_file['raw'][comparison])
-        if self.test or self.config.save_train_dists:
+        if self.test or self.val or self.config.save_train_dists:
             energy = loaded_file['raw']['true_primary_energy']
         if self.conv_type == 'conv1d':
             X = np.transpose(X, (1, 0))
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
-        if self.test:
+        if self.test or self.val:
             return X, y, comparisons, energy, event_length, file_number
-        elif not self.test and self.config.save_train_dists:
+        elif not (self.test or self.val) and self.config.save_train_dists:
             return X, y, energy, event_length
         else:
             return X, y, [], []

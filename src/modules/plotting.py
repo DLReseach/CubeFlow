@@ -1,12 +1,11 @@
 # %%
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from types import SimpleNamespace
 
-# from matplotlib.backends.backend_pgf import FigureCanvasPgf
-
-# mpl.backend_bases.register_backend('pdf', FigureCanvasPgf)
+logging.getLogger('matplotlib.font_manager').disabled = True
+logging.getLogger('matplotlib.texmanager').disabled = True
 
 plt.style.use('default')
 
