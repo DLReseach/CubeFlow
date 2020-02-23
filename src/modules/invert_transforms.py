@@ -1,8 +1,5 @@
-import torch
+import numpy as np
 import joblib
-from pathlib import Path
-from sklearn.preprocessing import QuantileTransformer
-from sklearn.preprocessing import RobustScaler
 
 
 class TransformsInverter():
@@ -19,16 +16,16 @@ class TransformsInverter():
             if target in transformers:
                 self.transformers[target] = transformers[target]
 
-    def transform_inversion(self, y, y_hat):
+    def transform_inversion(self, data):
         if self.transformers is not None:
             for i, target in enumerate(self.config.targets):
                 if target in list(self.transformers.keys()):
                     temp = self.transformers[target].inverse_transform(
-                        y[:, i].cpu().reshape(-1, 1)
+                        np.array(data[target]).reshape(-1, 1)
                     ).flatten()
-                    y[:, i] = torch.from_numpy(temp)
+                    data[target] = temp
                     temp = self.transformers[target].inverse_transform(
-                        y_hat[:, i].cpu().reshape(-1, 1)
+                        np.array(data[target.replace('true', 'own')]).reshape(-1, 1)
                     ).flatten()
-                    y_hat[:, i] = torch.from_numpy(temp)
-        return y, y_hat
+                    data[target.replace('true', 'own')] = temp
+        return data

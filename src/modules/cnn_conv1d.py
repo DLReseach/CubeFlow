@@ -238,7 +238,6 @@ class CnnSystemConv1d(pl.LightningModule):
         y_hat = self.forward(x)
         # loss = F.mse_loss(y_hat, y)
         loss = logcosh_loss(y_hat, y)
-        # transformed_y, transformed_y_hat = self.transform_object.transform_inversion(y, y_hat)
         values = [
             list(file_number),
             energy.tolist(),
@@ -265,6 +264,7 @@ class CnnSystemConv1d(pl.LightningModule):
                 channel='training',
                 text='Testing ended.'
             )
+        self.data = self.transform_object.transform_inversion(self.data)
         comparison_df = pd.DataFrame().from_dict(self.data)
         print('{}: Saving predictions file'.format(get_time()))
         file_name = self.RUN_ROOT.joinpath('comparison_dataframe_parquet.gzip')

@@ -9,7 +9,7 @@
   "wandb": false,
   "test": true,
   "gpus": 0,
-  "gpulab": false,
+  "gpulab": true,
   "gpulab_gpus": "1",
   "num_epochs": 1,
   "patience": 3,
