@@ -3,7 +3,8 @@ import numpy as np
 import pickle
 from pathlib import Path
 from operator import itemgetter
-from utils.utils import get_project_root
+
+from src.modules.utils import get_project_root
 
 
 class PickleGenerator(torch.utils.data.Dataset):

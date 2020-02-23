@@ -8,14 +8,13 @@ from argparse import Namespace
 import slack
 # from torch_lr_finder import LRFinder
 
-from lightning_systems.cnn_conv1d import CnnSystemConv1d
-from lightning_systems.cnn_conv2d import CnnSystemConv2d
-from utils.config import process_config
-from utils.utils import get_args
-from utils.utils import create_experiment_name
-from utils.utils import get_files_and_dirs
-from utils.utils import get_time
-from preprocessing.mask_and_split import MaskAndSplit
+from src.modules.cnn_conv1d import CnnSystemConv1d
+from src.modules.config import process_config
+from src.modules.utils import get_args
+from src.modules.utils import create_experiment_name
+from src.modules.utils import get_files_and_dirs
+from src.modules.utils import get_time
+from src.modules.mask_and_split import MaskAndSplit
 
 # warnings.filterwarnings(
 #     'ignore',

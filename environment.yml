@@ -32,3 +32,4 @@ dependencies:
         - scp
         - pyyaml
         - slackclient
+        - fastparquet

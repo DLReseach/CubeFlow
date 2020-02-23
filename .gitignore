@@ -3,7 +3,6 @@
 Pipfile
 Pipfile.lock
 venv/
-.vscode
 *.h5
 __pycache__
 figures/
@@ -25,3 +24,4 @@ comparison_dataframe.gzip
 temp/
 runs/
 train_distributions/
+src_modules.egg-info/

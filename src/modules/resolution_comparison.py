@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
-from utils.utils import get_project_root
-from utils.utils import get_time
-from plotting.calculate_and_plot import calculate_and_plot
+
+from src.modules.utils import get_project_root
+from src.modules.utils import get_time
+from src.modules.calculate_and_plot import calculate_and_plot
 
 
 class ResolutionComparison():

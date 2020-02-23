@@ -9,12 +9,13 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-from data_loader.pickle_generator import PickleGenerator
-from metrics.resolution_comparison import ResolutionComparison
-from transforms.invert_transforms import TransformsInverter
-from losses.losses import logcosh_loss
-from utils.utils import get_time
-from utils.utils import get_project_root
+
+from src.modules.pickle_generator import PickleGenerator
+from src.modules.resolution_comparison import ResolutionComparison
+from src.modules.invert_transforms import TransformsInverter
+from src.modules.losses import logcosh_loss
+from src.modules.utils import get_time
+from src.modules.utils import get_project_root
 
 
 class CnnSystemConv1d(pl.LightningModule):

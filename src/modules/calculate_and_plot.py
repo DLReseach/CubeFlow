@@ -4,12 +4,13 @@ import pandas as pd
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
-from utils.performance_data import PerformanceData
-from utils.utils import get_time
-from utils.utils import get_project_root
-from plotting.plotting import plot_error_in_bin
-from plotting.plotting import comparison_plot
-from plotting.plotting import icecube_2d_histogram
+
+from src.modules.performance_data import PerformanceData
+from src.modules.utils import get_time
+from src.modules.utils import get_project_root
+from src.modules.plotting import plot_error_in_bin
+from src.modules.plotting import comparison_plot
+from src.modules.plotting import icecube_2d_histogram
 
 
 def calculate_energy_bins(comparison_df):
