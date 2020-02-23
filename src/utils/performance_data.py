@@ -16,14 +16,15 @@ class PerformanceData():
         self.opponent_performances = performances[1]
         self.opponent_sigmas = performances[3]
         self.relative_improvement = performances[4]
-        self.own_lows = performances[5]
-        self.own_medians = performances[6]
-        self.own_highs = performances[7]
-        self.own_centers = performances[8]
-        self.opponent_lows = performances[9]
-        self.opponent_medians = performances[10]
-        self.opponent_highs = performances[11]
-        self.opponent_centers = performances[12]
+        self.relative_improvement_sigmas = performances[5]
+        self.own_lows = performances[6]
+        self.own_medians = performances[7]
+        self.own_highs = performances[8]
+        self.own_centers = performances[9]
+        self.opponent_lows = performances[10]
+        self.opponent_medians = performances[11]
+        self.opponent_highs = performances[12]
+        self.opponent_centers = performances[13]
 
     def convert_iqr_to_sigma(self, quartiles, e_quartiles):
         factor = 1 / 1.349
@@ -146,15 +147,19 @@ class PerformanceData():
             opponent_centers.append(ibin.left)
             opponent_centers.append(ibin.right)
         relative_improvement = np.divide(
-            np.array(opponent_performances) - np.array(own_performances),
+            np.array(own_performances) - np.array(opponent_performances),
             np.array(opponent_performances)
         )
+        term1 = (np.array(own_sigmas) / np.array(opponent_performances))**2
+        term2 = (np.array(opponent_sigmas) * np.array(own_performances) / np.array(opponent_performances)**2)**2
+        relative_improvement_sigmas = np.sqrt(term1 + term2)
         return (
             own_performances,
             opponent_performances,
             own_sigmas,
             opponent_sigmas,
             relative_improvement,
+            relative_improvement_sigmas,
             own_lows,
             own_medians,
             own_highs,

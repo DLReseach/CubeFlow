@@ -23,3 +23,5 @@ program.prof
 scratchpad.py
 comparison_dataframe.gzip
 temp/
+runs/
+train_distributions/

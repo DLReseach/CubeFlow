@@ -63,15 +63,18 @@ class PickleGenerator(torch.utils.data.Dataset):
             for i, comparison_type in enumerate(self.config.comparison_metrics):
                 comparison = self.config.opponent + '_' + comparison_type
                 comparisons[comparison_type] = torch.tensor(loaded_file['raw'][comparison])
-        energy = loaded_file['raw']['true_primary_energy']
+        if self.test or self.config.save_train_dists:
+            energy = loaded_file['raw']['true_primary_energy']
         if self.conv_type == 'conv1d':
             X = np.transpose(X, (1, 0))
         X = torch.from_numpy(X).float()
         y = torch.from_numpy(y).float()
         if self.test:
-            return X, y, comparisons, energy, event_length
-        else:
+            return X, y, comparisons, energy, event_length, file_number
+        elif not self.test and self.config.save_train_dists:
             return X, y, energy, event_length
+        else:
+            return X, y, [], []
 
     def on_epoch_end(self):
         self.indices = np.arange(len(self.ids))

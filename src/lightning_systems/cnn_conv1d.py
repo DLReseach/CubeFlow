@@ -10,6 +10,8 @@ from datetime import datetime
 from data_loader.pickle_generator import PickleGenerator
 from metrics.resolution_comparison import ResolutionComparison
 from transforms.invert_transforms import TransformsInverter
+from losses.losses import logcosh_loss
+from utils.utils import get_time
 
 
 class CnnSystemConv1d(pl.LightningModule):
@@ -109,9 +111,9 @@ class CnnSystemConv1d(pl.LightningModule):
     def on_epoch_start(self):
         print(
             '''
-{}: Begining epoch {}
+{}: Beginning epoch {}
             '''
-            .format(datetime.now().strftime('%H:%M:%S'), self.current_epoch)
+            .format(get_time(), self.current_epoch)
         )
         if not self.config.dev_run:
             self.client.chat_postMessage(
@@ -122,14 +124,19 @@ class CnnSystemConv1d(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         if self.first_train:
+            self.train_step = 1
             self.train_time_start = datetime.now()
             self.first_train = False
             self.first_val = True
+        else:
+            self.train_step += 1
         x, y, true_energy, event_length = batch
-        self.train_true_energy.extend(true_energy.cpu().numpy())
-        self.train_event_length.extend(event_length.cpu().numpy())
+        if self.config.save_train_dists:
+            self.train_true_energy.extend(true_energy.cpu().numpy())
+            self.train_event_length.extend(event_length.cpu().numpy())
         y_hat = self.forward(x)
-        loss = F.mse_loss(y_hat, y)
+        # loss = F.mse_loss(y_hat, y)
+        loss = logcosh_loss(y_hat, y)
         self.train_loss.append(loss)
         return {'loss': loss}
 
@@ -139,9 +146,13 @@ class CnnSystemConv1d(pl.LightningModule):
             self.train_time_delta = (self.train_time_end - self.train_time_start).total_seconds()
             self.val_time_start = datetime.now()
             self.first_val = False
+            self.val_step = 1
+        elif self.global_step != 0:
+            self.val_step += 1
         x, y, true_energy, event_length = batch
         y_hat = self.forward(x)
-        loss = F.mse_loss(y_hat, y)
+        # loss = F.mse_loss(y_hat, y)
+        loss = logcosh_loss(y_hat, y)
         return {'val_loss': loss}
 
     def validation_end(self, outputs):
@@ -161,17 +172,17 @@ class CnnSystemConv1d(pl.LightningModule):
                 self.wandb.log(metrics, step=self.global_step)
             print('''
 {}: Step {} / epoch {}
-          Train loss: {:.3f} / {:.1f} batches/s
-          Val loss:   {:.3f} / {:.1f} batches/s
+          Train loss: {:.3f} / {:.1f} events/s
+          Val loss:   {:.3f} / {:.1f} events/s
                 '''
                 .format(
-                    datetime.now().strftime('%H:%M:%S'),
+                    get_time(),
                     self.global_step,
                     self.current_epoch,
                     avg_train_loss,
-                    self.val_check_interval / self.train_time_delta,
+                    self.train_step * self.config.batch_size / self.train_time_delta,
                     avg_loss,
-                    self.val_batches / self.val_time_delta
+                    self.val_step * self.config.val_batch_size / self.val_time_delta
                 )
             )
         self.train_batches_per_second = []
@@ -187,21 +198,40 @@ class CnnSystemConv1d(pl.LightningModule):
 
     def test_step(self, batch, batch_nb):
         if self.first_test:
+            print('{}: Testing started'.format(get_time()))
             if not self.config.dev_run:
                 self.client.chat_postMessage(
                     channel='training',
                     text='Testing started.'
                 )
+            self.test_time_start = datetime.now()
+            self.test_step_i = 1
             self.first_test = False
-        x, y, comparisons, energy, event_length = batch
+        else:
+            self.test_step_i += 1
+        x, y, comparisons, energy, event_length, file_number = batch
         y_hat = self.forward(x)
-        loss = F.mse_loss(y_hat, y)
+        # loss = F.mse_loss(y_hat, y)
+        loss = logcosh_loss(y_hat, y)
         transform_object = TransformsInverter(y, y_hat, self.config, self.files_and_dirs)
         transformed_y, transformed_y_hat = transform_object.transform_inversion()
-        self.comparisonclass.update_values(transformed_y_hat, transformed_y, comparisons, energy, event_length)
+        self.comparisonclass.update_values(transformed_y_hat, transformed_y, comparisons, energy, event_length, file_number)
         return {'test_loss': loss}
 
     def test_end(self, outputs):
+        self.test_time_end = datetime.now()
+        self.test_time_delta = (self.test_time_end - self.test_time_start).total_seconds()
+        print(
+            '{}: Testing ended, {:.1f} events/s'.format(
+                get_time(),
+                self.test_step_i * self.config.val_batch_size / self.test_time_delta
+            )
+        )
+        if not self.config.dev_run:
+            self.client.chat_postMessage(
+                channel='training',
+                text='Testing ended.'
+            )
         self.comparisonclass.testing_ended(self.train_true_energy, self.train_event_length)
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         return {'test_loss': avg_loss}
@@ -272,12 +302,12 @@ class CnnSystemConv1d(pl.LightningModule):
         ) 
         dl = DataLoader(
             self.val_dataset,
-            batch_size=self.config.batch_size,
+            batch_size=self.config.val_batch_size,
             num_workers=self.config.num_workers,
             drop_last=True
         )
         no_of_samples = len(self.val_dataset)
-        self.val_batches = np.floor(no_of_samples / self.config.batch_size)
+        self.val_batches = np.floor(no_of_samples / self.config.val_batch_size)
         print('No. of validation samples:', no_of_samples)
         return dl
 
@@ -291,7 +321,7 @@ class CnnSystemConv1d(pl.LightningModule):
         )
         dl = DataLoader(
             self.test_dataset,
-            batch_size=self.config.batch_size,
+            batch_size=self.config.val_batch_size,
             num_workers=self.config.num_workers,
             drop_last=True
         )

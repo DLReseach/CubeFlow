@@ -16,10 +16,12 @@ from utils.utils import create_experiment_name
 from utils.utils import get_files_and_dirs
 from preprocessing.mask_and_split import MaskAndSplit
 
-warnings.filterwarnings(
-    'ignore',
-    category=matplotlib.cbook.mplDeprecation
-)
+# warnings.filterwarnings(
+#     'ignore',
+#     category=matplotlib.cbook.mplDeprecation
+# )
+
+warnings.filterwarnings('ignore', module='matplotlib')
 
 slack_token = os.environ["SLACK_API_TOKEN"]
 client = slack.WebClient(token=slack_token)

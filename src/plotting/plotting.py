@@ -29,7 +29,7 @@ params = {
 mpl.rcParams.update(params)
 
 
-def plot_error_in_bin(own, opponent, metric, bins_range, bins_type):
+def plot_error_in_bin(own, opponent, metric, bins_range, bins_type, legends=True):
     fig, ax = plt.subplots()
     ax.hist(
         own,
@@ -61,23 +61,24 @@ def plot_error_in_bin(own, opponent, metric, bins_range, bins_type):
         ax.set(xlabel=r'$\frac{\log_{10}{E_{\mathrm{reco}}} - \log_{10}{E_{\mathrm{true}}}}{\log_{10}{E_{\mathrm{true}}}} \; [\%]$')
     elif metric == 'time':
         ax.set(xlabel=r'$t_{\mathrm{reco}} - t_{\mathrm{true}} \; [\mathrm{ns}]$')
-    ax.legend()
-    text_str = r'{} events in bin'.format(len(own))
-    props = dict(boxstyle='round', facecolor='white', alpha=0.5)
-    ax.text(
-        0.05,
-        0.95,
-        text_str,
-        transform=ax.transAxes,
-        fontsize=10,
-        verticalalignment='top',
-        bbox=props
-    )
+    if legends:
+        ax.legend()
+        text_str = r'{} events in bin'.format(len(own))
+        props = dict(boxstyle='round', facecolor='white', alpha=0.5)
+        ax.text(
+            0.05,
+            0.95,
+            text_str,
+            transform=ax.transAxes,
+            fontsize=10,
+            verticalalignment='top',
+            bbox=props
+        )
     fig.tight_layout()
     return fig
 
 
-def comparison_plot(performance_data, train_data):
+def comparison_plot(performance_data, train_data, legends=True):
     fig, (reso_ax, ratio_ax) = plt.subplots(
         2,
         1,
@@ -89,31 +90,47 @@ def comparison_plot(performance_data, train_data):
     )
     hist_ax = reso_ax.twinx()
     if performance_data.bin_type == 'energy':
-        hist_ax.hist(
-            performance_data.comparison_df.true_energy.values,
-            bins=len(performance_data.bins),
-            histtype='step',
-            color='grey',
-            label='Validation data',
-            alpha=0.5,
-            linestyle='solid'
-        )
-        hist_ax.hist(
-            train_data,
-            bins=len(performance_data.bins),
-            histtype='step',
-            color='grey',
-            label='Train data',
-            alpha=0.5,
-            linestyle='dashed'
-        )
+        if train_data is None:
+            hist_ax.hist(
+                performance_data.comparison_df.true_energy.values,
+                bins=len(performance_data.bins),
+                histtype='step',
+                color='grey',
+                label='Validation data',
+                alpha=0.5,
+                linestyle='solid'
+            )
+        else:
+            hist_ax.hist(
+                train_data,
+                bins=len(performance_data.bins),
+                histtype='step',
+                color='grey',
+                label='Train data',
+                alpha=0.5,
+                linestyle='solid'
+            )
     elif performance_data.bin_type == 'doms':
-        hist_ax.hist(
-            performance_data.comparison_df.event_length.values,
-            bins=len(performance_data.bins),
-            histtype='step',
-            color='grey'
-        )
+        if train_data is None:
+            hist_ax.hist(
+                performance_data.comparison_df.event_length.values,
+                bins=len(performance_data.bins),
+                histtype='step',
+                color='grey',
+                label='Validation data',
+                alpha=0.5,
+                linestyle='solid'
+            )
+        else:
+            hist_ax.hist(
+                train_data,
+                bins=len(performance_data.bins),
+                histtype='step',
+                color='grey',
+                label='Train data',
+                alpha=0.5,
+                linestyle='solid'
+            )
     reso_ax.xaxis.set_ticks_position('none')
     markers_own, caps, bars = reso_ax.errorbar(
         performance_data.bin_centers,
@@ -121,47 +138,44 @@ def comparison_plot(performance_data, train_data):
         yerr=performance_data.own_sigmas,
         xerr=performance_data.bin_widths,
         marker='.',
-        markersize=1,
         ls='none',
         label=r'CubeFlow'
     )
-    [bar.set_alpha(0.5) for bar in bars]
-    [cap.set_alpha(0.5) for cap in caps]
     markers, caps, bars = reso_ax.errorbar(
         performance_data.bin_centers,
         performance_data.opponent_performances,
         yerr=performance_data.opponent_sigmas,
         xerr=performance_data.bin_widths,
         marker='.',
-        markersize=1,
         ls='none',
         label=r'IceCube'
     )
-    [bar.set_alpha(0.5) for bar in bars]
-    [cap.set_alpha(0.5) for cap in caps]
     ratio_ax.axhline(y=0, linestyle='dashed', linewidth=0.5, color='black')
-    ratio_ax.axhline(y=1, linestyle='dashdot', linewidth=0.5, color='black')
-    ratio_ax.axhline(y=-1, linestyle='dashdot', linewidth=0.5, color='black')
-    ratio_ax.plot(
+    # ratio_ax.axhline(y=1, linestyle='dashdot', linewidth=0.5, color='black')
+    # ratio_ax.axhline(y=-1, linestyle='dashdot', linewidth=0.5, color='black')
+    ratio_ax.errorbar(
         performance_data.bin_centers,
         performance_data.relative_improvement,
-        '.',
-        markersize=4,
-        color='red'
+        yerr=performance_data.relative_improvement_sigmas,
+        xerr=performance_data.bin_widths,
+        marker='.',
+        ls='none'
     )
     ratio_ax.set(
-        ylim=[-2, 2],
-        yticks=[-1, 0, 1],
+        # xticks=[0, 1, 2, 3],
+        ylim=[-0.5, 0.5],
+        yticks=[-0.25, 0, 0.25],
         ylabel=r'Rel. imp.'
     )
-    hist_ax.set_yscale('symlog')
-    hist_ax.set_ylim(ymin=0)
+    hist_ax.set_yscale('log')
+    hist_ax.set_ylim(ymin=1e2)
     if performance_data.metric == 'energy':
         reso_ax.set_ylim(ymin=0, ymax=2)
     else:
         reso_ax.set_ylim(ymin=0)
     if performance_data.bin_type == 'energy':
-        ratio_ax.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
+        # ratio_ax.set(xlabel=r'$\log{E_{\mathrm{true}}} \; [E/\mathrm{GeV}]$')
+        ratio_ax.set(xlabel=r'$E_{\mathrm{true}} \; [\mathrm{GeV}]$')
     elif performance_data.bin_type == 'doms':
         ratio_ax.set(xlabel=r'No. of DOMs')
     reso_ax.set(
@@ -185,14 +199,19 @@ def comparison_plot(performance_data, train_data):
         reso_ax.set(
             ylabel=r'$\sigma\left(t_{\mathrm{reco}} - t_{\mathrm{true}}\right) \; [\mathrm{ns}]$'
         )
+    # ratio_ax.set_xticklabels([10**x for x in ratio_ax.get_xticks()])
+    # labels = [item.get_text() for item in ratio_ax.get_xticklabels()]
+    # labels[0] = '0'
+    # ratio_ax.set_xticklabels(labels)
     hist_ax.set(ylabel=r'Events')
-    reso_ax.legend(loc='upper right')
-    hist_ax.legend(loc='upper left')
-    # fig.tight_layout()
+    if legends:
+        reso_lines, reso_labels = reso_ax.get_legend_handles_labels()
+        hist_lines, hist_labels = hist_ax.get_legend_handles_labels()
+        hist_ax.legend(reso_lines + hist_lines, reso_labels + hist_labels)
     return fig, markers_own
 
 
-def icecube_2d_histogram(performance_data):
+def icecube_2d_histogram(performance_data, legends=True):
     fig, (ax1, ax2) = plt.subplots(
         nrows=1,
         ncols=2,
@@ -319,7 +338,8 @@ def icecube_2d_histogram(performance_data):
         ax1.set(
             ylabel=r'$t_{\mathrm{reco}} - t_{\mathrm{true}} \; [\mathrm{ns}]$'
         )
-    ax1.legend()
+    if legends:
+        ax1.legend()
     counts_opponent, xedges_opponent, yedges_opponent, im_opponent = ax2.hist2d(
         performance_data.comparison_df[indexer].true_energy.values,
         performance_data.comparison_df[indexer].opponent_error.values,
@@ -397,6 +417,7 @@ def icecube_2d_histogram(performance_data):
         ax2.set(
             ylabel=r'$t_{\mathrm{reco}} - t_{\mathrm{true}} \; [\mathrm{ns}]$'
         )
-    ax2.legend()
+    if legends:
+        ax2.legend()
     fig.tight_layout()
     return fig

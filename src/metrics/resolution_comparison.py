@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 from utils.utils import get_project_root
+from utils.utils import get_time
 from plotting.calculate_and_plot import calculate_and_plot
 
 
@@ -13,6 +14,10 @@ class ResolutionComparison():
         self.config = config
         self.experiment_name = experiment_name
         self.column_names = [
+            'file_number',
+            'own_prediction',
+            'opponent_prediction',
+            'truth',
             'own_error',
             'opponent_error',
             'true_energy',
@@ -71,11 +76,12 @@ class ResolutionComparison():
                 for target in needed_targets:
                     target_indices.append(self.config.targets.index(target))
                 matched_metrics[comparison] = {}
-                matched_metrics[comparison]['own'] = predictions[:, target_indices].flatten()
-                matched_metrics[comparison]['truth'] = truth[:, target_indices].flatten()
-                matched_metrics[comparison]['opponent'] = torch.log10(
-                    comparisons[comparison]
-                )
+                matched_metrics[comparison]['own'] = 10**(predictions[:, target_indices]).flatten()
+                matched_metrics[comparison]['truth'] = 10**(truth[:, target_indices]).flatten()
+                # matched_metrics[comparison]['opponent'] = torch.log10(
+                #     comparisons[comparison]
+                # )
+                matched_metrics[comparison]['opponent'] = comparisons[comparison]
             elif comparison == 'time':
                 needed_targets = [
                     'true_primary_time'
@@ -143,7 +149,7 @@ class ResolutionComparison():
         difference = x - y
         return difference
 
-    def update_values(self, predictions, truth, comparisons, energy, event_length):
+    def update_values(self, predictions, truth, comparisons, energy, event_length, file_number):
         opponent_error = {}
         own_error = {}
         matched_metrics = self.match_comparison_and_values(predictions, truth, comparisons)
@@ -180,11 +186,15 @@ class ResolutionComparison():
         for metric in matched_metrics:
             temp_df = pd.DataFrame(
                 data={
+                    'file_number': file_number,
+                    'own_prediction': matched_metrics[metric]['own'].tolist(),
+                    'opponent_prediction': matched_metrics[metric]['opponent'].tolist(),
+                    'truth': matched_metrics[metric]['truth'].tolist(),
                     'own_error': own_error[metric].tolist(),
                     'opponent_error': opponent_error[metric].tolist(),
                     'true_energy': energy.tolist(),
                     'event_length': event_length.tolist(),
-                    'metric': [metric] * self.config.batch_size
+                    'metric': [metric] * self.config.val_batch_size
                 }
             )
             self.comparison_df = self.comparison_df.append(
@@ -192,28 +202,42 @@ class ResolutionComparison():
                 ignore_index=True
             )
 
-    def testing_ended(self, train_true_energy, train_event_length):
-        TRAIN_DATA_DF = pd.DataFrame(
-            list(zip(train_true_energy, train_event_length)),
-            columns=['train_true_energy', 'train_event_length']
-        )
+    def testing_ended(self, train_true_energy=None, train_event_length=None):
+        if self.config.save_train_dists:
+            print('{}: Creating train dist df'.format(get_time()))
+            TRAIN_DATA_DF = pd.DataFrame(
+                list(zip(train_true_energy, train_event_length)),
+                columns=['train_true_energy', 'train_event_length']
+            )
         PROJECT_ROOT = get_project_root()
         RUN_ROOT = PROJECT_ROOT.joinpath('runs')
         RUN_ROOT.mkdir(exist_ok=True)
         RUN_ROOT = RUN_ROOT.joinpath(self.experiment_name)
         RUN_ROOT.mkdir(exist_ok=True)
-        self.comparison_df.to_pickle(
-            str(RUN_ROOT) + '/comparison_dataframe.gzip'
+        print('{}: Parqueting comparison df'.format(get_time()))
+        self.comparison_df.to_parquet(
+            str(RUN_ROOT) + '/comparison_dataframe_parquet.gzip',
+            compression='gzip'
         )
-        TRAIN_DATA_DF.to_pickle(
-            str(RUN_ROOT) + '/train_data.gzip'
-        )
+        if self.config.save_train_dists:
+            TRAIN_DATA_PATH = PROJECT_ROOT.joinpath('train_distributions')
+            TRAIN_DATA_PATH.mkdir(exist_ok=True)
+            print('{}: Parqueting train dist df'.format(get_time()))
+            TRAIN_DATA_DF.to_parquet(
+                str(TRAIN_DATA_PATH) + '/train_data_parquet.gzip',
+                compression='gzip'
+            )
         if self.config.wandb:
+            print('{}: Uploading comparison df to wandb'.format(get_time()))
             self.wandb.save(str(RUN_ROOT) + '/comparison_dataframe.gzip')
-            self.wandb.save(str(RUN_ROOT) + '/train_data.gzip')
+        print('{}: Starting calculate_and_plot'.format(get_time()))
         calculate_and_plot(
             RUN_ROOT,
             self.config,
             self.wandb,
-            dom_plots=False
+            dom_plots=False,
+            use_train_dists=True,
+            only_use_metrics=None,
+            legends=True,
+            reso_hists=False
         )
