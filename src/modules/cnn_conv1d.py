@@ -215,6 +215,8 @@ class CnnSystemConv1d(pl.LightningModule):
         return {'val_loss': avg_loss}
 
     def on_epoch_end(self):
+        self.train_dataset.on_epoch_end()
+        self.val_dataset.on_epoch_end()
         if not self.config.dev_run:
             self.client.chat_postMessage(
                 channel='training',
@@ -223,6 +225,8 @@ class CnnSystemConv1d(pl.LightningModule):
 
     def test_step(self, batch, batch_nb):
         if self.first_test:
+            self.train_dataset.close_db()
+            self.val_dataset.close_db()
             print('{}: Testing started'.format(get_time()))
             if not self.config.dev_run:
                 self.client.chat_postMessage(
@@ -277,6 +281,7 @@ class CnnSystemConv1d(pl.LightningModule):
             self.wandb.save(str(file_name))
         self.comparisonclass.testing_ended(file_name, self.RUN_ROOT, self.train_true_energy, self.train_event_length)
         avg_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
+        self.test_dataset.close_db()
         return {'test_loss': avg_loss}
 
     def configure_optimizers(self):
