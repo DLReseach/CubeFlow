@@ -18,6 +18,7 @@ class Reporter:
         self.val_time_delta = []
         self.train_true_energy = []
         self.train_event_length = []
+        self.global_step = 0
 
     def on_epoch_start(self):
         print(
@@ -42,6 +43,7 @@ class Reporter:
     def training_batch_start(self):
         self.training_start_timestamp = datetime.now()
         self.training_step += 1
+        self.global_step += 1
 
     def training_batch_end(self, loss, train_true_energy, train_event_length):
         self.training_end_timestamp = datetime.now()
