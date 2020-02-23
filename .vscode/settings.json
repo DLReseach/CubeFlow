@@ -1,8 +1,0 @@
-{
-    "python.linting.flake8Enabled": true,
-    "python.linting.enabled": true,
-    "python.pythonPath": "/home/ehrhorn/miniconda/envs/cubeflow/bin/python",
-    "python.autoComplete.extraPaths": [
-        "~/repos/CubeFlow/src"
-    ]
-}
