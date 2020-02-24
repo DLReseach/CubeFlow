@@ -36,8 +36,7 @@ def calculate_dom_bins(comparison_df):
 
 
 def calculate_and_plot(
-    file_name,
-    RUN_ROOT,
+    files_and_dirs,
     config=None,
     wandb=None,
     dom_plots=False,
@@ -46,13 +45,14 @@ def calculate_and_plot(
     legends=True,
     reso_hists=False
 ):
+    file_name = files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
     errors_df = pd.read_parquet(file_name, engine='fastparquet')
 
     # comparison_df = comparison_df[comparison_df.energy <= 3.0]
     # comparison_df.energy = 10**comparison_df.energy.values
 
     if use_train_dists:
-        TRAIN_DATA_DF_FILE = get_project_root().joinpath(
+        TRAIN_DATA_DF_FILE = files_and_dirs['project_root'].joinpath(
             'train_distributions/train_dists_parquet.gzip'
         )
         train_data_df = pd.read_parquet(TRAIN_DATA_DF_FILE, engine='fastparquet')
@@ -61,7 +61,7 @@ def calculate_and_plot(
     if only_use_metrics is not None:
         errors_df = errors_df[errors_df.metric.isin(only_use_metrics)]
 
-    PLOTS_DIR = RUN_ROOT.joinpath('plots')
+    PLOTS_DIR = files_and_dirs['run_root'].joinpath('plots')
     PLOTS_DIR.mkdir(exist_ok=True)
     RESO_PLOTS_DIR = PLOTS_DIR.joinpath('resolution_plots')
     RESO_PLOTS_DIR.mkdir(exist_ok=True)

@@ -95,9 +95,7 @@ def get_files_and_dirs(config, experiment_name):
         files_and_dirs['data_dir'] = Path.home().joinpath(dir_in_repo).joinpath('pickles')
         files_and_dirs['transformer_dir'] = Path.home().joinpath(dir_in_repo).joinpath('transformers')
         files_and_dirs['masks_dir'] = Path.home().joinpath(dir_in_repo).joinpath('masks')
+    files_and_dirs['project_root'] = get_project_root()
     files_and_dirs['run_root'] = get_project_root().joinpath('runs').joinpath(experiment_name)
-    try:
-        files_and_dirs['run_root'].mkdir(exist_ok=False)
-    except Exception:
-        print('Whoops. Seems that experiment name already exists.')
+    files_and_dirs['run_root'].mkdir(exist_ok=False, parents=True)
     return files_and_dirs

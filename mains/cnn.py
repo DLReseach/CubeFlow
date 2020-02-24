@@ -17,6 +17,7 @@ from src.modules.utils import get_time
 from src.modules.mask_and_split import MaskAndSplit
 from src.modules.reporter import Reporter
 from src.modules.saver import Saver
+from src.modules.resolution_comparison import ResolutionComparison
 
 warnings.filterwarnings(
     'ignore',
@@ -45,6 +46,11 @@ def main():
                 name=experiment_name
             )
 
+    if config.dev_run:
+        config.train_fraction = 0.05
+        config.val_fraction = 0.05
+        config.test_fraction = 0.05
+
     hparams = Namespace(**{'learning_rate': config.max_learning_rate})
 
     files_and_dirs = get_files_and_dirs(config, experiment_name)
@@ -55,7 +61,8 @@ def main():
     )
 
     reporter = Reporter(config, wandb, client)
-    saver = Saver(config, files_and_dirs)
+    saver = Saver(config, wandb, files_and_dirs)
+    comparer = ResolutionComparison(wandb, config, experiment_name, files_and_dirs)
 
     model = CnnSystemConv1d(
         sets,
@@ -107,7 +114,6 @@ def main():
         show_progress_bar=False,
         gpus=gpus,
         max_epochs=config.num_epochs,
-        fast_dev_run=config.dev_run,
         early_stop_callback=early_stop_callback,
         val_check_interval=val_check_interval,
         use_amp=use_amp,
@@ -117,8 +123,20 @@ def main():
 
     trainer.fit(model)
 
-    if config.test:
-        trainer.test()
+    if config.wandb:
+        comp_df = files_and_dirs['run_root'].joinpath(
+            'comparison_dataframe_parquet.gzip'
+        )
+        wandb.save(str(comp_df))
+        error_df = files_and_dirs['run_root'].joinpath(
+            'error_dataframe_parquet.gzip'
+        )
+        wandb.save(str(error_df))
+
+    comparer.testing_ended()
+
+    # if config.test:
+    #     trainer.test()
 
     if not config.dev_run:
         client.chat_postMessage(

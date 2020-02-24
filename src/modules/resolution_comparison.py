@@ -7,11 +7,12 @@ from src.modules.calculate_and_plot import calculate_and_plot
 
 
 class ResolutionComparison():
-    def __init__(self, wandb, config, experiment_name):
+    def __init__(self, wandb, config, experiment_name, files_and_dirs):
         super().__init__()
         self.wandb = wandb
         self.config = config
         self.experiment_name = experiment_name
+        self.files_and_dirs = files_and_dirs
 
         self.column_names = [
             'file_number',
@@ -161,8 +162,9 @@ class ResolutionComparison():
         
         
 
-    def testing_ended(self, file_name, save_path, train_true_energy=None, train_event_length=None):
+    def testing_ended(self, train_true_energy=None, train_event_length=None):
         print('{}: Loading predictions file'.format(get_time()))
+        file_name = self.files_and_dirs['run_root'].joinpath('comparison_dataframe_parquet.gzip')
         predictions_df = pd.read_parquet(file_name, engine='fastparquet')
         self.data['file_number'] = predictions_df.file_number.values
         self.data['energy'] = predictions_df.energy.values
@@ -173,20 +175,19 @@ class ResolutionComparison():
         self.calculate_errors(matched_metrics)
         error_df = pd.DataFrame().from_dict(self.data)
         print('{}: Saving errors file'.format(get_time()))
-        file_name = save_path.joinpath('error_dataframe_parquet.gzip')
+        file_name = self.files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
         error_df.to_parquet(
             str(file_name),
             compression='gzip'
         )
         print('{}: Starting calculate_and_plot'.format(get_time()))
         calculate_and_plot(
-            file_name,
-            save_path,
+            self.files_and_dirs,
             self.config,
             self.wandb,
-            dom_plots=True,
-            use_train_dists=True,
+            dom_plots=False,
+            use_train_dists=False,
             only_use_metrics=None,
             legends=True,
-            reso_hists=True
+            reso_hists=False
         )
