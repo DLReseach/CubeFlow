@@ -7,25 +7,18 @@ from src.modules.calculate_and_plot import calculate_and_plot
 
 
 class ResolutionComparison():
-    def __init__(self, wandb, config, experiment_name, files_and_dirs):
+    def __init__(self, comparison_metrics, files_and_dirs, comparer_config, reporter=None):
         super().__init__()
-        self.wandb = wandb
-        self.config = config
-        self.experiment_name = experiment_name
+        self.comparison_metrics = comparison_metrics
         self.files_and_dirs = files_and_dirs
+        self.comparer_config = comparer_config
+        self.reporter = reporter
 
-        self.column_names = [
-            'file_number',
-            'energy',
-            'event_length'
-        ]
-        self.column_names += ['opponent_' + name + '_error' for name in self.config.comparison_metrics]
-        self.column_names += ['own_' + name + '_error' for name in self.config.comparison_metrics]
-        self.data = {name: [] for name in self.column_names}
+        self.data = {}
 
     def match_comparison_and_values(self, df):
         matched_metrics = {}
-        for comparison in self.config.comparison_metrics:
+        for comparison in self.comparison_metrics:
             if comparison == 'azimuth' or comparison == 'zenith':
                 needed_targets = [
                     'true_primary_direction_x',
@@ -183,11 +176,12 @@ class ResolutionComparison():
         print('{}: Starting calculate_and_plot'.format(get_time()))
         calculate_and_plot(
             self.files_and_dirs,
-            self.config,
-            self.wandb,
-            dom_plots=False,
-            use_train_dists=False,
-            only_use_metrics=None,
-            legends=True,
-            reso_hists=False
+            dom_plots=self.comparer_config['dom_plots'],
+            use_train_dists=self.comparer_config['use_train_dists'],
+            only_use_metrics=self.comparer_config['only_use_metrics'],
+            legends=self.comparer_config['legends'],
+            reso_hists=self.comparer_config['reso_hists'],
+            use_bootstrapped=self.comparer_config['use_bootstrapped'],
+            reporter=self.reporter,
+            wandb=self.comparer_config['wandb']
         )

@@ -109,3 +109,20 @@ class Reporter:
                 {'learning_rate': learning_rate},
                 step=self.global_step
             )
+
+    def add_plot_to_wandb(self, im, log_text):
+        self.wandb.log(
+            {log_text: [wandb.Image(im)]}
+        )
+
+    def add_metric_comparison_to_wandb(self, markers, log_text):
+        for x, y in zip(markers.get_data()[0], markers.get_data()[1]):
+            self.wandb.log(
+                {
+                    log_text: y,
+                    'global_step': x
+                }
+            )
+
+    def save_file_to_wandb(self, file_name):
+        self.wandb.save(file_name)

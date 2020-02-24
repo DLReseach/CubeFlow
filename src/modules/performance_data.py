@@ -1,13 +1,15 @@
 import numpy as np
-
+import bootstrapped.bootstrap as bs
+import bootstrapped.stats_functions as bs_stats
 
 class PerformanceData():
-    def __init__(self, metrics, df, bins, bin_type, percentiles):
+    def __init__(self, metrics, df, bins, bin_type, percentiles, use_bootstrapped):
         self.metrics = metrics
         self.df = df
         self.bins = bins
         self.bin_type = bin_type
         self.percentiles = percentiles
+        self.use_bootstrapped = use_bootstrapped
         self.bin_centers = [ibin.mid for ibin in self.bins]
         self.bin_widths = [ibin.length / 2 for ibin in self.bins]
         self.performances_dict = {}
@@ -82,10 +84,18 @@ class PerformanceData():
             opponent_centers = []
             for ibin in self.bins:
                 indexer = (self.df[self.bin_type + '_binned'] == ibin)
-                own_performance_temp = self.calculate_performance(
-                    self.df[indexer]['own_' + metric + '_error'].values,
-                    self.percentiles
-                )
+                if self.use_bootstrapped:
+                    samples = self.df[indexer]['own_' + metric + '_error'].values
+                    bootstrap_result = bs.bootstrap(samples, stat_func=bs_stats.std)
+                    own_performance_temp = (
+                        bootstrap_result.value,
+                        bootstrap_result.error_width() / 2
+                    )
+                else:
+                    own_performance_temp = self.calculate_performance(
+                        self.df[indexer]['own_' + metric + '_error'].values,
+                        self.percentiles
+                    )
                 own_performances.append(own_performance_temp[0])
                 own_sigmas.append(own_performance_temp[1])
                 own_lows.append(
@@ -108,10 +118,18 @@ class PerformanceData():
                 )
                 own_centers.append(ibin.left)
                 own_centers.append(ibin.right)
-                opponent_performance_temp = self.calculate_performance(
-                    self.df[indexer]['opponent_' + metric + '_error'].values,
-                    self.percentiles
-                )
+                if self.use_bootstrapped:
+                    samples = self.df[indexer]['own_' + metric + '_error'].values
+                    bootstrap_result = bs.bootstrap(samples, stat_func=bs_stats.std)
+                    opponent_performance_temp = (
+                        bootstrap_result.value,
+                        bootstrap_result.error_width() / 2
+                    )
+                else:
+                    opponent_performance_temp = self.calculate_performance(
+                        self.df[indexer]['opponent_' + metric + '_error'].values,
+                        self.percentiles
+                    )
                 opponent_performances.append(opponent_performance_temp[0])
                 opponent_sigmas.append(opponent_performance_temp[1])
                 opponent_lows.append(

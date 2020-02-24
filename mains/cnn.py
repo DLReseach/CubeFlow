@@ -60,9 +60,19 @@ def main():
         config.val_check_frequency * len(sets['train']) / config.batch_size
     )
 
+    comparer_config = {
+        'dom_plots': False,
+        'use_train_dists': False,
+        'only_use_metrics': None,
+        'legends': True,
+        'use_bootstrapped': False,
+        'reso_hists': False,
+        'wandb': config.wandb
+    }
+
     reporter = Reporter(config, wandb, client)
     saver = Saver(config, wandb, files_and_dirs)
-    comparer = ResolutionComparison(wandb, config, experiment_name, files_and_dirs)
+    comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, reporter)
 
     model = CnnSystemConv1d(
         sets,

@@ -37,13 +37,14 @@ def calculate_dom_bins(comparison_df):
 
 def calculate_and_plot(
     files_and_dirs,
-    config=None,
-    wandb=None,
     dom_plots=False,
     use_train_dists=False,
     only_use_metrics=None,
     legends=True,
-    reso_hists=False
+    reso_hists=False,
+    use_bootstrapped=False,
+    reporter=None,
+    wandb=False
 ):
     file_name = files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
     errors_df = pd.read_parquet(file_name, engine='fastparquet')
@@ -80,7 +81,8 @@ def calculate_and_plot(
         df=errors_df,
         bins=energy_bins,
         bin_type='energy',
-        percentiles=[0.16, 0.84]
+        percentiles=[0.25, 0.75],
+        use_bootstrapped=use_bootstrapped
     )
 
     for metric in metrics:
@@ -104,24 +106,16 @@ def calculate_and_plot(
             )
         )
         fig.savefig(file_name)
-        if config is not None:
-            if config.wandb:
-                buf = io.BytesIO()
-                fig.savefig(buf, format='png')
-                buf.seek(0)
-                im = Image.open(buf)
-                wandb.log(
-                    {'{} resolution plot'.format(metric.title()): [wandb.Image(im)]}
-                )
-                buf.close()
-                wandb.save(str(file_name))
-                for x, y in zip(markers_own.get_data()[0], markers_own.get_data()[1]):
-                    wandb.log(
-                        {
-                            '{} resolution comparison'.format(metric.title()): y,
-                            'global_step': x
-                        }
-                    )
+        if wandb:
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png')
+            buf.seek(0)
+            im = Image.open(buf)
+            log_text = '{} resolution plot'.format(metric.title())
+            reporter.add_plot_to_wandb(im, log_text)
+            buf.close()
+            log_text = '{} resolution comparison'.format(metric.title())
+            reporter.add_metric_comparison_to_wandb(markers_own, log_text)
         plt.close(fig)
         fig = icecube_2d_histogram(metric, performance_data, legends)
         file_name = PLOTS_DIR.joinpath(
@@ -131,17 +125,14 @@ def calculate_and_plot(
             )
         )
         fig.savefig(file_name)
-        if config is not None:
-            if config.wandb:
-                buf = io.BytesIO()
-                fig.savefig(buf, format='png')
-                buf.seek(0)
-                im = Image.open(buf)
-                wandb.log(
-                    {'{} IceCube histogram'.format(metric.title()): [wandb.Image(im)]}
-                )
-                buf.close()
-                wandb.save(str(file_name))
+        if wandb:
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png')
+            buf.seek(0)
+            im = Image.open(buf)
+            log_text = '{} IceCube histogram'.format(metric.title())
+            reporter.add_plot_to_wandb(im, log_text)
+            buf.close()
         plt.close(fig)
         if reso_hists:
             for i, ibin in enumerate(energy_bins):
@@ -162,9 +153,8 @@ def calculate_and_plot(
                     )
                 )
                 fig.savefig(file_name)
-                if config is not None:
-                    if config.wandb:
-                        wandb.save(str(file_name))
+                if wandb:
+                    reporter.save_file_to_wandb(str(file_name))
                 plt.close(fig)
 
     if dom_plots:
@@ -174,7 +164,7 @@ def calculate_and_plot(
             df=errors_df,
             bins=dom_bins,
             bin_type='doms',
-            percentiles=[0.16, 0.84]
+            percentiles=[0.25, 0.75]
         )
         for metric in metrics:
             print(
@@ -197,9 +187,8 @@ def calculate_and_plot(
                 )
             )
             fig.savefig(file_name)
-            if config is not None:
-                if config.wandb:
-                    wandb.save(str(file_name))
+            if wandb:
+                reporter.save_file_to_wandb(str(file_name))
             plt.close(fig)
             if reso_hists:
                 for i, ibin in enumerate(dom_bins):
@@ -220,7 +209,6 @@ def calculate_and_plot(
                         )
                     )
                     fig.savefig(file_name)
-                    if config is not None:
-                        if config.wandb:
-                            wandb.save(str(file_name))
+                    if wandb:
+                        reporter.save_file_to_wandb(str(file_name))
                     plt.close(fig)
