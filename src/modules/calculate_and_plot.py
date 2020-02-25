@@ -14,7 +14,7 @@ from src.modules.plotting import icecube_2d_histogram
 
 
 def calculate_energy_bins(comparison_df):
-    no_of_bins = 24
+    no_of_bins = 18
     comparison_df['energy_binned'] = pd.cut(
         comparison_df['energy'],
         no_of_bins
@@ -42,14 +42,14 @@ def calculate_and_plot(
     only_use_metrics=None,
     legends=True,
     reso_hists=False,
-    use_bootstrapped=False,
+    use_own=True,
     reporter=None,
     wandb=False
 ):
     file_name = files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
     errors_df = pd.read_parquet(file_name, engine='fastparquet')
 
-    # comparison_df = comparison_df[comparison_df.energy <= 3.0]
+    errors_df = errors_df[errors_df.energy <= 3.0]
     # comparison_df.energy = 10**comparison_df.energy.values
 
     if use_train_dists:
@@ -57,7 +57,7 @@ def calculate_and_plot(
             'train_distributions/train_dists_parquet.gzip'
         )
         train_data_df = pd.read_parquet(TRAIN_DATA_DF_FILE, engine='fastparquet')
-        # train_data_df = train_data_df[train_data_df.train_true_energy <= 3.0]
+        train_data_df = train_data_df[train_data_df.train_true_energy <= 3.0]
 
     if only_use_metrics is not None:
         errors_df = errors_df[errors_df.metric.isin(only_use_metrics)]
@@ -81,8 +81,8 @@ def calculate_and_plot(
         df=errors_df,
         bins=energy_bins,
         bin_type='energy',
-        percentiles=[0.25, 0.75],
-        use_bootstrapped=use_bootstrapped
+        percentiles=[0.16, 0.84],
+        use_own=use_own
     )
 
     for metric in metrics:
@@ -164,7 +164,8 @@ def calculate_and_plot(
             df=errors_df,
             bins=dom_bins,
             bin_type='doms',
-            percentiles=[0.25, 0.75]
+            percentiles=[0.16, 0.84],
+            use_own=use_own
         )
         for metric in metrics:
             print(
