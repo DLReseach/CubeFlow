@@ -111,7 +111,9 @@ if __name__ == '__main__':
         'retro_crs_prefit_zenith',
         'retro_crs_prefit_time',
         'retro_crs_prefit_energy',
-        'secondary_track_length'
+        'secondary_track_length',
+        'SRTInIcePulses',
+        'level'
     ]
     mask_names = [
         'SplitInIcePulses',
@@ -312,7 +314,7 @@ if __name__ == '__main__':
         srt_indices = np.array(np.argwhere(temp[:, 10]))
         srt_indices = np.array(flatten(srt_indices))
         masks['SplitInIcePulses'].append(split_indices)
-        masks['SRTInIcePulses'].append(srt_indices)
+        data['SRTInIcePulses'].append(srt_indices)
 
         # Get the cleaned pulses (if available)
         # <icecube.dataclasses.I3RecoPulseSeriesMap>
@@ -440,9 +442,9 @@ if __name__ == '__main__':
             tray.Finish()
 
             out_dict['raw'] = data
-            out_dict['masks'] = masks
-            out_dict['meta'] = {}
-            out_dict['meta']['events'] = len(data['true_primary_energy'])
+            # out_dict['masks'] = masks
+            # out_dict['meta'] = {}
+            # out_dict['meta']['events'] = len(data['true_primary_energy'])
 
             db[out_name] = out_dict
 
