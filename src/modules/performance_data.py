@@ -72,7 +72,6 @@ class PerformanceData():
 
     def create_performance_data(self):
         for metric in self.metrics:
-            print(metric)
             self.performances_dict[metric] = {}
             own_performances = []
             opponent_performances = []
@@ -201,7 +200,6 @@ class PerformanceData():
 
     def create_own_performance_data(self):
         for metric in self.metrics:
-            print(metric)
             self.performances_dict[metric] = {}
             own_performances = []
             opponent_performances = []

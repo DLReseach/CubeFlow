@@ -47,9 +47,9 @@ def main():
             )
 
     if config.dev_run:
-        config.train_fraction = 0.05
-        config.val_fraction = 0.05
-        config.test_fraction = 0.05
+        config.train_fraction = 0.001
+        config.val_fraction = 0.001
+        config.test_fraction = 0.001
 
     hparams = Namespace(**{'learning_rate': config.max_learning_rate})
 
@@ -62,10 +62,10 @@ def main():
 
     comparer_config = {
         'dom_plots': False,
-        'use_train_dists': False,
+        'use_train_dists': True,
         'only_use_metrics': None,
         'legends': True,
-        'use_bootstrapped': False,
+        'use_own': True,
         'reso_hists': False,
         'wandb': config.wandb
     }
@@ -138,10 +138,6 @@ def main():
             'comparison_dataframe_parquet.gzip'
         )
         wandb.save(str(comp_df))
-        error_df = files_and_dirs['run_root'].joinpath(
-            'error_dataframe_parquet.gzip'
-        )
-        wandb.save(str(error_df))
 
     comparer.testing_ended()
 

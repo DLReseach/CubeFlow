@@ -181,7 +181,7 @@ class ResolutionComparison():
             only_use_metrics=self.comparer_config['only_use_metrics'],
             legends=self.comparer_config['legends'],
             reso_hists=self.comparer_config['reso_hists'],
-            use_bootstrapped=self.comparer_config['use_bootstrapped'],
+            use_own=self.comparer_config['use_own'],
             reporter=self.reporter,
             wandb=self.comparer_config['wandb']
         )
