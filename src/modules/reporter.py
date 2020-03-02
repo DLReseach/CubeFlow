@@ -68,11 +68,12 @@ class Reporter:
 
     def on_val_end(self):
         self.val_end_timestamp = datetime.now()
+        print(self.val_loss)
         self.val_time_delta = (self.val_end_timestamp - self.val_start_timestamp).total_seconds()
         self.iteration += 1
         avg_train_loss = torch.stack(self.train_loss).mean()
         avg_val_loss = torch.stack(self.val_loss).mean()
-        print('''
+        log_text = ('''
 {}: Step {} / epoch {}
         Train loss: {:.3f} / {:.1f} events/s
         Val loss:   {:.3f} / {:.1f} events/s
@@ -87,6 +88,12 @@ class Reporter:
                 self.val_step * self.config.val_batch_size / self.val_time_delta
             )
         )
+        print(log_text)
+        if not self.config.dev_run:
+            self.client.chat_postMessage(
+                channel='training',
+                text=log_text
+            )
         if self.config.wandb:
             metrics = {'train_loss': avg_train_loss, 'val_loss': avg_val_loss}
             self.wandb.log(metrics, step=self.global_step)
