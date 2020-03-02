@@ -60,9 +60,9 @@ def print_data_set_sizes(
 
 def create_experiment_name(config, slug_length):
     cool_name = generate_slug(2)
-    today = str(datetime.date.today())
-    experiment_name = config.exp_name + '_' + today + '.' + cool_name
-    return experiment_name
+    # today = str(datetime.date.today())
+    # experiment_name = config.exp_name + '_' + today + '.' + cool_name
+    return cool_name
 
 
 def set_random_seed():

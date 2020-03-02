@@ -31,8 +31,8 @@ class Saver:
 
     def train_step(self, train_true_energy, train_event_length):
         if self.config.save_train_dists:
-            self.train_true_energy.extend(train_true_energy)
-            self.train_event_length.extend(train_event_length)
+            self.train_true_energy.extend(train_true_energy.tolist())
+            self.train_event_length.extend(train_event_length.tolist())
 
     def on_val_step(
         self,

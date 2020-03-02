@@ -55,7 +55,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
             out_channels=32,
-            kernel_size=3
+            kernel_size=5
         )
         self.batchnorm1 = torch.nn.BatchNorm1d(
             num_features=32
@@ -63,7 +63,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv2 = torch.nn.Conv1d(
             in_channels=32,
             out_channels=64,
-            kernel_size=3
+            kernel_size=5
         )
         self.batchnorm2 = torch.nn.BatchNorm1d(
             num_features=64
@@ -71,7 +71,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv3 = torch.nn.Conv1d(
             in_channels=64,
             out_channels=128,
-            kernel_size=3
+            kernel_size=5
         )
         self.batchnorm3 = torch.nn.BatchNorm1d(
             num_features=128
@@ -79,27 +79,56 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv4 = torch.nn.Conv1d(
             in_channels=128,
             out_channels=256,
-            kernel_size=3
+            kernel_size=5
         )
         self.batchnorm4 = torch.nn.BatchNorm1d(
             num_features=256
         )
-        self.linear1 = torch.nn.Linear(
-            in_features=2560,
-            out_features=2048
+        self.conv5 = torch.nn.Conv1d(
+            in_channels=256,
+            out_channels=512,
+            kernel_size=5
         )
         self.batchnorm5 = torch.nn.BatchNorm1d(
-            num_features=2048
+            num_features=512
         )
-        self.linear2 = torch.nn.Linear(
-            in_features=2048,
+        self.linear1 = torch.nn.Linear(
+            in_features=1024,
             out_features=1024
         )
         self.batchnorm6 = torch.nn.BatchNorm1d(
             num_features=1024
         )
-        self.linear3 = torch.nn.Linear(
+        self.linear2 = torch.nn.Linear(
             in_features=1024,
+            out_features=2048
+        )
+        self.batchnorm7 = torch.nn.BatchNorm1d(
+            num_features=2048
+        )
+        self.linear3 = torch.nn.Linear(
+            in_features=2048,
+            out_features=4096
+        )
+        self.batchnorm8 = torch.nn.BatchNorm1d(
+            num_features=4096
+        )
+        self.linear4 = torch.nn.Linear(
+            in_features=4096,
+            out_features=8192
+        )
+        self.batchnorm9 = torch.nn.BatchNorm1d(
+            num_features=8192
+        )
+        self.linear5 = torch.nn.Linear(
+            in_features=8192,
+            out_features=4096
+        )
+        self.batchnorm10 = torch.nn.BatchNorm1d(
+            num_features=4096
+        )
+        self.linear6 = torch.nn.Linear(
+            in_features=4096,
             out_features=len(self.config.targets)
         )
 
@@ -112,13 +141,21 @@ class CnnSystemConv1d(pl.LightningModule):
         x = self.batchnorm3(x)
         x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
         x = self.batchnorm4(x)
+        x = F.max_pool1d(F.leaky_relu(self.conv5(x)), 2)
+        x = self.batchnorm5(x)
         x = torch.flatten(x, start_dim=1, end_dim=2)
         x = F.leaky_relu(self.linear1(x))
-        x = self.batchnorm5(x)
-        x = F.leaky_relu(self.linear2(x))
         x = self.batchnorm6(x)
+        x = F.leaky_relu(self.linear2(x))
+        x = self.batchnorm7(x)
+        x = F.leaky_relu(self.linear3(x))
+        x = self.batchnorm8(x)
+        x = F.leaky_relu(self.linear4(x))
+        x = self.batchnorm9(x)
+        x = F.leaky_relu(self.linear5(x))
+        x = self.batchnorm10(x)
         x = F.dropout(x, p=0.5)
-        x = self.linear3(x)
+        x = self.linear6(x)
         return x
 
     def on_epoch_start(self):
@@ -131,10 +168,9 @@ class CnnSystemConv1d(pl.LightningModule):
         # loss = F.mse_loss(y_hat, y)
         loss = logcosh_loss(y_hat, y)
         self.reporter.training_batch_end(
-            loss,
-            train_true_energy,
-            train_event_length
+            loss
         )
+        self.saver.train_step(train_true_energy, train_event_length)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
