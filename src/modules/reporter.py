@@ -117,7 +117,7 @@ class Reporter:
             self.wandb.log(
                 {
                     log_text: y,
-                    'global_step': x
+                    'energy': x
                 }
             )
 

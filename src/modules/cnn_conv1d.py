@@ -106,29 +106,29 @@ class CnnSystemConv1d(pl.LightningModule):
         self.batchnorm7 = torch.nn.BatchNorm1d(
             num_features=2048
         )
-        self.linear3 = torch.nn.Linear(
-            in_features=2048,
-            out_features=4096
-        )
-        self.batchnorm8 = torch.nn.BatchNorm1d(
-            num_features=4096
-        )
-        self.linear4 = torch.nn.Linear(
-            in_features=4096,
-            out_features=8192
-        )
-        self.batchnorm9 = torch.nn.BatchNorm1d(
-            num_features=8192
-        )
-        self.linear5 = torch.nn.Linear(
-            in_features=8192,
-            out_features=4096
-        )
-        self.batchnorm10 = torch.nn.BatchNorm1d(
-            num_features=4096
-        )
+        # self.linear3 = torch.nn.Linear(
+        #     in_features=2048,
+        #     out_features=4096
+        # )
+        # self.batchnorm8 = torch.nn.BatchNorm1d(
+        #     num_features=4096
+        # )
+        # self.linear4 = torch.nn.Linear(
+        #     in_features=4096,
+        #     out_features=8192
+        # )
+        # self.batchnorm9 = torch.nn.BatchNorm1d(
+        #     num_features=8192
+        # )
+        # self.linear5 = torch.nn.Linear(
+        #     in_features=8192,
+        #     out_features=4096
+        # )
+        # self.batchnorm10 = torch.nn.BatchNorm1d(
+        #     num_features=4096
+        # )
         self.linear6 = torch.nn.Linear(
-            in_features=4096,
+            in_features=2048,
             out_features=len(self.config.targets)
         )
 
@@ -148,12 +148,12 @@ class CnnSystemConv1d(pl.LightningModule):
         x = self.batchnorm6(x)
         x = F.leaky_relu(self.linear2(x))
         x = self.batchnorm7(x)
-        x = F.leaky_relu(self.linear3(x))
-        x = self.batchnorm8(x)
-        x = F.leaky_relu(self.linear4(x))
-        x = self.batchnorm9(x)
-        x = F.leaky_relu(self.linear5(x))
-        x = self.batchnorm10(x)
+        # x = F.leaky_relu(self.linear3(x))
+        # x = self.batchnorm8(x)
+        # x = F.leaky_relu(self.linear4(x))
+        # x = self.batchnorm9(x)
+        # x = F.leaky_relu(self.linear5(x))
+        # x = self.batchnorm10(x)
         x = F.dropout(x, p=0.5)
         x = self.linear6(x)
         return x
