@@ -185,8 +185,8 @@ class PerformanceData():
         for i in range(samples):
             sample = df[indexer][column].sample(frac=sample_frac, replace=True)
             for j, percentile in enumerate(bootstrap_percentiles):
+                print(percentile)
                 bootstrap_samples[i, j] = sample.quantile(percentile)
-
         values[0, 0] = np.mean(bootstrap_samples[:, 0])
         values[1, 0] = (np.mean(bootstrap_samples[:, 1]) - np.mean(bootstrap_samples[:, 0])) / 2
         values[2, 0] = np.mean(bootstrap_samples[:, 3])

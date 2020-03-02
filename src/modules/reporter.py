@@ -68,7 +68,6 @@ class Reporter:
 
     def on_val_end(self):
         self.val_end_timestamp = datetime.now()
-        print(self.val_loss)
         self.val_time_delta = (self.val_end_timestamp - self.val_start_timestamp).total_seconds()
         self.iteration += 1
         avg_train_loss = torch.stack(self.train_loss).mean()

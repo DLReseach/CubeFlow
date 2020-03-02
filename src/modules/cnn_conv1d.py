@@ -16,7 +16,8 @@ from src.modules.utils import get_time
 from src.modules.utils import get_project_root
 
 
-class CnnSystemConv1d(pl.LightningModule):
+# class CnnSystemConv1d(pl.LightningModule):
+class CnnSystemConv1d(torch.nn.Module):
     def __init__(
         self,
         sets,
@@ -121,124 +122,124 @@ class CnnSystemConv1d(pl.LightningModule):
         x = self.linear3(x)
         return x
 
-    def on_epoch_start(self):
-        self.reporter.on_epoch_start()
+    # def on_epoch_start(self):
+    #     self.reporter.on_epoch_start()
 
-    def training_step(self, batch, batch_idx):
-        self.reporter.training_batch_start()
-        x, y, train_true_energy, train_event_length = batch
-        y_hat = self.forward(x)
-        # loss = F.mse_loss(y_hat, y)
-        loss = logcosh_loss(y_hat, y)
-        self.reporter.training_batch_end(
-            loss
-        )
-        self.saver.train_step(train_true_energy, train_event_length)
-        return {'loss': loss}
+    # def training_step(self, batch, batch_idx):
+    #     self.reporter.training_batch_start()
+    #     x, y, train_true_energy, train_event_length = batch
+    #     y_hat = self.forward(x)
+    #     # loss = F.mse_loss(y_hat, y)
+    #     loss = logcosh_loss(y_hat, y)
+    #     self.reporter.training_batch_end(
+    #         loss
+    #     )
+    #     self.saver.train_step(train_true_energy, train_event_length)
+    #     return {'loss': loss}
 
-    def validation_step(self, batch, batch_idx):
-        self.reporter.val_batch_start()
-        x, y, comparisons, energy, event_length, file_number = batch
-        y_hat = self.forward(x)
-        # loss = F.mse_loss(y_hat, y)
-        loss = logcosh_loss(y_hat, y)
-        self.saver.on_val_step(x, y, y_hat, comparisons, energy, event_length, file_number)
-        self.reporter.val_batch_end(loss)
-        return {'val_loss': loss}
+    # def validation_step(self, batch, batch_idx):
+    #     self.reporter.val_batch_start()
+    #     x, y, comparisons, energy, event_length, file_number = batch
+    #     y_hat = self.forward(x)
+    #     # loss = F.mse_loss(y_hat, y)
+    #     loss = logcosh_loss(y_hat, y)
+    #     self.saver.on_val_step(x, y, y_hat, comparisons, energy, event_length, file_number)
+    #     self.reporter.val_batch_end(loss)
+    #     return {'val_loss': loss}
 
-    def validation_end(self, outputs):
-        self.saver.on_val_end()
-        avg_val_loss = self.reporter.on_val_end()
-        return {'val_loss': avg_val_loss}
+    # def validation_end(self, outputs):
+    #     self.saver.on_val_end()
+    #     avg_val_loss = self.reporter.on_val_end()
+    #     return {'val_loss': avg_val_loss}
 
-    def on_epoch_end(self):
-        self.reporter.on_epoch_end()
+    # def on_epoch_end(self):
+    #     self.reporter.on_epoch_end()
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.config.min_learning_rate
-        )
-        return optimizer
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(
+    #         self.parameters(),
+    #         lr=self.config.min_learning_rate
+    #     )
+    #     return optimizer
 
-    def optimizer_step(
-        self,
-        current_epoch,
-        batch_nb,
-        optimizer,
-        optimizer_i,
-        second_order_closure=None
-    ):
-        if self.trainer.global_step < (self.train_batches + self.val_batches):
-            lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
-            for pg in optimizer.param_groups:
-                pg['lr'] = lr_scale * self.config.max_learning_rate
-        else:
-            lr_scale = 0.999999
-            for pg in optimizer.param_groups:
-                if pg['lr'] >= self.config.min_learning_rate:
-                    pg['lr'] = lr_scale * pg['lr']
-                else:
-                    pg['lr'] = pg['lr']
-        optimizer.step()   
-        optimizer.zero_grad()
-        self.reporter.optimizer_step(optimizer.param_groups[0]['lr'])
+    # def optimizer_step(
+    #     self,
+    #     current_epoch,
+    #     batch_nb,
+    #     optimizer,
+    #     optimizer_i,
+    #     second_order_closure=None
+    # ):
+    #     if self.trainer.global_step < (self.train_batches + self.val_batches):
+    #         lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
+    #         for pg in optimizer.param_groups:
+    #             pg['lr'] = lr_scale * self.config.max_learning_rate
+    #     else:
+    #         lr_scale = 0.999999
+    #         for pg in optimizer.param_groups:
+    #             if pg['lr'] >= self.config.min_learning_rate:
+    #                 pg['lr'] = lr_scale * pg['lr']
+    #             else:
+    #                 pg['lr'] = pg['lr']
+    #     optimizer.step()   
+    #     optimizer.zero_grad()
+    #     self.reporter.optimizer_step(optimizer.param_groups[0]['lr'])
 
-    @pl.data_loader
-    def train_dataloader(self):
-        self.train_dataset = PickleGenerator(
-            self.config,
-            self.sets['train'],
-            test=False,
-            val=False,
-            conv_type='conv1d'
-        )
-        dl = DataLoader(
-            self.train_dataset,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
-            drop_last=True
-        )
-        no_of_samples = len(self.train_dataset)
-        self.train_batches = np.floor(no_of_samples / self.config.batch_size)
-        print('No. of train samples:', no_of_samples)
-        return dl
+    # @pl.data_loader
+    # def train_dataloader(self):
+    #     self.train_dataset = PickleGenerator(
+    #         self.config,
+    #         self.sets['train'],
+    #         test=False,
+    #         val=False,
+    #         conv_type='conv1d'
+    #     )
+    #     dl = DataLoader(
+    #         self.train_dataset,
+    #         batch_size=self.config.batch_size,
+    #         num_workers=self.config.num_workers,
+    #         drop_last=True
+    #     )
+    #     no_of_samples = len(self.train_dataset)
+    #     self.train_batches = np.floor(no_of_samples / self.config.batch_size)
+    #     print('No. of train samples:', no_of_samples)
+    #     return dl
 
-    @pl.data_loader
-    def val_dataloader(self):
-        self.val_dataset = PickleGenerator(
-            self.config,
-            self.sets['val'],
-            test=False,
-            val=True,
-            conv_type='conv1d'
-        ) 
-        dl = DataLoader(
-            self.val_dataset,
-            batch_size=self.config.val_batch_size,
-            num_workers=self.config.num_workers,
-            drop_last=True
-        )
-        no_of_samples = len(self.val_dataset)
-        self.val_batches = np.floor(no_of_samples / self.config.val_batch_size)
-        print('No. of validation samples:', no_of_samples)
-        return dl
+    # @pl.data_loader
+    # def val_dataloader(self):
+    #     self.val_dataset = PickleGenerator(
+    #         self.config,
+    #         self.sets['val'],
+    #         test=False,
+    #         val=True,
+    #         conv_type='conv1d'
+    #     ) 
+    #     dl = DataLoader(
+    #         self.val_dataset,
+    #         batch_size=self.config.val_batch_size,
+    #         num_workers=self.config.num_workers,
+    #         drop_last=True
+    #     )
+    #     no_of_samples = len(self.val_dataset)
+    #     self.val_batches = np.floor(no_of_samples / self.config.val_batch_size)
+    #     print('No. of validation samples:', no_of_samples)
+    #     return dl
 
-    @pl.data_loader
-    def test_dataloader(self):
-        self.test_dataset = PickleGenerator(
-            self.config,
-            self.sets['val'],
-            test=True,
-            val=False,
-            conv_type='conv1d'
-        )
-        dl = DataLoader(
-            self.test_dataset,
-            batch_size=self.config.val_batch_size,
-            num_workers=self.config.num_workers,
-            drop_last=True
-        )
-        no_of_samples = len(self.test_dataset)
-        print('No. of test samples:', no_of_samples)
-        return dl
+    # @pl.data_loader
+    # def test_dataloader(self):
+    #     self.test_dataset = PickleGenerator(
+    #         self.config,
+    #         self.sets['val'],
+    #         test=True,
+    #         val=False,
+    #         conv_type='conv1d'
+    #     )
+    #     dl = DataLoader(
+    #         self.test_dataset,
+    #         batch_size=self.config.val_batch_size,
+    #         num_workers=self.config.num_workers,
+    #         drop_last=True
+    #     )
+    #     no_of_samples = len(self.test_dataset)
+    #     print('No. of test samples:', no_of_samples)
+    #     return dl
