@@ -16,9 +16,10 @@ from icecube.common_variables import direct_hits
 from icecube.common_variables import hit_multiplicity
 from icecube.common_variables import time_characteristics
 from argparse import ArgumentParser
-from tables import *
 import datetime
 import shelve
+import dbm.dumb as dumbdbm
+import random
 
 parser = ArgumentParser()
 parser.add_argument(
@@ -54,7 +55,7 @@ elif i3_type == 'oscnext-genie-level5-v01-01-pass2':
         '/groups/icecube/stuttard/data/oscNext/pass2/genie/level5_v01.01/'
     )
     save_dir = Path(
-        '/groups/hep/ehrhorn/files/icecube/shelve/oscnext-genie-level5-v01-01-pass2'
+        '/groups/hep/ehrhorn/files/icecube/oscnext-genie-level5-v01-01-pass2/shelve_test_2'
     )
     gcd_file = Path(
         '/groups/hep/ehrhorn/files/icecube/i3_files/Jason/'
@@ -111,13 +112,17 @@ if __name__ == '__main__':
         'retro_crs_prefit_zenith',
         'retro_crs_prefit_time',
         'retro_crs_prefit_energy',
-        'secondary_track_length',
-        'SRTInIcePulses',
-        'level'
+        'secondary_track_length'
     ]
     mask_names = [
         'SplitInIcePulses',
         'SRTInIcePulses'
+    ]
+    meta_names = [
+        'file',
+        'index',
+        'particle_code',
+        'level'
     ]
 
 
@@ -217,6 +222,7 @@ if __name__ == '__main__':
 
         # Create empty lists for holding the pulse information
         temp = np.empty((0, 11))
+        dom_key_temp = []
         # dom_x_temp = np.empty(0)
         # dom_y_temp = np.empty(0)
         # dom_z_temp = np.empty(0)
@@ -264,7 +270,6 @@ if __name__ == '__main__':
                 #     pulse.width
                 # )
                 dom_key = str(this_om_key[0]) + '_' + str(this_om_key[1]) + '_' + str(this_om_key[2])
-                data['dom_key'] = dom_key
                 pulses = np.array(
                     [
                         this_om_position.x,
@@ -286,6 +291,7 @@ if __name__ == '__main__':
                     pulses,
                     axis=0
                 )
+                dom_key_temp.append(dom_key)
 
         # Add Numpy arrays to data dictionary
         # data['dom_x'].append(dom_x_temp)
@@ -297,6 +303,10 @@ if __name__ == '__main__':
         # data['dom_atwd'].append(dom_atwd_temp)
         # data['dom_fadc'].append(dom_fadc_temp)
         # data['dom_pulse_width'].append(dom_pulse_width_temp)
+        # data['dom_key'].append(np.array(dom_key_temp))
+        dom_key_temp = np.array(dom_key_temp)
+        dom_key_temp = dom_key_temp[temp[:, 3].argsort()]
+        data['dom_key'].append(dom_key_temp)
         temp = temp[temp[:, 3].argsort()]
         data['dom_x'].append(temp[:, 0])
         data['dom_y'].append(temp[:, 1])
@@ -314,7 +324,7 @@ if __name__ == '__main__':
         srt_indices = np.array(np.argwhere(temp[:, 10]))
         srt_indices = np.array(flatten(srt_indices))
         masks['SplitInIcePulses'].append(split_indices)
-        data['SRTInIcePulses'].append(srt_indices)
+        masks['SRTInIcePulses'].append(srt_indices)
 
         # Get the cleaned pulses (if available)
         # <icecube.dataclasses.I3RecoPulseSeriesMap>
@@ -378,74 +388,171 @@ if __name__ == '__main__':
         data['retro_crs_prefit_time'].append(retro_crs_prefit_result.time)
 
     print('Converting i3 files:')
-    db_file_name = save_dir.joinpath('shelve_raw.shelve')
-    with shelve.open(str(db_file_name), 'n') as db:
-        for i, file in enumerate(i3_files):
-            out_dict = {}
-            out_name = file.stem
-            out_name = out_name.replace('.i3', '')
-            print('{}: converting {} --- {}/{}'.format(
-                datetime.datetime.now(),
-                file.stem,
-                i + 1,
-                len(i3_files))
-            )
-            data = {}
-            masks = {}
-            for name in column_names:
-                data['{0}'.format(name)] = []
-            for name in mask_names:
-                masks['{0}'.format(name)] = []
-            # Create the tray
-            tray = I3Tray()
+    db_train_file = save_dir.joinpath('train_set')
+    with dumbdbm.open(str(db_train_file), 'n') as f:
+        db_train = shelve.Shelf(f)
+    db_val_file = save_dir.joinpath('val_set')
+    with dumbdbm.open(str(db_val_file), 'n') as f:
+        db_val = shelve.Shelf(f)
+    db_test_file = save_dir.joinpath('test_set')
+    with dumbdbm.open(str(db_test_file), 'n') as f:
+        db_test = shelve.Shelf(f)
+    n_events = 11308407
+    indices_shuffled = np.arange(n_events)
+    seed = 2912
+    random.seed(seed)
+    random.shuffle(indices_shuffled)
+    train_indices_max = int(np.floor(0.8 * n_events))
+    val_indices_max = int(n_events - (n_events - train_indices_max) * 0.5)
+    train_dict = {}
+    val_dict = {}
+    test_dict = {}
+    # db_file = save_dir.joinpath('oscnext-genie-level5-v01-01-pass2')
+    # with dumbdbm.open(str(db_file), 'n') as f:
+    #     db = shelve.Shelf(f)
+    for i, file in enumerate(i3_files):
+        # out_dict = {}
+        out_name = file.stem
+        out_name = out_name.replace('.i3', '')
+        print('{}: converting {} --- {}/{}'.format(
+            datetime.datetime.now().strftime("%H:%M:%S"),
+            file.stem,
+            i + 1,
+            len(i3_files))
+        )
+        data = {}
+        masks = {}
+        meta = {}
 
-            # Read input file(s)
-            tray.AddModule(
-                'I3Reader',
-                'reader',
-                FilenameList=[str(gcd_file)] + [str(file)]
-            )
+        for name in column_names:
+            data['{0}'.format(name)] = []
+        for name in mask_names:
+            masks['{0}'.format(name)] = []
+        for name in meta_names:
+            meta['{0}'.format(name)] = []
+        # Create the tray
+        tray = I3Tray()
 
-            # Calculate tensor of interatia
-            # TODO use clean or unclean pulses for InputReadout?
-            tray.AddModule(
-                'I3TensorOfInertia',
-                'tensor_of_interia',
-                AmplitudeOption=1,
-                AmplitudeWeight=1,
-                InputReadout='SRTInIcePulses',
-                InputSelection='',
-                MinHits=3,
-                Name='ToI'
-            )
+        # Read input file(s)
+        tray.AddModule(
+            'I3Reader',
+            'reader',
+            FilenameList=[str(gcd_file)] + [str(file)]
+        )
 
-            tray.AddModule(
-                hit_statistics.I3HitStatisticsCalculator,
-                PulseSeriesMapName='SRTInIcePulses',
-                OutputI3HitStatisticsValuesName='HitStatisticsValues',
-            )
-            tray.AddModule(
-                hit_multiplicity.I3HitMultiplicityCalculator,
-                PulseSeriesMapName='SRTInIcePulses',
-                OutputI3HitMultiplicityValuesName='HitMultiplicityValues'
-            )
-            tray.AddModule(
-                time_characteristics.I3TimeCharacteristicsCalculator,
-                PulseSeriesMapName='SRTInIcePulses',
-                OutputI3TimeCharacteristicsValuesName='TimeCharacteristicsValues'
-            )
+        # Calculate tensor of interatia
+        # TODO use clean or unclean pulses for InputReadout?
+        tray.AddModule(
+            'I3TensorOfInertia',
+            'tensor_of_interia',
+            AmplitudeOption=1,
+            AmplitudeWeight=1,
+            InputReadout='SRTInIcePulses',
+            InputSelection='',
+            MinHits=3,
+            Name='ToI'
+        )
 
-            # Add our own module
-            tray.Add(do_things, 'do_things')
-            # Actually run the tray
-            tray.Execute()
-            tray.Finish()
+        tray.AddModule(
+            hit_statistics.I3HitStatisticsCalculator,
+            PulseSeriesMapName='SRTInIcePulses',
+            OutputI3HitStatisticsValuesName='HitStatisticsValues',
+        )
+        tray.AddModule(
+            hit_multiplicity.I3HitMultiplicityCalculator,
+            PulseSeriesMapName='SRTInIcePulses',
+            OutputI3HitMultiplicityValuesName='HitMultiplicityValues'
+        )
+        tray.AddModule(
+            time_characteristics.I3TimeCharacteristicsCalculator,
+            PulseSeriesMapName='SRTInIcePulses',
+            OutputI3TimeCharacteristicsValuesName='TimeCharacteristicsValues'
+        )
 
-            out_dict['raw'] = data
-            # out_dict['masks'] = masks
-            # out_dict['meta'] = {}
-            # out_dict['meta']['events'] = len(data['true_primary_energy'])
+        # Add our own module
+        tray.Add(do_things, 'do_things')
+        # Actually run the tray
+        tray.Execute()
+        tray.Finish()
 
-            db[out_name] = out_dict
+        events_list = []
+        masks_list = []
+        meta_list = []
+
+        no_of_events = len(data['dom_x'])
+        for j in range(no_of_events):
+            temp_events = {key: data[key][j] for key in data}
+            temp_masks = {key: masks[key][j] for key in masks}
+            temp_meta = {
+                'file': out_name + '.h5',
+                'index': j,
+                'particle_code': file.stem.split('.')[2],
+                'level': 5
+            }
+            events_list.append(temp_events)
+            masks_list.append(temp_masks)
+            meta_list.append(temp_meta)
+
+        taken_indices = indices_shuffled[0:no_of_events]
+        indices_shuffled = np.delete(indices_shuffled, np.s_[0:no_of_events])
+ 
+        for j, i_index in enumerate(taken_indices):
+            if i_index <= train_indices_max:
+                train_dict[str(i_index)] = {} 
+                train_dict[str(i_index)]['raw'] = events_list[j]
+                train_dict[str(i_index)]['masks'] = masks_list[j]
+                train_dict[str(i_index)]['meta'] = meta_list[j]
+            elif i_index >= train_indices_max and i_index <= val_indices_max:
+                val_dict[str(i_index)] = {} 
+                val_dict[str(i_index)]['raw'] = events_list[j]
+                val_dict[str(i_index)]['masks'] = masks_list[j]
+                val_dict[str(i_index)]['meta'] = meta_list[j]
+            else:
+                test_dict[str(i_index)] = {} 
+                test_dict[str(i_index)]['raw'] = events_list[j]
+                test_dict[str(i_index)]['masks'] = masks_list[j]
+                test_dict[str(i_index)]['meta'] = meta_list[j]
+
+        # out_dict = data
+        # out_dict['masks'] = masks
+        # out_dict['meta'] = {}
+        # out_dict['meta']['events'] = len(data['true_primary_energy'])
+
+        # db[out_name] = out_dict
+
+        if (i + 1) % 20 == 0:
+            print('{}: saving to db'.format(
+                datetime.datetime.now().strftime("%H:%M:%S")
+            ))
+
+            with shelve.open(str(db_train_file), 'w') as f:
+                for key in train_dict:
+                    f[key] = train_dict[key]
+            with shelve.open(str(db_val_file), 'w') as f:
+                for key in val_dict:
+                    f[key] = val_dict[key]
+            with shelve.open(str(db_test_file), 'w') as f:
+                for key in test_dict:
+                    f[key] = test_dict[key]
+            train_dict = {}
+            val_dict = {}
+            test_dict = {}
+
+    print('{}: saving to db'.format(
+        datetime.datetime.now().strftime("%H:%M:%S")
+    ))
+
+    with shelve.open(str(db_train_file), 'w') as f:
+        for key in train_dict:
+            f[key] = train_dict[key]
+    with shelve.open(str(db_val_file), 'w') as f:
+        for key in val_dict:
+            f[key] = val_dict[key]
+    with shelve.open(str(db_test_file), 'w') as f:
+        for key in test_dict:
+            f[key] = test_dict[key]
+    train_dict = {}
+    val_dict = {}
+    test_dict = {}
 
 print('Done.')
