@@ -70,7 +70,7 @@ def main():
         'wandb': config.wandb
     }
 
-    reporter = Reporter(config, wandb, client)
+    reporter = Reporter(config, wandb, client, experiment_name)
     saver = Saver(config, wandb, files_and_dirs)
     comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, reporter)
 

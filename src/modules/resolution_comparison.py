@@ -66,6 +66,39 @@ class ResolutionComparison():
                 matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
                 matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
                 matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
+            elif comparison == 'x':
+                needed_targets = [
+                    'true_primary_position_x'
+                ]
+                needed_own = [
+                    'own_primary_position_x'
+                ]
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
+            elif comparison == 'y':
+                needed_targets = [
+                    'true_primary_position_y'
+                ]
+                needed_own = [
+                    'own_primary_position_y'
+                ]
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
+            elif comparison == 'z':
+                needed_targets = [
+                    'true_primary_position_z'
+                ]
+                needed_own = [
+                    'own_primary_position_z'
+                ]
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
         return matched_metrics
 
     def convert_to_spherical(self, values):
@@ -117,6 +150,12 @@ class ResolutionComparison():
         difference = x - y
         return difference
 
+    def delta_position(self, prediction, truth):
+        x = prediction
+        y = truth
+        difference = x - y
+        return difference
+
     def calculate_errors(self, matched_metrics):
         opponent_error = {}
         own_error = {}
@@ -147,6 +186,15 @@ class ResolutionComparison():
                     matched_metrics[metric]['truth']
                 )
                 own_error[metric] = self.delta_time(
+                    matched_metrics[metric]['own'],
+                    matched_metrics[metric]['truth']
+                )
+            elif metric == 'x' or metric == 'y' or metric == 'z':
+                opponent_error[metric] = self.delta_position(
+                    matched_metrics[metric]['opponent'],
+                    matched_metrics[metric]['truth']
+                )
+                own_error[metric] = self.delta_position(
                     matched_metrics[metric]['own'],
                     matched_metrics[metric]['truth']
                 )

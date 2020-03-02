@@ -5,11 +5,12 @@ from src.modules.utils import get_time
 
 
 class Reporter:
-    def __init__(self, config, wandb, client):
+    def __init__(self, config, wandb, client, experiment_name):
         super(Reporter, self).__init__()
         self.config = config
         self.wandb = wandb
         self.client = client
+        self.experiment_name = experiment_name
 
         self.current_epoch = 0
         self.train_loss = []
@@ -26,22 +27,22 @@ class Reporter:
     def on_epoch_start(self):
         print(
             '''
-{}: Beginning epoch {}
+{}: {}: beginning epoch {}
             '''
-            .format(get_time(), self.current_epoch)
+            .format(get_time(), self.experiment_name, self.current_epoch)
         )
         if not self.config.dev_run:
             self.client.chat_postMessage(
                 channel='training',
-                text='Epoch {} begun.'.format(self.current_epoch)
+                text='{}: beginning epoch {}'.format(self.experiment_name, self.current_epoch)
             )
 
     def on_epoch_end(self):
-        if not self.config.dev_run:
-            self.client.chat_postMessage(
-                channel='training',
-                text='Epoch {} done'.format(self.current_epoch)
-            )
+        # if not self.config.dev_run:
+        #     self.client.chat_postMessage(
+        #         channel='training',
+        #         text='{}: epoch {} done'.format(self.experiment_name, self.current_epoch)
+        #     )
         self.iteration = 0
         self.current_epoch += 1
 
@@ -68,7 +69,6 @@ class Reporter:
 
     def on_val_end(self):
         self.val_end_timestamp = datetime.now()
-        print(self.val_loss)
         self.val_time_delta = (self.val_end_timestamp - self.val_start_timestamp).total_seconds()
         self.iteration += 1
         avg_train_loss = torch.stack(self.train_loss).mean()
