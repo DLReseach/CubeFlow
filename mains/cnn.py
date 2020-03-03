@@ -54,9 +54,9 @@ def main():
             )
 
     if config.dev_run:
-        config.train_fraction = 0.01
-        config.val_fraction = 0.01
-        config.test_fraction = 0.01
+        config.train_fraction = 0.1
+        config.val_fraction = 0.1
+        config.test_fraction = 0.1
 
     hparams = Namespace(**{'learning_rate': config.max_learning_rate})
 

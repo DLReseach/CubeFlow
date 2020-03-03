@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 
+from src.modules.utils import get_time
+
 
 class Trainer:
     def __init__(
@@ -26,7 +28,8 @@ class Trainer:
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')        
+        gpu = self.config.gpulab_gpus if self.config.gpulab else self.config.gpus
+        self.device = torch.device('cuda:' + gpu if torch.cuda.is_available() else 'cpu')        
         self.model.to(self.device)
 
         self.global_step = 0
@@ -78,8 +81,9 @@ class Trainer:
                 y_hat = self.model.forward(x)
                 loss = self.loss(y_hat, y)
                 self.reporter.on_epoch_validation_batch_end(loss)
-            self.epoch_validation_loss.append(self.reporter.on_epoch_validation_end())
+            epoch_val_loss = self.reporter.on_epoch_validation_end()
             self.model.train()
+        return epoch_val_loss
 
     def optimizer_step(
         self,
@@ -109,9 +113,12 @@ class Trainer:
             train_dl_iter = iter(self.train_dl)
             self.reporter.on_epoch_start()
             self.train_epoch(train_dl_iter)
-            self.epoch_validation()
-            self.saver.save_model_state(epoch, self.model.state_dict(), self.optimizer.state_dict())
+            epoch_val_loss = self.epoch_validation()
+            make_early_stop = self.saver.early_stopping(epoch, epoch_val_loss, self.model.state_dict(), self.optimizer.state_dict())
             self.reporter.on_epoch_end()
+            if make_early_stop:
+                print('{}: early stopping activated'.format(get_time()))
+                break
 
     def create_dataloaders(self):
         self.train_dl = torch.utils.data.DataLoader(
