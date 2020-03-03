@@ -1,3 +1,4 @@
+import torch
 from datetime import datetime
 import pandas as pd
 
@@ -27,8 +28,6 @@ class Saver:
         self.column_names += [name for name in self.config.targets]
         self.data = {name: [] for name in self.column_names}
 
-        self.first_run = True
-
     def train_step(self, train_true_energy, train_event_length):
         if self.config.save_train_dists:
             self.train_true_energy.extend(train_true_energy.tolist())
@@ -56,28 +55,36 @@ class Saver:
             self.data[key].extend(values[i])
 
     def on_val_end(self):
-        if self.first_run:
-            self.first_run = False
-        else:
-            self.data = self.transform_object.transform_inversion(self.data)
-            comparison_df = pd.DataFrame().from_dict(self.data)
-            file_name = self.files_and_dirs['run_root'].joinpath(
-                'comparison_dataframe_parquet.gzip'
+        self.data = self.transform_object.transform_inversion(self.data)
+        comparison_df = pd.DataFrame().from_dict(self.data)
+        file_name = self.files_and_dirs['run_root'].joinpath(
+            'comparison_dataframe_parquet.gzip'
+        )
+        comparison_df.to_parquet(
+            str(file_name),
+            compression='gzip'
+        )
+        if self.config.save_train_dists:
+            train_dists_dict = {}
+            train_dists_dict['train_true_energy'] = self.train_true_energy
+            train_dists_dict['train_event_length'] = self.train_event_length
+            train_dists_df = pd.DataFrame().from_dict(train_dists_dict)
+            train_dists_file_name = self.files_and_dirs['train_dists_path'].joinpath(
+                'train_dists_parquet.gzip'
             )
-            comparison_df.to_parquet(
-                str(file_name),
+            train_dists_df.to_parquet(
+                str(train_dists_file_name),
                 compression='gzip'
             )
-            if self.config.save_train_dists:
-                train_dists_dict = {}
-                train_dists_dict['train_true_energy'] = self.train_true_energy
-                train_dists_dict['train_event_length'] = self.train_event_length
-                train_dists_df = pd.DataFrame().from_dict(train_dists_dict)
-                train_dists_file_name = self.files_and_dirs['train_dists_path'].joinpath(
-                    'train_dists_parquet.gzip'
-                )
-                train_dists_df.to_parquet(
-                    str(train_dists_file_name),
-                    compression='gzip'
-                )
-            self.data = {name: [] for name in self.column_names}
+        self.data = {name: [] for name in self.column_names}
+
+    def save_model_state(self, epoch, model_state_dict, optimizer_state_dict):
+        model_path = self.files_and_dirs['run_root'].joinpath('model.pt')
+        torch.save(
+            {
+                'epoch': epoch,
+                'model_state_dict': model_state_dict,
+                'optimizer_state_dict': optimizer_state_dict
+            },
+            model_path
+        )

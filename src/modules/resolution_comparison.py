@@ -66,6 +66,39 @@ class ResolutionComparison():
                 matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
                 matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
                 matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
+            elif comparison == 'x':
+                needed_targets = [
+                    'true_primary_position_x'
+                ]
+                needed_own = [
+                    'own_primary_position_x'
+                ]
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
+            elif comparison == 'y':
+                needed_targets = [
+                    'true_primary_position_y'
+                ]
+                needed_own = [
+                    'own_primary_position_y'
+                ]
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
+            elif comparison == 'z':
+                needed_targets = [
+                    'true_primary_position_z'
+                ]
+                needed_own = [
+                    'own_primary_position_z'
+                ]
+                matched_metrics[comparison] = {}
+                matched_metrics[comparison]['own'] = df[needed_own].values.flatten()
+                matched_metrics[comparison]['truth'] = df[needed_targets].values.flatten()
+                matched_metrics[comparison]['opponent'] = df['opponent_' + comparison].values.flatten()
         return matched_metrics
 
     def convert_to_spherical(self, values):
@@ -117,6 +150,12 @@ class ResolutionComparison():
         difference = x - y
         return difference
 
+    def delta_position(self, prediction, truth):
+        x = prediction
+        y = truth
+        difference = x - y
+        return difference
+
     def calculate_errors(self, matched_metrics):
         opponent_error = {}
         own_error = {}
@@ -150,30 +189,39 @@ class ResolutionComparison():
                     matched_metrics[metric]['own'],
                     matched_metrics[metric]['truth']
                 )
+            elif metric == 'x' or metric == 'y' or metric == 'z':
+                opponent_error[metric] = self.delta_position(
+                    matched_metrics[metric]['opponent'],
+                    matched_metrics[metric]['truth']
+                )
+                own_error[metric] = self.delta_position(
+                    matched_metrics[metric]['own'],
+                    matched_metrics[metric]['truth']
+                )
             self.data['opponent_' + metric + '_error'] = opponent_error[metric]
             self.data['own_' + metric + '_error'] = own_error[metric]
         
         
 
     def testing_ended(self, train_true_energy=None, train_event_length=None):
-        print('{}: Loading predictions file'.format(get_time()))
+        # print('{}: Loading predictions file'.format(get_time()))
         file_name = self.files_and_dirs['run_root'].joinpath('comparison_dataframe_parquet.gzip')
         predictions_df = pd.read_parquet(file_name, engine='fastparquet')
         self.data['file_number'] = predictions_df.file_number.values
         self.data['energy'] = predictions_df.energy.values
         self.data['event_length'] = predictions_df.event_length.values
-        print('{}: Matching metrics'.format(get_time()))
+        # print('{}: Matching metrics'.format(get_time()))
         matched_metrics = self.match_comparison_and_values(predictions_df)
-        print('{}: Calculating errors'.format(get_time()))
+        # print('{}: Calculating errors'.format(get_time()))
         self.calculate_errors(matched_metrics)
         error_df = pd.DataFrame().from_dict(self.data)
-        print('{}: Saving errors file'.format(get_time()))
+        # print('{}: Saving errors file'.format(get_time()))
         file_name = self.files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
         error_df.to_parquet(
             str(file_name),
             compression='gzip'
         )
-        print('{}: Starting calculate_and_plot'.format(get_time()))
+        # print('{}: Starting calculate_and_plot'.format(get_time()))
         calculate_and_plot(
             self.files_and_dirs,
             dom_plots=self.comparer_config['dom_plots'],

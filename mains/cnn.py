@@ -1,6 +1,5 @@
 import os
 import torch
-from torch.utils.data import DataLoader
 # from torch.utils.data import DataLoader
 # from pytorch_lightning import Trainer
 # from pytorch_lightning.callbacks import EarlyStopping
@@ -25,6 +24,7 @@ from src.modules.resolution_comparison import ResolutionComparison
 from src.modules.pickle_generator import PickleGenerator
 from src.modules.losses import logcosh_loss
 from src.modules.trainer import Trainer
+from src.modules.inferer import Inferer
 
 warnings.filterwarnings(
     'ignore',
@@ -54,9 +54,9 @@ def main():
             )
 
     if config.dev_run:
-        config.train_fraction = 0.001
-        config.val_fraction = 0.001
-        config.test_fraction = 0.001
+        config.train_fraction = 0.01
+        config.val_fraction = 0.01
+        config.test_fraction = 0.01
 
     hparams = Namespace(**{'learning_rate': config.max_learning_rate})
 
@@ -74,32 +74,20 @@ def main():
         val=False,
         conv_type='conv1d'
     )
-    train_dl = DataLoader(
-        train_dataset,
-        batch_size=config.batch_size,
-        num_workers=config.num_workers,
-        drop_last=True
-    )
-    no_of_samples = len(train_dataset)
-    train_batches = np.floor(no_of_samples / config.batch_size)
-    print('No. of train samples:', no_of_samples)
-
     val_dataset = PickleGenerator(
         config,
         sets['val'],
         test=False,
         val=True,
         conv_type='conv1d'
-    ) 
-    val_dl = DataLoader(
-        val_dataset,
-        batch_size=config.val_batch_size,
-        num_workers=config.num_workers,
-        drop_last=True
     )
-    no_of_samples = len(val_dataset)
-    val_batches = np.floor(no_of_samples / config.val_batch_size)
-    print('No. of validation samples:', no_of_samples)
+    test_dataset = PickleGenerator(
+        config,
+        sets['test'],
+        test=True,
+        val=False,
+        conv_type='conv1d'
+    ) 
 
     comparer_config = {
         'dom_plots': False,
@@ -112,7 +100,7 @@ def main():
     }
 
     loss = torch.nn.MSELoss()
-    reporter = Reporter(config, wandb, client)
+    reporter = Reporter(config, wandb, client, experiment_name)
     saver = Saver(config, wandb, files_and_dirs)
     comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, reporter)
 
@@ -130,6 +118,8 @@ def main():
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.min_learning_rate)
+
+    inferer = Inferer(model, optimizer, loss, test_dataset, saver)
 
     if config.wandb:
         wandb.watch(model, log='gradients')
@@ -181,8 +171,9 @@ def main():
         loss,
         reporter,
         saver,
-        train_dl,
-        val_dl
+        inferer,
+        train_dataset,
+        val_dataset
     )
 
     trainer.fit()
@@ -192,6 +183,14 @@ def main():
             'comparison_dataframe_parquet.gzip'
         )
         wandb.save(str(comp_df))
+
+    model_path = files_and_dirs['run_root'].joinpath('model.pt')
+
+    print('{}: Beginning inference'.format(get_time()))
+
+    inferer.infer(model_path)
+
+    print('{}: Beginning comparison'.format(get_time()))
 
     comparer.testing_ended()
 

@@ -42,8 +42,6 @@ class PickleGenerator(torch.utils.data.Dataset):
                 )
                 self.db = shelve.open(str(self.data_dir), 'r')
 
-        self.on_epoch_end()
-
     def __len__(self):
         return int(len(self.ids))
 
@@ -145,9 +143,9 @@ class PickleGenerator(torch.utils.data.Dataset):
         else:
             return X, y, [], []
 
-    def on_epoch_end(self):
+    def shuffle(self):
         self.indices = np.arange(len(self.ids))
-        if self.config.shuffle and self.test:
+        if self.config.shuffle:
             np.random.shuffle(self.indices)
 
     def close_db(self):
