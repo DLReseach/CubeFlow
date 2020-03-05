@@ -16,7 +16,8 @@ from src.modules.utils import get_time
 from src.modules.utils import get_project_root
 
 
-class CnnSystemConv1d(pl.LightningModule):
+# class CnnSystemConv1d(pl.LightningModule):
+class CnnSystemConv1d(torch.nn.Module):
     def __init__(
         self,
         sets,
@@ -55,7 +56,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv1 = torch.nn.Conv1d(
             in_channels=len(self.config.features),
             out_channels=32,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm1 = torch.nn.BatchNorm1d(
             num_features=32
@@ -63,7 +64,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv2 = torch.nn.Conv1d(
             in_channels=32,
             out_channels=64,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm2 = torch.nn.BatchNorm1d(
             num_features=64
@@ -71,7 +72,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv3 = torch.nn.Conv1d(
             in_channels=64,
             out_channels=128,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm3 = torch.nn.BatchNorm1d(
             num_features=128
@@ -79,7 +80,7 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv4 = torch.nn.Conv1d(
             in_channels=128,
             out_channels=256,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm4 = torch.nn.BatchNorm1d(
             num_features=256
@@ -87,20 +88,20 @@ class CnnSystemConv1d(pl.LightningModule):
         self.conv5 = torch.nn.Conv1d(
             in_channels=256,
             out_channels=512,
-            kernel_size=5
+            kernel_size=3
         )
         self.batchnorm5 = torch.nn.BatchNorm1d(
             num_features=512
         )
         self.linear1 = torch.nn.Linear(
-            in_features=1024,
-            out_features=1024
+            in_features=2048,
+            out_features=4096
         )
         self.batchnorm6 = torch.nn.BatchNorm1d(
-            num_features=1024
+            num_features=4096
         )
         self.linear2 = torch.nn.Linear(
-            in_features=1024,
+            in_features=4096,
             out_features=2048
         )
         self.batchnorm7 = torch.nn.BatchNorm1d(
@@ -108,27 +109,13 @@ class CnnSystemConv1d(pl.LightningModule):
         )
         self.linear3 = torch.nn.Linear(
             in_features=2048,
-            out_features=4096
+            out_features=1024
         )
         self.batchnorm8 = torch.nn.BatchNorm1d(
-            num_features=4096
+            num_features=1024
         )
         self.linear4 = torch.nn.Linear(
-            in_features=4096,
-            out_features=8192
-        )
-        self.batchnorm9 = torch.nn.BatchNorm1d(
-            num_features=8192
-        )
-        self.linear5 = torch.nn.Linear(
-            in_features=8192,
-            out_features=4096
-        )
-        self.batchnorm10 = torch.nn.BatchNorm1d(
-            num_features=4096
-        )
-        self.linear6 = torch.nn.Linear(
-            in_features=4096,
+            in_features=1024,
             out_features=len(self.config.targets)
         )
 
@@ -150,132 +137,128 @@ class CnnSystemConv1d(pl.LightningModule):
         x = self.batchnorm7(x)
         x = F.leaky_relu(self.linear3(x))
         x = self.batchnorm8(x)
-        x = F.leaky_relu(self.linear4(x))
-        x = self.batchnorm9(x)
-        x = F.leaky_relu(self.linear5(x))
-        x = self.batchnorm10(x)
         x = F.dropout(x, p=0.5)
-        x = self.linear6(x)
+        x = self.linear4(x)
         return x
 
-    def on_epoch_start(self):
-        self.reporter.on_epoch_start()
+    # def on_epoch_start(self):
+    #     self.reporter.on_epoch_start()
 
-    def training_step(self, batch, batch_idx):
-        self.reporter.training_batch_start()
-        x, y, train_true_energy, train_event_length = batch
-        y_hat = self.forward(x)
-        # loss = F.mse_loss(y_hat, y)
-        loss = logcosh_loss(y_hat, y)
-        self.reporter.training_batch_end(
-            loss
-        )
-        self.saver.train_step(train_true_energy, train_event_length)
-        return {'loss': loss}
+    # def training_step(self, batch, batch_idx):
+    #     self.reporter.training_batch_start()
+    #     x, y, train_true_energy, train_event_length = batch
+    #     y_hat = self.forward(x)
+    #     # loss = F.mse_loss(y_hat, y)
+    #     loss = logcosh_loss(y_hat, y)
+    #     self.reporter.training_batch_end(
+    #         loss
+    #     )
+    #     self.saver.train_step(train_true_energy, train_event_length)
+    #     return {'loss': loss}
 
-    def validation_step(self, batch, batch_idx):
-        self.reporter.val_batch_start()
-        x, y, comparisons, energy, event_length, file_number = batch
-        y_hat = self.forward(x)
-        # loss = F.mse_loss(y_hat, y)
-        loss = logcosh_loss(y_hat, y)
-        self.saver.on_val_step(x, y, y_hat, comparisons, energy, event_length, file_number)
-        self.reporter.val_batch_end(loss)
-        return {'val_loss': loss}
+    # def validation_step(self, batch, batch_idx):
+    #     self.reporter.val_batch_start()
+    #     x, y, comparisons, energy, event_length, file_number = batch
+    #     y_hat = self.forward(x)
+    #     # loss = F.mse_loss(y_hat, y)
+    #     loss = logcosh_loss(y_hat, y)
+    #     self.saver.on_val_step(x, y, y_hat, comparisons, energy, event_length, file_number)
+    #     self.reporter.val_batch_end(loss)
+    #     return {'val_loss': loss}
 
-    def validation_end(self, outputs):
-        self.saver.on_val_end()
-        avg_val_loss = self.reporter.on_val_end()
-        return {'val_loss': avg_val_loss}
+    # def validation_end(self, outputs):
+    #     self.saver.on_val_end()
+    #     avg_val_loss = self.reporter.on_val_end()
+    #     return {'val_loss': avg_val_loss}
 
-    def on_epoch_end(self):
-        self.reporter.on_epoch_end()
+    # def on_epoch_end(self):
+    #     self.reporter.on_epoch_end()
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(
-            self.parameters(),
-            lr=self.config.min_learning_rate
-        )
-        return optimizer
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.Adam(
+    #         self.parameters(),
+    #         lr=self.config.min_learning_rate
+    #     )
+    #     return optimizer
 
-    def optimizer_step(
-        self,
-        current_epoch,
-        batch_nb,
-        optimizer,
-        optimizer_i,
-        second_order_closure=None
-    ):
-        if self.trainer.global_step < (self.train_batches + self.val_batches):
-            lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
-            for pg in optimizer.param_groups:
-                pg['lr'] = lr_scale * self.config.max_learning_rate
-        else:
-            lr_scale = 0.999999
-            for pg in optimizer.param_groups:
-                if pg['lr'] >= self.config.min_learning_rate:
-                    pg['lr'] = lr_scale * pg['lr']
-                else:
-                    pg['lr'] = pg['lr']
-        optimizer.step()   
-        optimizer.zero_grad()
-        self.reporter.optimizer_step(optimizer.param_groups[0]['lr'])
+    # def optimizer_step(
+    #     self,
+    #     current_epoch,
+    #     batch_nb,
+    #     optimizer,
+    #     optimizer_i,
+    #     second_order_closure=None
+    # ):
+    #     if self.trainer.global_step < (self.train_batches + self.val_batches):
+    #         lr_scale = min(1., float(self.trainer.global_step + 1) / (self.train_batches + self.val_batches))
+    #         for pg in optimizer.param_groups:
+    #             pg['lr'] = lr_scale * self.config.max_learning_rate
+    #     else:
+    #         lr_scale = 0.999999
+    #         for pg in optimizer.param_groups:
+    #             if pg['lr'] >= self.config.min_learning_rate:
+    #                 pg['lr'] = lr_scale * pg['lr']
+    #             else:
+    #                 pg['lr'] = pg['lr']
+    #     optimizer.step()   
+    #     optimizer.zero_grad()
+    #     self.reporter.optimizer_step(optimizer.param_groups[0]['lr'])
 
-    @pl.data_loader
-    def train_dataloader(self):
-        self.train_dataset = PickleGenerator(
-            self.config,
-            self.sets['train'],
-            test=False,
-            val=False,
-            conv_type='conv1d'
-        )
-        dl = DataLoader(
-            self.train_dataset,
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
-            drop_last=True
-        )
-        no_of_samples = len(self.train_dataset)
-        self.train_batches = np.floor(no_of_samples / self.config.batch_size)
-        print('No. of train samples:', no_of_samples)
-        return dl
+    # @pl.data_loader
+    # def train_dataloader(self):
+    #     self.train_dataset = PickleGenerator(
+    #         self.config,
+    #         self.sets['train'],
+    #         test=False,
+    #         val=False,
+    #         conv_type='conv1d'
+    #     )
+    #     dl = DataLoader(
+    #         self.train_dataset,
+    #         batch_size=self.config.batch_size,
+    #         num_workers=self.config.num_workers,
+    #         drop_last=True
+    #     )
+    #     no_of_samples = len(self.train_dataset)
+    #     self.train_batches = np.floor(no_of_samples / self.config.batch_size)
+    #     print('No. of train samples:', no_of_samples)
+    #     return dl
 
-    @pl.data_loader
-    def val_dataloader(self):
-        self.val_dataset = PickleGenerator(
-            self.config,
-            self.sets['val'],
-            test=False,
-            val=True,
-            conv_type='conv1d'
-        ) 
-        dl = DataLoader(
-            self.val_dataset,
-            batch_size=self.config.val_batch_size,
-            num_workers=self.config.num_workers,
-            drop_last=True
-        )
-        no_of_samples = len(self.val_dataset)
-        self.val_batches = np.floor(no_of_samples / self.config.val_batch_size)
-        print('No. of validation samples:', no_of_samples)
-        return dl
+    # @pl.data_loader
+    # def val_dataloader(self):
+    #     self.val_dataset = PickleGenerator(
+    #         self.config,
+    #         self.sets['val'],
+    #         test=False,
+    #         val=True,
+    #         conv_type='conv1d'
+    #     ) 
+    #     dl = DataLoader(
+    #         self.val_dataset,
+    #         batch_size=self.config.val_batch_size,
+    #         num_workers=self.config.num_workers,
+    #         drop_last=True
+    #     )
+    #     no_of_samples = len(self.val_dataset)
+    #     self.val_batches = np.floor(no_of_samples / self.config.val_batch_size)
+    #     print('No. of validation samples:', no_of_samples)
+    #     return dl
 
-    @pl.data_loader
-    def test_dataloader(self):
-        self.test_dataset = PickleGenerator(
-            self.config,
-            self.sets['val'],
-            test=True,
-            val=False,
-            conv_type='conv1d'
-        )
-        dl = DataLoader(
-            self.test_dataset,
-            batch_size=self.config.val_batch_size,
-            num_workers=self.config.num_workers,
-            drop_last=True
-        )
-        no_of_samples = len(self.test_dataset)
-        print('No. of test samples:', no_of_samples)
-        return dl
+    # @pl.data_loader
+    # def test_dataloader(self):
+    #     self.test_dataset = PickleGenerator(
+    #         self.config,
+    #         self.sets['val'],
+    #         test=True,
+    #         val=False,
+    #         conv_type='conv1d'
+    #     )
+    #     dl = DataLoader(
+    #         self.test_dataset,
+    #         batch_size=self.config.val_batch_size,
+    #         num_workers=self.config.num_workers,
+    #         drop_last=True
+    #     )
+    #     no_of_samples = len(self.test_dataset)
+    #     print('No. of test samples:', no_of_samples)
+    #     return dl

@@ -229,6 +229,8 @@ def icecube_2d_histogram(metric, performance_data, legends=True):
         plot_range = [-150, 250]
     if metric == 'zenith':
         plot_range = [-2, 2]
+    if metric == 'x' or metric == 'y' or metric == 'z':
+        plot_range = [-50, 75]
     _, y_bin_edges_own = np.histogram(
         y_values_own,
         bins='fd',

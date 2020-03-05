@@ -1,3 +1,4 @@
+import torch
 from datetime import datetime
 import pandas as pd
 
@@ -14,6 +15,8 @@ class Saver:
 
         self.train_true_energy = []
         self.train_event_length = []
+        self.epoch_val_loss = []
+        self.early_stopping_counter = 0
 
         self.transform_object = TransformsInverter(self.config, self.files_and_dirs)
 
@@ -26,8 +29,6 @@ class Saver:
         self.column_names += ['own_' + name.replace('true_', '') for name in self.config.targets]
         self.column_names += [name for name in self.config.targets]
         self.data = {name: [] for name in self.column_names}
-
-        self.first_run = True
 
     def train_step(self, train_true_energy, train_event_length):
         if self.config.save_train_dists:
@@ -56,28 +57,52 @@ class Saver:
             self.data[key].extend(values[i])
 
     def on_val_end(self):
-        if self.first_run:
-            self.first_run = False
-        else:
-            self.data = self.transform_object.transform_inversion(self.data)
-            comparison_df = pd.DataFrame().from_dict(self.data)
-            file_name = self.files_and_dirs['run_root'].joinpath(
-                'comparison_dataframe_parquet.gzip'
+        self.data = self.transform_object.transform_inversion(self.data)
+        comparison_df = pd.DataFrame().from_dict(self.data)
+        file_name = self.files_and_dirs['run_root'].joinpath(
+            'comparison_dataframe_parquet.gzip'
+        )
+        comparison_df.to_parquet(
+            str(file_name),
+            compression='gzip'
+        )
+        if self.config.save_train_dists:
+            train_dists_dict = {}
+            train_dists_dict['train_true_energy'] = self.train_true_energy
+            train_dists_dict['train_event_length'] = self.train_event_length
+            train_dists_df = pd.DataFrame().from_dict(train_dists_dict)
+            train_dists_file_name = self.files_and_dirs['train_dists_path'].joinpath(
+                'train_dists_parquet.gzip'
             )
-            comparison_df.to_parquet(
-                str(file_name),
+            train_dists_df.to_parquet(
+                str(train_dists_file_name),
                 compression='gzip'
             )
-            if self.config.save_train_dists:
-                train_dists_dict = {}
-                train_dists_dict['train_true_energy'] = self.train_true_energy
-                train_dists_dict['train_event_length'] = self.train_event_length
-                train_dists_df = pd.DataFrame().from_dict(train_dists_dict)
-                train_dists_file_name = self.files_and_dirs['train_dists_path'].joinpath(
-                    'train_dists_parquet.gzip'
-                )
-                train_dists_df.to_parquet(
-                    str(train_dists_file_name),
-                    compression='gzip'
-                )
-            self.data = {name: [] for name in self.column_names}
+        self.data = {name: [] for name in self.column_names}
+
+    def early_stopping(self, epoch, epoch_val_loss, model_state_dict, optimizer_state_dict):
+        epoch_val_loss = round(epoch_val_loss.item(), 3)
+        if epoch == 0 or epoch_val_loss < min(self.epoch_val_loss):
+            best_val_loss = epoch_val_loss
+            self.save_model_state(epoch, model_state_dict, optimizer_state_dict)
+            self.early_stopping_counter = 0
+            print('{}: best model yet, saving'.format(get_time()))
+        else:
+            self.early_stopping_counter += 1
+            print('{}: model didn\'t improve for {} epoch(s)'.format(get_time(), self.early_stopping_counter))
+        self.epoch_val_loss.append(epoch_val_loss)
+        if self.early_stopping_counter >= self.config.patience:
+            return True
+        else:
+            return False
+    
+    def save_model_state(self, epoch, model_state_dict, optimizer_state_dict):
+        model_path = self.files_and_dirs['run_root'].joinpath('model.pt')
+        torch.save(
+            {
+                'epoch': epoch,
+                'model_state_dict': model_state_dict,
+                'optimizer_state_dict': optimizer_state_dict
+            },
+            model_path
+        )

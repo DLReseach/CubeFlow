@@ -46,6 +46,9 @@ def calculate_and_plot(
     reporter=None,
     wandb=False
 ):
+
+    first_metric_plot = True
+
     file_name = files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
     errors_df = pd.read_parquet(file_name, engine='fastparquet')
 
