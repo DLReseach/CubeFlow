@@ -54,9 +54,9 @@ def main():
             )
 
     if config.dev_run:
-        config.train_fraction = 0.1
-        config.val_fraction = 0.1
-        config.test_fraction = 0.1
+        config.train_fraction = 0.01
+        config.val_fraction = 0.01
+        config.test_fraction = 0.01
 
     hparams = Namespace(**{'learning_rate': config.max_learning_rate})
 
@@ -119,7 +119,7 @@ def main():
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.min_learning_rate)
 
-    inferer = Inferer(model, optimizer, loss, test_dataset, saver)
+    inferer = Inferer(model, optimizer, loss, test_dataset, saver, config)
 
     if config.wandb:
         wandb.watch(model, log='gradients')

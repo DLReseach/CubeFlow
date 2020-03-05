@@ -140,7 +140,7 @@ class PerformanceData():
                 opponent_centers.append(ibin.left)
                 opponent_centers.append(ibin.right)
             relative_improvement = np.divide(
-                np.array(own_performances) - np.array(opponent_performances),
+                np.array(opponent_performances) - np.array(own_performances),
                 np.array(opponent_performances)
             )
             term1 = (np.array(own_sigmas) / np.array(opponent_performances))**2
@@ -279,7 +279,7 @@ class PerformanceData():
                 opponent_centers.append(ibin.left)
                 opponent_centers.append(ibin.right)
             relative_improvement = np.divide(
-                np.array(own_performances) - np.array(opponent_performances),
+                np.array(opponent_performances) - np.array(own_performances),
                 np.array(opponent_performances)
             )
             term1 = (np.array(own_sigmas) / np.array(opponent_performances))**2

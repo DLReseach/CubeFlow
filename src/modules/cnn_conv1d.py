@@ -85,21 +85,36 @@ class CnnSystemConv1d(torch.nn.Module):
         self.batchnorm4 = torch.nn.BatchNorm1d(
             num_features=256
         )
-        self.linear1 = torch.nn.Linear(
-            in_features=2560,
-            out_features=2048
+        self.conv5 = torch.nn.Conv1d(
+            in_channels=256,
+            out_channels=512,
+            kernel_size=3
         )
         self.batchnorm5 = torch.nn.BatchNorm1d(
-            num_features=2048
+            num_features=512
+        )
+        self.linear1 = torch.nn.Linear(
+            in_features=2048,
+            out_features=4096
+        )
+        self.batchnorm6 = torch.nn.BatchNorm1d(
+            num_features=4096
         )
         self.linear2 = torch.nn.Linear(
+            in_features=4096,
+            out_features=2048
+        )
+        self.batchnorm7 = torch.nn.BatchNorm1d(
+            num_features=2048
+        )
+        self.linear3 = torch.nn.Linear(
             in_features=2048,
             out_features=1024
         )
-        self.batchnorm6 = torch.nn.BatchNorm1d(
+        self.batchnorm8 = torch.nn.BatchNorm1d(
             num_features=1024
         )
-        self.linear3 = torch.nn.Linear(
+        self.linear4 = torch.nn.Linear(
             in_features=1024,
             out_features=len(self.config.targets)
         )
@@ -113,13 +128,17 @@ class CnnSystemConv1d(torch.nn.Module):
         x = self.batchnorm3(x)
         x = F.max_pool1d(F.leaky_relu(self.conv4(x)), 2)
         x = self.batchnorm4(x)
+        x = F.max_pool1d(F.leaky_relu(self.conv5(x)), 2)
+        x = self.batchnorm5(x)
         x = torch.flatten(x, start_dim=1, end_dim=2)
         x = F.leaky_relu(self.linear1(x))
-        x = self.batchnorm5(x)
-        x = F.leaky_relu(self.linear2(x))
         x = self.batchnorm6(x)
+        x = F.leaky_relu(self.linear2(x))
+        x = self.batchnorm7(x)
+        x = F.leaky_relu(self.linear3(x))
+        x = self.batchnorm8(x)
         x = F.dropout(x, p=0.5)
-        x = self.linear3(x)
+        x = self.linear4(x)
         return x
 
     # def on_epoch_start(self):

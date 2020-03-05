@@ -7,7 +7,8 @@ class Inferer:
         optimizer,
         loss,
         dataset,
-        saver
+        saver,
+        config
     ):
         super(Inferer, self).__init__()
         self.model = model
@@ -15,7 +16,9 @@ class Inferer:
         self.loss = loss
         self.dataset = dataset
         self.saver = saver
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')        
+        self.config = config
+        gpu = self.config.gpulab_gpus if self.config.gpulab else self.config.gpus
+        self.device = torch.device('cuda:' + gpu if torch.cuda.is_available() else 'cpu')        
         self.model.to(self.device)
 
     def infer(self, model_path):
