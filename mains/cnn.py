@@ -9,9 +9,10 @@ import warnings
 from argparse import Namespace
 import slack
 import numpy as np
+import importlib
 # from torch_lr_finder import LRFinder
 
-from src.modules.cnn_conv1d import CnnSystemConv1d
+# from src.modules.cnn_conv1d import CnnSystemConv1d
 from src.modules.config import process_config
 from src.modules.utils import get_args
 from src.modules.utils import create_experiment_name
@@ -58,14 +59,9 @@ def main():
         config.val_fraction = 0.01
         config.test_fraction = 0.01
 
-    hparams = Namespace(**{'learning_rate': config.max_learning_rate})
-
     files_and_dirs = get_files_and_dirs(config, experiment_name)
     mask_and_split = MaskAndSplit(config, files_and_dirs)
     sets = mask_and_split.split()
-    val_check_interval = int(
-        config.val_check_frequency * len(sets['train']) / config.batch_size
-    )
 
     train_dataset = PickleGenerator(
         config,
@@ -104,18 +100,9 @@ def main():
     saver = Saver(config, wandb, files_and_dirs)
     comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, reporter)
 
-    model = CnnSystemConv1d(
-        sets,
-        config,
-        files_and_dirs,
-        val_check_interval,
-        wandb,
-        hparams,
-        val_check_interval,
-        experiment_name,
-        reporter,
-        saver
-    )
+    Model = getattr(importlib.import_module('src.modules.' + config.model), 'Model')
+
+    model = Model()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.min_learning_rate)
 
@@ -123,17 +110,6 @@ def main():
 
     if config.wandb:
         wandb.watch(model, log='gradients')
-
-    # if config.patience == 0:
-    #     early_stop_callback = None
-    # else:
-    # early_stop_callback = EarlyStopping(
-    #     monitor='val_loss',
-    #     min_delta=0.0001,
-    #     patience=config.patience,
-    #     verbose=True,
-    #     mode='min'
-    # )
 
     if config.gpulab:
         gpus = config.gpulab_gpus
@@ -154,16 +130,6 @@ def main():
             use_amp = False
             distributed_backend = None
 
-    # trainer = Trainer(
-    #     show_progress_bar=False,
-    #     gpus=gpus,
-    #     max_epochs=config.num_epochs,
-    #     early_stop_callback=early_stop_callback,
-    #     val_check_interval=val_check_interval,
-    #     use_amp=use_amp,
-    #     distributed_backend=distributed_backend,
-    #     num_sanity_val_steps=0
-    # )
     trainer = Trainer(
         config,
         model,
@@ -193,9 +159,6 @@ def main():
     print('{}: Beginning comparison'.format(get_time()))
 
     comparer.testing_ended()
-
-    # if config.test:
-    #     trainer.test()
 
     if not config.dev_run:
         client.chat_postMessage(

@@ -3,6 +3,7 @@ from datetime import datetime
 import pandas as pd
 
 from src.modules.utils import get_time
+from src.modules.utils import get_project_root
 from src.modules.invert_transforms import TransformsInverter
 
 
@@ -106,3 +107,10 @@ class Saver:
             },
             model_path
         )
+
+    def upload_model_files(self):
+        file = self.files_and_dirs['python_model_file']
+        if self.config.wandb:
+            self.wandb.save(str(file))
+            self.wandb.save(str(self.files_and_dirs['run_root'].joinpath('model.pt')))
+            self.wandb.save(str(get_project_root().joinpath('configs/cnn.json')))

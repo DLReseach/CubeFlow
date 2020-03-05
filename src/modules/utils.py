@@ -97,5 +97,8 @@ def get_files_and_dirs(config, experiment_name):
         files_and_dirs['masks_dir'] = Path.home().joinpath(dir_in_repo).joinpath('masks')
     files_and_dirs['project_root'] = get_project_root()
     files_and_dirs['run_root'] = get_project_root().joinpath('runs').joinpath(experiment_name)
-    files_and_dirs['run_root'].mkdir(exist_ok=False, parents=True)
+    files_and_dirs['run_root'].mkdir(exist_ok=True, parents=True)
+    files_and_dirs['python_model_file'] = get_project_root().joinpath('src/modules').joinpath(config.model + '.py')
+    files_and_dirs['train_dists_path'] = get_project_root().joinpath('train_distributions')
+    files_and_dirs['train_dists_path'].mkdir(exist_ok=True)
     return files_and_dirs

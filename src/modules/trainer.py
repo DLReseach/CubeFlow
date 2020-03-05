@@ -119,6 +119,8 @@ class Trainer:
             if make_early_stop:
                 print('{}: early stopping activated'.format(get_time()))
                 break
+        self.saver.upload_model_files()
+        
 
     def create_dataloaders(self):
         self.train_dl = torch.utils.data.DataLoader(
