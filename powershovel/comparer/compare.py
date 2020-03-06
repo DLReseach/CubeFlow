@@ -166,3 +166,10 @@ fig = compare_ic_histogram(
 
 
 st.plotly_chart(fig, use_container_width=True)
+
+comparison_df_list = open_pandas_parquet_file(
+        [
+            runs_path.joinpath(run_1 + '/comparison_dataframe_parquet.gzip'),
+            runs_path.joinpath(run_2 + '/comparison_dataframe_parquet.gzip')
+        ]
+    )

@@ -31,7 +31,7 @@ class Reporter:
             '''
             .format(get_time(), self.experiment_name, self.current_epoch)
         )
-        if not self.config.dev_run:
+        if not self.config.dev_run and self.client is not None:
             self.client.chat_postMessage(
                 channel='training',
                 text='{}: beginning epoch {}'.format(self.experiment_name, self.current_epoch)
@@ -68,7 +68,7 @@ class Reporter:
             )
         )
         print(log_text)
-        if not self.config.dev_run:
+        if not self.config.dev_run and self.client is not None:
             self.client.chat_postMessage(
                 channel='training',
                 text=log_text
@@ -100,7 +100,7 @@ class Reporter:
             )
         )
         print(log_text)
-        if not self.config.dev_run:
+        if not self.config.dev_run and self.client is not None:
             self.client.chat_postMessage(
                 channel='training',
                 text=log_text
@@ -145,7 +145,7 @@ class Reporter:
             )
         )
         print(log_text)
-        if not self.config.dev_run:
+        if not self.config.dev_run and self.client is not None:
             self.client.chat_postMessage(
                 channel='training',
                 text=log_text
