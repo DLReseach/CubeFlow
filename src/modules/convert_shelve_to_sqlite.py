@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 import numpy as np
+import json
 
 SEQ_KEYS = [
     'dom_key',
@@ -62,8 +63,9 @@ META_KEYS = [
 ]
 
 SHELVE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/shelve')
+SQLITE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/sqlite')
 
-CONN = sqlite3.connect('test_set.db')
+CONN = sqlite3.connect(str(SQLITE_PATH) + '/test_set_indexed_2.db')
 C = CONN.cursor()
 
 C.execute('''CREATE TABLE sequential
@@ -72,12 +74,19 @@ C.execute('''CREATE TABLE scalar
              {}'''.format(tuple(['event_no'] + SCALAR_KEYS)))
 C.execute('''CREATE TABLE meta
              {}'''.format(tuple(['event_no'] + META_KEYS)))
-
+# C.execute('''CREATE TABLE blah (id, data)''')
 
 with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
     print('{}: starting conversion'.format(datetime.now().time().strftime('%H:%M:%S')))
     keys = list(f.keys())
     for i, event_no in enumerate(keys):
+        # event = f[event_no]
+        # for key in event:
+        #     for attribute in event[key]:
+        #         print(type(event[key][attribute]))
+        #         if isinstance(event[key][attribute], np.ndarray):
+        #             event[key][attribute] = event[key][attribute].tolist()
+        # C.execute("insert into countries values (?, ?)", [event_no, json.dumps(f[event_no])])
         event_raw = f[event_no]['raw']
         event_masks = f[event_no]['masks']
         pulses = np.zeros((len(event_raw['dom_x']), len(SEQ_KEYS) - 1))
@@ -115,9 +124,14 @@ with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
         for j, key in enumerate(META_KEYS):
             meta.append(event_meta[key])
         C.execute("INSERT INTO meta VALUES {}".format(tuple([event_no]) + tuple(meta)))
-        if i % 500 == 0 and i > 0:
+        if i % 10000 == 0 and i > 0:
+            CONN.commit()
             print('{}: handled {} events'.format(datetime.now().time().strftime('%H:%M:%S'), i))
-
+        # if i == 100000:
+        #     break
+C.execute('''CREATE INDEX meta_idx ON meta(event_no)''')
+C.execute('''CREATE INDEX sequential_idx ON sequential(event_no)''')
+C.execute('''CREATE INDEX scalar_idx ON scalar(event_no)''')
 CONN.commit()
 CONN.close()
 print('{}: Done!'.format(datetime.now().time().strftime('%H:%M:%S')))
