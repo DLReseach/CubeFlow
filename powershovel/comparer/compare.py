@@ -167,9 +167,50 @@ fig = compare_ic_histogram(
 
 st.plotly_chart(fig, use_container_width=True)
 
-comparison_df_list = open_pandas_parquet_file(
-        [
-            runs_path.joinpath(run_1 + '/comparison_dataframe_parquet.gzip'),
-            runs_path.joinpath(run_2 + '/comparison_dataframe_parquet.gzip')
-        ]
+test_df = open_pandas_parquet_file([runs_path.joinpath(run + '/error_dataframe_parquet.gzip')])[0]
+
+test_df, bins_temp = calculate_bins(test_df, min_energy, max_energy, min_doms, max_doms, 18)
+
+resolution = []
+for i in sorted(test_df.energy_binned.unique()):
+    low_percentile = test_df[test_df.energy_binned == i].own_azimuth_error.quantile(0.16)
+    high_percentile = test_df[test_df.energy_binned == i].own_azimuth_error.quantile(0.84)
+    resolution.append(abs((high_percentile - low_percentile) / 2))
+print(resolution)
+
+# fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+trace1 = go.Scatter(
+        x=sorted(test_df.energy_binned.unique()),
+        y=resolution,
+        mode='markers'
+)
+
+trace2 = go.Histogram(
+        x=test_df.energy_binned.values,
+        opacity=0.5,
+        marker_color='grey',
+        yaxis='y2'
+)
+
+data = [trace1, trace2]
+
+layout = go.Layout(
+    title='Double Y Axis Example',
+    xaxis=dict(
+        title='xaxis title',
+    ),
+    yaxis=dict(
+        title='yaxis title',
+        range=[0, 3]
+    ),
+    yaxis2=dict(
+        title='yaxis2 title',
+        type='log',
+        overlaying='y',
+        side='right'
     )
+)
+fig = go.Figure(data=data, layout=layout)
+
+st.plotly_chart(fig, use_container_width=True)
