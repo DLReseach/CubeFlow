@@ -4,9 +4,78 @@ from datetime import datetime
 import numpy as np
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 
-from src.modules.database_schema import Sequential, Scalar, Meta
+Base = declarative_base()
+
+
+class Sequential(Base):
+    __tablename__ = 'sequential'
+    row = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
+    event = Column(Integer)
+    pulse = Column(Integer, nullable=False)
+    dom_key = Column(String, nullable=False)
+    dom_x = Column(Float, nullable=False)
+    dom_y = Column(Float, nullable=False)
+    dom_z = Column(Float, nullable=False)
+    dom_charge = Column(Float, nullable=False)
+    dom_time = Column(Integer, nullable=False)
+    dom_lc = Column(Integer, nullable=False)
+    dom_atwd = Column(Integer, nullable=False)
+    dom_fadc = Column(Integer, nullable=False)
+    dom_pulse_width = Column(Integer, nullable=False)
+    SplitInIcePulses = Column(Integer, nullable=False)
+    SRTInIcePulses = Column(Integer, nullable=False)
+
+
+class Scalar(Base):
+    __tablename__ = 'scalar'
+    event = Column(Integer, primary_key=True, nullable=False)
+    dom_timelength_fwhm = Column(Float, nullable=False)
+    true_primary_direction_x = Column(Float, nullable=False)
+    true_primary_direction_y = Column(Float, nullable=False)
+    true_primary_direction_z = Column(Float, nullable=False)
+    true_primary_position_x = Column(Float, nullable=False)
+    true_primary_position_y = Column(Float, nullable=False)
+    true_primary_position_z = Column(Float, nullable=False)
+    true_primary_speed = Column(Float, nullable=False)
+    true_primary_time = Column(Float, nullable=False)
+    true_primary_energy = Column(Float, nullable=False)
+    linefit_direction_x = Column(Float, nullable=False)
+    linefit_direction_y = Column(Float, nullable=False)
+    linefit_direction_z = Column(Float, nullable=False)
+    linefit_point_on_line_x = Column(Float, nullable=False)
+    linefit_point_on_line_y = Column(Float, nullable=False)
+    linefit_point_on_line_z = Column(Float, nullable=False)
+    toi_direction_x = Column(Float, nullable=False)
+    toi_direction_y = Column(Float, nullable=False)
+    toi_direction_z = Column(Float, nullable=False)
+    toi_point_on_line_x = Column(Float, nullable=False)
+    toi_point_on_line_y = Column(Float, nullable=False)
+    toi_point_on_line_z = Column(Float, nullable=False)
+    toi_evalratio = Column(Float, nullable=False)
+    retro_crs_prefit_x = Column(Float, nullable=False)
+    retro_crs_prefit_y = Column(Float, nullable=False)
+    retro_crs_prefit_z = Column(Float, nullable=False)
+    retro_crs_prefit_azimuth = Column(Float, nullable=False)
+    retro_crs_prefit_zenith = Column(Float, nullable=False)
+    retro_crs_prefit_time = Column(Float, nullable=False)
+    retro_crs_prefit_energy = Column(Float, nullable=False)
+    dom_n_hit_multiple_doms = Column(Integer, nullable=False)
+    secondary_track_length = Column(Float, nullable=True)
+
+
+class Meta(Base):
+    __tablename__ = 'meta'
+    event = Column(Integer, primary_key=True, nullable=False)
+    file = Column(String, nullable=False)
+    idx = Column(Integer, nullable=False)
+    particle_code = Column(Integer, nullable=False)
+    level = Column(Integer, nullable=False)
+    split_in_ice_pulses_event_length = Column(Integer, nullable=False)
+    srt_in_ice_pulses_event_length = Column(Integer, nullable=False)
+
 
 SEQ_STRING_KEYS = [
     'dom_key'
@@ -75,26 +144,28 @@ META_INT_KEYS = [
 
 SHELVE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/shelve')
 SQLITE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/sqlite')
-SQLITE_FILE = SQLITE_PATH.joinpath('test_set.db')
+SQLITE_FILE = SQLITE_PATH.joinpath('train_set.db')
 
-Base = declarative_base()
 engine = create_engine('sqlite:///' + str(SQLITE_FILE), echo=False)
 connection = engine.connect()
 Session = sessionmaker(bind=connection)
 session = Session()
 Base.metadata.create_all(engine)
 
-row = 0
+total_event_time = []
 
-with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
+with shelve.open(str(SHELVE_PATH) + '/train_set', 'r') as f:
     print('{}: starting conversion'.format(datetime.now().time().strftime('%H:%M:%S')))
     keys = list(f.keys())
+    start = datetime.now()
     for i, event_no in enumerate(keys):
+        start_event = datetime.now()
         event_raw = f[event_no]['raw']
         event_meta = f[event_no]['meta']
         event_masks = f[event_no]['masks']
         event_length = len(event_raw['dom_x'])
         masks = np.zeros((event_length, 2))
+        sequential_insert_list = []
         for j in range(event_length):
             sequential_dict = {}
             for key in SEQ_STRING_KEYS:
@@ -106,14 +177,9 @@ with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
             for key in MASK_KEYS:
                 sequential_dict[key] = int(1) if j in event_masks[key] else int(0)
             sequential_dict['event'] = int(event_no)
-            sequential_dict['row'] = int(row)
             sequential_dict['pulse'] = int(j)
-            row += 1
-            session.execute(Sequential.__table__.insert(),
-                [
-                    sequential_dict
-                ]
-            )
+            sequential_insert_list.append(sequential_dict)
+        session.bulk_insert_mappings(Sequential, sequential_insert_list)
         scalar_dict = {}
         for key in SCALAR_FLOAT_KEYS:
             scalar_dict[key] = float(event_raw[key])
@@ -144,10 +210,19 @@ with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
                 meta_dict
             ]
         )
+        end_event = datetime.now()
+        delta_event = (end_event - start_event).total_seconds()
+        total_event_time.append(delta_event)
         if i % 10000 == 0 and i > 0:
             session.commit()
-            print('{}: handled {} events'.format(datetime.now().time().strftime('%H:%M:%S'), i))
-            break
+            mean = sum(total_event_time) / len(total_event_time)
+            total_event_time = []
+            end = datetime.now()
+            time_delta = round((end - start).total_seconds(), 3)
+            print('{}: handled {} events, took {} seconds; each event took {} seconds on average'.format(datetime.now().time().strftime('%H:%M:%S'), i, time_delta, mean))
+            start = datetime.now()
+        # if i == 100:
+        #     break
 session.commit()
 seq_index = Index('sequential_idx', Sequential.event)
 scalar_index = Index('scalar_idx', Scalar.event, unique=True)

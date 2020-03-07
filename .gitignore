@@ -27,3 +27,4 @@ train_distributions/
 src_modules.egg-info/
 .vscode/settings.json
 mains/downloads
+*.out
