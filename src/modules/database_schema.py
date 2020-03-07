@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Index, MetaData
+from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -21,7 +21,6 @@ class Sequential(Base):
     dom_pulse_width = Column(Integer, nullable=False)
     SplitInIcePulses = Column(Integer, nullable=False)
     SRTInIcePulses = Column(Integer, nullable=False)
-    secondary_track_length = Column(Float, nullable=False)
 
 
 class Scalar(Base):
@@ -58,6 +57,7 @@ class Scalar(Base):
     retro_crs_prefit_time = Column(Float, nullable=False)
     retro_crs_prefit_energy = Column(Float, nullable=False)
     dom_n_hit_multiple_doms = Column(Integer, nullable=False)
+    secondary_track_length = Column(Float, nullable=True)
 
 
 class Meta(Base):
