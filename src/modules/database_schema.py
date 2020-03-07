@@ -1,9 +1,4 @@
-from pathlib import Path
-from datetime import datetime
-import numpy as np
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import Column, Integer, String, Float, Index
+from sqlalchemy import Column, Integer, String, Float, Index, MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -26,6 +21,7 @@ class Sequential(Base):
     dom_pulse_width = Column(Integer, nullable=False)
     SplitInIcePulses = Column(Integer, nullable=False)
     SRTInIcePulses = Column(Integer, nullable=False)
+    secondary_track_length = Column(Float, nullable=False)
 
 
 class Scalar(Base):
@@ -62,7 +58,6 @@ class Scalar(Base):
     retro_crs_prefit_time = Column(Float, nullable=False)
     retro_crs_prefit_energy = Column(Float, nullable=False)
     dom_n_hit_multiple_doms = Column(Integer, nullable=False)
-    secondary_track_length = Column(Float, nullable=True)
 
 
 class Meta(Base):
@@ -74,13 +69,3 @@ class Meta(Base):
     level = Column(Integer, nullable=False)
     split_in_ice_pulses_event_length = Column(Integer, nullable=False)
     srt_in_ice_pulses_event_length = Column(Integer, nullable=False)
-
-
-SQLITE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/sqlite')
-SQLITE_FILE = SQLITE_PATH.joinpath('test_set.db')
-engine = create_engine('sqlite:///' + str(SQLITE_FILE), echo=False)
-Session = sessionmaker(bind=engine)
-session = Session()
-
-user = session.query(Sequential).one()
-print(user)
