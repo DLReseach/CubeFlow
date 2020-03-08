@@ -120,9 +120,9 @@ def main():
             distributed_backend = None
     else:
         gpus = config.gpus
-        if gpus > 0:
+        if len(gpus) > 0:
             use_amp = False
-            if gpus > 1:
+            if len(gpus) > 1:
                 distributed_backend = 'dp'
             else:
                 distributed_backend = None

@@ -205,7 +205,7 @@ class ResolutionComparison():
 
     def testing_ended(self, train_true_energy=None, train_event_length=None):
         # print('{}: Loading predictions file'.format(get_time()))
-        file_name = self.files_and_dirs['run_root'].joinpath('comparison_dataframe_parquet.gzip')
+        file_name = self.files_and_dirs['run_root'].joinpath('prediction_dataframe_parquet.gzip')
         predictions_df = pd.read_parquet(file_name, engine='fastparquet')
         self.data['file_number'] = predictions_df.file_number.values
         self.data['energy'] = predictions_df.energy.values

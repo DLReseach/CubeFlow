@@ -61,7 +61,7 @@ class Saver:
         self.data = self.transform_object.transform_inversion(self.data)
         comparison_df = pd.DataFrame().from_dict(self.data)
         file_name = self.files_and_dirs['run_root'].joinpath(
-            'comparison_dataframe_parquet.gzip'
+            'prediction_dataframe_parquet.gzip'
         )
         comparison_df.to_parquet(
             str(file_name),

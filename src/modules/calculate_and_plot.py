@@ -88,6 +88,8 @@ def calculate_and_plot(
         use_own=use_own
     )
 
+    print(performance_data)
+
     for metric in metrics:
         print(
             '{}: Plotting {} metric, binned in energy'

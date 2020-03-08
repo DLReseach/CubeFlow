@@ -8,7 +8,7 @@
   "file_type": "pickle",
   "model": "cnn_conv1d",
   "dev_run": true,
-  "wandb": true,
+  "wandb": false,
   "test": true,
   "gpus": "1",
   "gpulab": true,

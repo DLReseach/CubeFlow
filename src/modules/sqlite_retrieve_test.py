@@ -95,11 +95,17 @@ for i in range(0, 1024, 64):
         events += temp_events[j]
     start = datetime.now()
     query = session.query(
-        Sequential
+        Sequential.dom_x,
+        Sequential.dom_y,
+        Sequential.dom_z,
+        Sequential.dom_charge,
+        Sequential.dom_time,
+        Sequential.pulse,
+        Sequential.event
     ).filter(Sequential.event.in_(events))
-    # query_string = str(query.statement.compile(compile_kwargs={'literal_binds': True}))
-    # test_df = pd.read_sql(query_string, connection)
-    results = query.all()
+    query_string = str(query.statement.compile(compile_kwargs={'literal_binds': True}))
+    test_df = pd.read_sql(query_string, connection)
+    # results = query.all()
     end = datetime.now()
     time_delta = (end - start).total_seconds()
     print('Fetch {} event(s) took {} seconds'.format(len(events), time_delta))
