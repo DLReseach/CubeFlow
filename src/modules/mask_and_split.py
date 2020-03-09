@@ -1,4 +1,6 @@
 import pickle
+import random
+import numpy as np
 
 
 class MaskAndSplit:
@@ -16,28 +18,34 @@ class MaskAndSplit:
             with open(mask_file, 'rb') as f:
                 self.masks_dict[mask] = pickle.load(f)
     
-    def get_intersection(self):
+    def get_intersection(self, events_set):
         masks_dict_keys = list(self.masks_dict.keys())
-        self.intersection = list(
-            set(self.masks_dict[masks_dict_keys[0]])
-            & set(self.masks_dict[masks_dict_keys[1]])
-        )
-        if len(masks_dict_keys) > 2:
-            for i in range(1, len(masks_dict_keys) - 1):
-                self.intersection = list(
-                    set(self.intersection)
-                    & set(self.masks_dict[masks_dict_keys[i + 1]])
-                )
+        for key in masks_dict.keys():                
+            events_set = list(
+                set(events_set)
+                & set(self.masks_dict[key])
+            )
+        return events_set
 
     def split(self):
-        fraction_sum = self.config.train_fraction + self.config.val_fraction + self.config.test_fraction
-        assert fraction_sum <= 1.0, "Oh no! Split fraction sum is greater than 1!"
+        n_events = 11308407
+        train_indices_max = int(np.floor(0.8 * n_events))
+        val_indices_max = int(n_events - (n_events - train_indices_max) * 0.5)
+        indices_shuffled = np.arange(n_events)
+        seed = 2912
+        random.seed(seed)
+        random.shuffle(indices_shuffled)
+        train_indices = indices_shuffled[0:train_indices_max]
+        val_indices = indices_shuffled[train_indices_max:val_indices_max]
+        test_indices = indices_shuffled[val_indices_max:]
+        print(len(train_indices))
+        print(len(val_indices))
+        print(len(test_indices))
         sets = {}
-        no_of_events = len(self.intersection)
-        train_share = int(self.config.train_fraction * no_of_events)
-        val_share = int(self.config.val_fraction * no_of_events)
-        test_share = int(self.config.test_fraction * no_of_events)
-        sets['train'] = self.intersection[:train_share]
-        sets['val'] = self.intersection[train_share:(train_share + val_share)]
-        sets['test'] = self.intersection[(train_share + val_share):(train_share + val_share + test_share)]
+        sets['train'] = self.get_intersection(train_indices)
+        sets['val'] = self.get_intersection(val_indices)
+        sets['test'] = self.get_intersection(test_indices)
+        print(len(sets['train']))
+        print(len(sets['val']))
+        print(len(sets['test']))
         return sets

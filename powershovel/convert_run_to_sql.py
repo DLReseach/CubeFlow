@@ -7,12 +7,12 @@ SQL_FILE = Path('/mnc/c/Users/MadsEhrhorn/Downloads').joinpath('test_set_backup.
 RUN_PATH = Path().home().joinpath('runs')
 # engine = create_engine('sqlite:///' + str(SQL_FILE), echo=False)
 # connection = engine.connect()
-RUN = 'acoustic-frog'
+RUN = 'vehement-emu'
 
-PREDICTIONS_DF = pd.read_parquet(str(RUN_PATH.joinpath(RUN).joinpath('prediction_dataframe_parquet.gzip')))
+PREDICTIONS_DF = pd.read_parquet(str(RUN_PATH.joinpath(RUN).joinpath('prediction_dataframe_parquet_for_db.gzip')))
 OWN_ERROR_DF = pd.read_parquet(str(RUN_PATH.joinpath(RUN).joinpath('own_error_dataframe_parquet.gzip')))
 OPP_ERROR_DF = pd.read_parquet(str(RUN_PATH.joinpath(RUN).joinpath('opponent_error_dataframe_parquet.gzip')))
 
-print(PREDICTIONS_DF.columns)
+print(PREDICTIONS_DF.head())
 print(OWN_ERROR_DF.columns)
 print(OPP_ERROR_DF.columns)
