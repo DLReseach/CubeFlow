@@ -32,7 +32,7 @@ class Saver:
         self.data = {name: [] for name in self.column_names}
 
         self.pandas_column_names = ['file_number']
-        self.pandas_column_names += ['predicted_' + name.replace('true_', '') for name in self.config.targets]
+        self.pandas_column_names += ['own_' + name.replace('true_', '') for name in self.config.targets]
 
     def train_step(self, train_true_energy, train_event_length):
         if self.config.save_train_dists:
@@ -64,7 +64,9 @@ class Saver:
         self.data = self.transform_object.transform_inversion(self.data)
         comparison_df = pd.DataFrame().from_dict(self.data)
         comparison_df = comparison_df[self.pandas_column_names]
-        comparison_df = comparison_df.rename(columns={'file_number', 'event'})
+        comparison_df_new_columns = ['event']
+        comparison_df_new_columns += ['own_' + name.replace('true_', '') for name in comparison_df.columns[1:]]
+        comparison_df.columns = comparison_df_new_columns
         comparison_df.event = comparison_df.event.astype(int)
         file_name = self.files_and_dirs['run_root'].joinpath(
             'prediction_dataframe_parquet.gzip'
