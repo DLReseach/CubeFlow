@@ -7,7 +7,7 @@ SQL_FILE = Path('/mnc/c/Users/MadsEhrhorn/Downloads').joinpath('test_set_backup.
 RUN_PATH = Path().home().joinpath('runs')
 # engine = create_engine('sqlite:///' + str(SQL_FILE), echo=False)
 # connection = engine.connect()
-RUN = 'calm-cormorant'
+RUN = 'acoustic-frog'
 
 PREDICTIONS_DF = pd.read_parquet(str(RUN_PATH.joinpath(RUN).joinpath('prediction_dataframe_parquet.gzip')))
 OWN_ERROR_DF = pd.read_parquet(str(RUN_PATH.joinpath(RUN).joinpath('own_error_dataframe_parquet.gzip')))
