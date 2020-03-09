@@ -167,50 +167,97 @@ fig = compare_ic_histogram(
 
 st.plotly_chart(fig, use_container_width=True)
 
-test_df = open_pandas_parquet_file([runs_path.joinpath(run + '/error_dataframe_parquet.gzip')])[0]
+performances_df_1 = pd.read_parquet(str(runs_path.joinpath(run_1).joinpath('performance_energy_binned_dataframe_parquet.gzip')), engine='fastparquet')
+performances_df_2 = pd.read_parquet(str(runs_path.joinpath(run_2).joinpath('performance_energy_binned_dataframe_parquet.gzip')), engine='fastparquet')
 
-test_df, bins_temp = calculate_bins(test_df, min_energy, max_energy, min_doms, max_doms, 18)
+only_metric_string = metric.replace('own', '').replace('error', '').replace('opponent', '').replace('_', '')
 
-resolution = []
-for i in sorted(test_df.energy_binned.unique()):
-    low_percentile = test_df[test_df.energy_binned == i].own_azimuth_error.quantile(0.16)
-    high_percentile = test_df[test_df.energy_binned == i].own_azimuth_error.quantile(0.84)
-    resolution.append(abs((high_percentile - low_percentile) / 2))
-print(resolution)
-
-# fig = make_subplots(specs=[[{"secondary_y": True}]])
 
 trace1 = go.Scatter(
-        x=sorted(test_df.energy_binned.unique()),
-        y=resolution,
-        mode='markers'
+    x=np.linspace(0, 3, 18),
+    y=performances_df_1[performances_df_1.metric == only_metric_string].own_performances.values,
+    mode='markers',
+    name=run_1,
+    error_y=dict(
+        type='data',
+        array=performances_df_1[performances_df_1.metric == only_metric_string].own_sigmas.values,
+        visible=True
+    ),
+    xaxis='x1'
 )
 
-trace2 = go.Histogram(
-        x=test_df.energy_binned.values,
-        opacity=0.5,
-        marker_color='grey',
-        yaxis='y2'
+trace2 = go.Scatter(
+    x=np.linspace(0, 3, 18),
+    y=performances_df_2[performances_df_2.metric == only_metric_string].own_performances.values,
+    mode='markers',
+    name=run_2,
+    error_y=dict(
+        type='data',
+        array=performances_df_2[performances_df_2.metric == only_metric_string].own_sigmas.values,
+        visible=True
+    ),
+    xaxis='x1'
 )
 
-data = [trace1, trace2]
+trace3 = go.Histogram(
+    x=df_list[0].energy,
+    xbins=dict(
+        start=0,
+        end=3,
+        size=0.16666
+    ),
+    opacity=0.2,
+    marker_color='grey',
+    xaxis='x1',
+    yaxis='y2',
+    name='test data'
+)
+
+trace4 = go.Histogram(
+    x=df_list[0].own_azimuth_error,
+    xaxis='x2',
+    yaxis='y3',
+    name='error'
+)
+
+
+data = [trace1, trace2, trace3, trace4]
 
 layout = go.Layout(
-    title='Double Y Axis Example',
     xaxis=dict(
-        title='xaxis title',
+        title='Energy',
+        domain=[0, 0.6]
+    ),
+    xaxis2=dict(
+        title='blah',
+        domain=[0.7, 1]
     ),
     yaxis=dict(
         title='yaxis title',
-        range=[0, 3]
     ),
     yaxis2=dict(
         title='yaxis2 title',
         type='log',
         overlaying='y',
         side='right'
+    ),
+    yaxis3=dict(
+        title='test',
+        side='right',
+        anchor='x2'
     )
 )
+
 fig = go.Figure(data=data, layout=layout)
 
+fig.update_layout(
+    legend=dict(
+        x=-.1,
+        y=1.2,
+        orientation='h'
+    )
+)
+
 st.plotly_chart(fig, use_container_width=True)
+
+st.write(df_list[0].head())

@@ -22,13 +22,9 @@ class Saver:
         self.transform_object = TransformsInverter(self.config, self.files_and_dirs)
 
         self.column_names = [
-            'file_number',
-            'energy',
-            'event_length'
+            'event'
         ]
-        self.column_names += ['opponent_' + name for name in self.config.comparison_metrics]
-        self.column_names += ['own_' + name.replace('true_', '') for name in self.config.targets]
-        self.column_names += [name for name in self.config.targets]
+        self.column_names += ['predicted_' + name.replace('true_', '') for name in self.config.targets]
         self.data = {name: [] for name in self.column_names}
 
     def train_step(self, train_true_energy, train_event_length):
@@ -48,11 +44,7 @@ class Saver:
     ):
         values = [
             list(file_number),
-            energy.tolist(),
-            event_length.tolist(),
-            *[comparison.tolist() for comparison in comparisons],
             *[y_hat[:, i].tolist() for i in range(y_hat.size(1))],
-            *[y[:, i].tolist() for i in range(y.size(1))]
         ]
         for i, key in enumerate(self.data):
             self.data[key].extend(values[i])
