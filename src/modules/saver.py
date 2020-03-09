@@ -63,13 +63,20 @@ class Saver:
     def on_val_end(self):
         self.data = self.transform_object.transform_inversion(self.data)
         comparison_df = pd.DataFrame().from_dict(self.data)
+        file_name = self.files_and_dirs['run_root'].joinpath(
+            'prediction_dataframe_parquet.gzip'
+        )
+        comparison_df.to_parquet(
+            str(file_name),
+            compression='gzip'
+        )
         comparison_df = comparison_df[self.pandas_column_names]
         comparison_df_new_columns = ['event']
         comparison_df_new_columns += ['own_' + name.replace('true_', '') for name in comparison_df.columns[1:]]
         comparison_df.columns = comparison_df_new_columns
         comparison_df.event = comparison_df.event.astype(int)
         file_name = self.files_and_dirs['run_root'].joinpath(
-            'prediction_dataframe_parquet.gzip'
+            'prediction_dataframe_parquet_for_db.gzip'
         )
         comparison_df.to_parquet(
             str(file_name),
