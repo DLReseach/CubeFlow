@@ -1,113 +1,52 @@
-from pathlib import Path
-from datetime import datetime
-import pickle
-import numpy as np
+import sqlite3
 import pandas as pd
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import Column, Integer, String, Float, Index, select
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from pathlib import Path
 
 
-class Sequential(Base):
-    __tablename__ = 'sequential'
-    row = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    event = Column(Integer)
-    pulse = Column(Integer, nullable=False)
-    dom_key = Column(String, nullable=False)
-    dom_x = Column(Float, nullable=False)
-    dom_y = Column(Float, nullable=False)
-    dom_z = Column(Float, nullable=False)
-    dom_charge = Column(Float, nullable=False)
-    dom_time = Column(Integer, nullable=False)
-    dom_lc = Column(Integer, nullable=False)
-    dom_atwd = Column(Integer, nullable=False)
-    dom_fadc = Column(Integer, nullable=False)
-    dom_pulse_width = Column(Integer, nullable=False)
-    SplitInIcePulses = Column(Integer, nullable=False)
-    SRTInIcePulses = Column(Integer, nullable=False)
+class DbHelper:
+    def __init__(self, sql_file):
+        super(DbHelper).__init__()
+        self.con = sqlite3.connect(sql_file)
+        self.cursor = self.con.cursor()
+        self.get_tables()
 
+    def get_tables(self):
+        self.runs = []
+        self.cursor.execute('SELECT name FROM sqlite_master WHERE type=\"table\";')
+        tables = self.cursor.fetchall()
+        for table in tables:
+            if table[0] not in ['sequential', 'scalar', 'meta']:
+                self.runs.append(table[0])
 
-class Scalar(Base):
-    __tablename__ = 'scalar'
-    event = Column(Integer, primary_key=True, nullable=False)
-    dom_timelength_fwhm = Column(Float, nullable=False)
-    true_primary_direction_x = Column(Float, nullable=False)
-    true_primary_direction_y = Column(Float, nullable=False)
-    true_primary_direction_z = Column(Float, nullable=False)
-    true_primary_position_x = Column(Float, nullable=False)
-    true_primary_position_y = Column(Float, nullable=False)
-    true_primary_position_z = Column(Float, nullable=False)
-    true_primary_speed = Column(Float, nullable=False)
-    true_primary_time = Column(Float, nullable=False)
-    true_primary_energy = Column(Float, nullable=False)
-    linefit_direction_x = Column(Float, nullable=False)
-    linefit_direction_y = Column(Float, nullable=False)
-    linefit_direction_z = Column(Float, nullable=False)
-    linefit_point_on_line_x = Column(Float, nullable=False)
-    linefit_point_on_line_y = Column(Float, nullable=False)
-    linefit_point_on_line_z = Column(Float, nullable=False)
-    toi_direction_x = Column(Float, nullable=False)
-    toi_direction_y = Column(Float, nullable=False)
-    toi_direction_z = Column(Float, nullable=False)
-    toi_point_on_line_x = Column(Float, nullable=False)
-    toi_point_on_line_y = Column(Float, nullable=False)
-    toi_point_on_line_z = Column(Float, nullable=False)
-    toi_evalratio = Column(Float, nullable=False)
-    retro_crs_prefit_x = Column(Float, nullable=False)
-    retro_crs_prefit_y = Column(Float, nullable=False)
-    retro_crs_prefit_z = Column(Float, nullable=False)
-    retro_crs_prefit_azimuth = Column(Float, nullable=False)
-    retro_crs_prefit_zenith = Column(Float, nullable=False)
-    retro_crs_prefit_time = Column(Float, nullable=False)
-    retro_crs_prefit_energy = Column(Float, nullable=False)
-    dom_n_hit_multiple_doms = Column(Integer, nullable=False)
-    secondary_track_length = Column(Float, nullable=True)
+    def get_run_metadata(self, run_name):
+        run_metadata = {}
+        self.cursor.execute('SELECT DISTINCT(true_primary_energy_bin) from \'{}\' ORDER BY true_primary_energy_bin'.format(run_name))
+        run_metadata['true_primary_energy_bin'] = list(map(lambda x: x[0], self.cursor.fetchall()))
 
+        self.cursor.execute('SELECT DISTINCT(event_length_bin) from \'{}\' ORDER BY event_length_bin'.format(run_name))
+        run_metadata['event_length_bin'] = list(map(lambda x: x[0], self.cursor.fetchall()))        
 
-class Meta(Base):
-    __tablename__ = 'meta'
-    event = Column(Integer, primary_key=True, nullable=False)
-    file = Column(String, nullable=False)
-    idx = Column(Integer, nullable=False)
-    particle_code = Column(Integer, nullable=False)
-    level = Column(Integer, nullable=False)
-    split_in_ice_pulses_event_length = Column(Integer, nullable=False)
-    srt_in_ice_pulses_event_length = Column(Integer, nullable=False)
+        self.cursor.execute('PRAGMA table_info(\'{}\')'.format(run_name))
+        metric_names = list(map(lambda x: x[1], self.cursor.fetchall()))
+        metric_names = [name for name in metric_names if name.startswith('opponent')]
+        run_metadata['metric_names'] = [name.replace('opponent_', '').replace('_error', '') for name in metric_names]
+        return run_metadata
 
+    def get_metric_errors(self, metric, selected_run, selected_comparison, bin_in, bin_name):
+        own_metric = 'predicted_' + metric + '_error'
+        query = 'SELECT {}, {}, {}, {}, {} from \'{}\''.format(own_metric, bin_in, bin_name, bin_name + '_mid', bin_name + '_width', selected_run)
+        own_error_df = pd.read_sql_query(query, self.con)
+        own_error_df.rename(columns={own_metric: metric}, inplace=True)
+        if selected_comparison == 'IceCube':
+            opponent_metric = 'opponent_' + metric + '_error'
+            selected_comparison = selected_run
+        else:
+            opponent_metric = own_metric
+        query = 'SELECT {}, {}, {}, {}, {} from \'{}\''.format(opponent_metric, bin_in, bin_name, bin_name + '_mid', bin_name + '_width', selected_comparison)
+        opponent_error_df = pd.read_sql_query(query, self.con)
+        opponent_error_df.rename(columns={opponent_metric: metric}, inplace=True)
+        return own_error_df, opponent_error_df
 
-def get_event_in_energy_range(SQL_FILE, ENERGY_RANGE):
-    engine = create_engine('sqlite:///' + str(SQL_FILE), echo=False)
-    connection = engine.connect()
-    Session = sessionmaker(bind=connection)
-    session = Session()
-    scalar_query = session.query(
-        Scalar
-    ).filter(Scalar.true_primary_energy >= ENERGY_RANGE[0]).filter(Scalar.true_primary_energy <= ENERGY_RANGE[1])
-    query_string = str(scalar_query.statement.compile(compile_kwargs={'literal_binds': True}))
-    scalar_df = pd.read_sql(query_string, connection)
-    scalar_df = scalar_df.sample(n=1)
-    sequential_query = session.query(
-        Sequential
-    ).filter(Sequential.event == scalar_df.event.values[0])
-    query_string = str(sequential_query.statement.compile(compile_kwargs={'literal_binds': True}))
-    sequential_df = pd.read_sql(query_string, connection)
-    session.close()
-    return sequential_df, scalar_df
-
-
-def get_event_nos(SQL_FILE):
-    engine = create_engine('sqlite:///' + str(SQL_FILE), echo=False)
-    connection = engine.connect()
-    Session = sessionmaker(bind=connection)
-    session = Session()
-    event_nos_query = session.query(
-        Scalar.event,
-        Scalar.true_primary_energy
-    )
-    query_string = str(event_nos_query.statement.compile(compile_kwargs={'literal_binds': True}))
-    event_nos_df = pd.read_sql(query_string, connection)
-    session.close()
-    return event_nos_df
+    def drop_table(self, table_name):
+        query = 'drop table if exists \'{}\';'.format(table_name)
+        self.cursor.executescript(query)
