@@ -266,7 +266,8 @@ def icecube_2d_histogram(metric, performance_data, legends=True):
         performance_data.df.energy.values,
         performance_data.df['own_' + metric + '_error'].values,
         bins=[widths1_own, widths2_own],
-        cmap='Oranges'
+        cmap='Oranges',
+        density=True
     )
     ax1.plot(
         performance_data.performances_dict[metric]['own_centers'],
@@ -346,7 +347,8 @@ def icecube_2d_histogram(metric, performance_data, legends=True):
         performance_data.df.energy.values,
         performance_data.df['opponent_' + metric + '_error'].values,
         bins=[widths1_opponent, widths2_opponent],
-        cmap='Oranges'
+        cmap='Oranges',
+        density=True
     )
     ax2.plot(
         performance_data.performances_dict[metric]['own_centers'],

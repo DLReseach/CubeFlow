@@ -88,7 +88,16 @@ def calculate_and_plot(
         use_own=use_own
     )
 
-    print(performance_data)
+    file_name = files_and_dirs['run_root'].joinpath('own_performance_energy_binned_dataframe_parquet.gzip')
+    performance_data.own_performances_df.to_parquet(
+        str(file_name),
+        compression='gzip'
+    )
+    file_name = files_and_dirs['run_root'].joinpath('opponent_performance_energy_binned_dataframe_parquet.gzip')
+    performance_data.opponent_performances_df.to_parquet(
+        str(file_name),
+        compression='gzip'
+    )
 
     for metric in metrics:
         print(
