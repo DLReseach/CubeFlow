@@ -73,7 +73,7 @@ META_KEYS = [
 SHELVE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/shelve')
 SQLITE_PATH = Path().home().joinpath('files/icecube/oscnext-genie-level5-v01-01-pass2/sqlite')
 
-CONN = sqlite3.connect(str(SQLITE_PATH) + '/test_set_table_types.db')
+CONN = sqlite3.connect(str(SQLITE_PATH) + '/train_set_sqlite.db')
 C = CONN.cursor()
 
 CREATE_SEQ_TABLE_QUERY = '''
@@ -156,7 +156,7 @@ C.execute(CREATE_META_TABLE_QUERY)
 
 row = 0
 
-with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
+with shelve.open(str(SHELVE_PATH) + '/train_set', 'r') as f:
     print('{}: starting conversion'.format(datetime.now().time().strftime('%H:%M:%S')))
     keys = list(f.keys())
     for i, event_no in enumerate(keys):
@@ -222,8 +222,8 @@ with shelve.open(str(SHELVE_PATH) + '/test_set', 'r') as f:
         if i % 10000 == 0 and i > 0:
             CONN.commit()
             print('{}: handled {} events'.format(datetime.now().time().strftime('%H:%M:%S'), i))
-        if i == 1000:
-            break
+        # if i == 1000:
+        #     break
 C.execute('''CREATE INDEX sequential_idx ON sequential(event_no)''')
 C.execute('''CREATE UNIQUE INDEX scalar_idx ON scalar(event_no)''')
 C.execute('''CREATE UNIQUE INDEX meta_idx ON meta(event_no)''')
