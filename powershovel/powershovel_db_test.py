@@ -1,6 +1,8 @@
 import streamlit as st
 from pathlib import Path
 import numpy as np
+import shelve
+from datetime import datetime
 
 from powershovel_sql import DbHelper
 from powershovel_utils import make_2d_histograms
@@ -16,90 +18,79 @@ def get_errors(db, selected_metric, selected_run, selected_comparison, selected_
 
 
 sql_file = Path('/mnt/c/Users/MadsEhrhorn/Downloads/test_set_backup.db')
+pickle_file = Path().home().joinpath('runs').joinpath('powershovel')
 db = DbHelper(sql_file)
 
-clip_x_values = [0, 4]
-clip_y_quantiles = [0.01, 0.99]
-resolution = [200, 200]
-comparison_quantiles = [0.16, 0.84]
+with shelve.open(str(pickle_file), 'r') as f:
+    runs_data = f['datasets']
+    meta_data = f['meta']
+
+runs_list = list(runs_data.keys())
+runs_list.remove('retro_crs_prefit')
 
 selected_run = st.sidebar.selectbox(
     'Run',
-    db.runs,
-    index=1
+    runs_list,
+    index=0
 )
 
-db.runs.remove(selected_run)
-selected_run_metadata = db.get_run_metadata(selected_run)
+selected_run_data = runs_data[selected_run]
 
-# db.drop_table('tangerine-wildcat')
+runs_list.remove(selected_run)
 
 selected_comparison = st.sidebar.selectbox(
     'Comparison',
-    ['IceCube'] + db.runs
+    ['retro_crs_prefit'] + runs_list
 )
+
+selected_comparison_data = runs_data[selected_comparison]
 
 selected_bin_type = st.sidebar.radio(
     'Bin in',
-    ['true_primary_energy', 'event_length']
+    ['energy', 'event_length']
 )
-selected_bin_type_bin_name = 'true_primary_energy_bin' if selected_bin_type == 'true_primary_energy' else 'event_length_bin'
 
-selected_bin = st.sidebar.selectbox(
+bins = list(range(len(meta_data[selected_bin_type]['bins'])))
+
+selected_bin = st.sidebar.slider(
     'Bin',
-    np.sort(selected_run_metadata[selected_bin_type_bin_name])
+    min_value=bins[0],
+    max_value=bins[-1],
+    step=1
 )
-selected_bin_index = selected_run_metadata[selected_bin_type_bin_name].index(selected_bin)
+
+selected_bin_index = bins.index(selected_bin)
+
+random_event_from_bin = np.random.choice(meta_data['events'][selected_bin_type][selected_bin_index])
+# st.write(random_event_from_bin)
+predictions = db.get_predictions(selected_run, random_event_from_bin)
+# st.write(predictions.head())
 
 selected_metric = st.sidebar.selectbox(
     'Metric',
-    selected_run_metadata['metric_names']
-)
-
-own_errors, opponent_errors = get_errors(db, selected_metric, selected_run, selected_comparison, selected_bin_type, selected_bin_type_bin_name)
-
-own_widths, opponent_widths = calculate_resolution_widths(
-    own_errors,
-    opponent_errors,
-    selected_metric,
-    selected_run_metadata[selected_bin_type_bin_name],
-    selected_bin_type_bin_name,
-    comparison_quantiles
-)
-
-H1, H2, max_z_value = make_2d_histograms(
-    [own_errors, opponent_errors],
-    selected_metric,
-    selected_bin_type,
-    resolution,
-    clip_y_quantiles
+    list(selected_run_data.keys())
 )
 
 fig = plotly_2d_histograms(
-    H1,
-    H2,
-    own_errors,
-    opponent_errors,
-    max_z_value,
+    selected_run_data,
+    selected_comparison_data,
     selected_metric,
-    selected_bin_type_bin_name,
     selected_bin_type,
     selected_run,
-    selected_comparison
+    selected_comparison,
+    meta_data
 )
 st.plotly_chart(fig, use_container_width=True)
 
 fig = plotly_error_comparison(
-    own_widths,
-    opponent_widths,
-    own_errors,
-    opponent_errors,
+    selected_run_data,
+    selected_comparison_data,
     selected_metric,
-    selected_bin_type_bin_name,
     selected_bin_type,
-    selected_bin,
-    selected_bin_index,
     selected_run,
-    selected_comparison
+    selected_comparison,
+    meta_data,
+    selected_bin
 )
+
 st.plotly_chart(fig, use_container_width=True)

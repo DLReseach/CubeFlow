@@ -2,27 +2,38 @@ import plotly.graph_objects as go
 from plotly import tools
 import numpy as np
 
-def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metric, bin_name, bin_print_name, own_name, opponent_name):
-    x_axis_title = 'log E (E / GeV)' if bin_print_name == 'true_primary_energy' else 'Event length'
-    bin_mids = np.sort(own_errors[bin_name + '_mid'].unique())
-    bins = np.sort(own_errors[bin_name].unique())
+def plotly_2d_histograms(selected_run_data, selected_comparison_data, metric, bin_type, own_name, opponent_name, meta_data):
+    x_axis_text = 'Event length' if bin_type == 'event_length' else 'log E (E / GeV)'
+    H1 = selected_run_data[metric][bin_type]['2d_histogram']['hist']
+    H2 = selected_comparison_data[metric][bin_type]['2d_histogram']['hist']
+    y_edges = meta_data['bin_edges'][bin_type]['yedges']
+    print(selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'])
+    x_edges = meta_data['bin_edges'][bin_type][metric]['xedges']
+    percentile_x_mids = meta_data[bin_type]['bin_mids']
+    max_z_values = []
+    max_z_values.append(np.amax(H1))
+    max_z_values.append(np.amax(H2))
+    max_z_value = max(max_z_values)
+    x_bin_mids = (y_edges[:-1] + y_edges[1:]) / 2
+    y_bin_mids = (x_edges[:-1] + x_edges[1:]) / 2
+    x_bin_widths = 1.0 * (x_edges[1] - x_edges[0])
+    y_bin_widths = 1.0 * (y_edges[1] - y_edges[0])
     trace1 = go.Heatmap(
-        x=H1[2],
-        y=H1[1],
-        z=H1[0],
+        x=x_bin_mids,
+        y=y_bin_mids,
+        z=H1,
         zmin=0,
         zmax=max_z_value,
         showscale=True,
         xaxis='x1',
         yaxis='y1',
         coloraxis = 'coloraxis',
-        text = ['A', 'B', 'C']
     )
 
     trace2 = go.Heatmap(
-        x=H2[2],
-        y=H2[1],
-        z=H2[0],
+        x=x_bin_mids,
+        y=y_bin_mids,
+        z=H2,
         zmin=0,
         zmax=max_z_value,
         showscale=False,
@@ -32,8 +43,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
     )
 
     trace3 = go.Scatter(
-        x=bin_mids,
-        y=[own_errors[own_errors[bin_name] == ibin][metric].quantile(0.16) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_run_data[metric][bin_type]['percentiles']['low_percentile'],
         mode='lines',
         line=dict(
             color='Red',
@@ -44,8 +55,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace4 = go.Scatter(
-        x=bin_mids,
-        y=[own_errors[own_errors[bin_name] == ibin][metric].quantile(0.5) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_run_data[metric][bin_type]['percentiles']['median'],
         mode='lines',
         line=dict(
             color='Red'
@@ -56,8 +67,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=True
     )
     trace5 = go.Scatter(
-        x=bin_mids,
-        y=[own_errors[own_errors[bin_name] == ibin][metric].quantile(0.84) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_run_data[metric][bin_type]['percentiles']['high_percentile'],
         mode='lines',
         line=dict(
             color='Red',
@@ -68,8 +79,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace6 = go.Scatter(
-        x=bin_mids,
-        y=[opponent_errors[opponent_errors[bin_name] == ibin][metric].quantile(0.16) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_comparison_data[metric][bin_type]['percentiles']['low_percentile'],
         mode='lines',
         line=dict(
             color='Green',
@@ -80,8 +91,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace7 = go.Scatter(
-        x=bin_mids,
-        y=[opponent_errors[opponent_errors[bin_name] == ibin][metric].quantile(0.5) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_comparison_data[metric][bin_type]['percentiles']['median'],
         mode='lines',
         line=dict(
             color='Green'
@@ -92,8 +103,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         name=opponent_name
     )
     trace8 = go.Scatter(
-        x=bin_mids,
-        y=[opponent_errors[opponent_errors[bin_name] == ibin][metric].quantile(0.84) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'],
         mode='lines',
         line=dict(
             color='Green',
@@ -105,8 +116,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
     )
 
     trace9 = go.Scatter(
-        x=bin_mids,
-        y=[own_errors[own_errors[bin_name] == ibin][metric].quantile(0.16) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_run_data[metric][bin_type]['percentiles']['low_percentile'],
         mode='lines',
         line=dict(
             color='Red',
@@ -117,8 +128,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace10 = go.Scatter(
-        x=bin_mids,
-        y=[own_errors[own_errors[bin_name] == ibin][metric].quantile(0.5) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_run_data[metric][bin_type]['percentiles']['median'],
         mode='lines',
         line=dict(
             color='Red'
@@ -128,8 +139,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace11 = go.Scatter(
-        x=bin_mids,
-        y=[own_errors[own_errors[bin_name] == ibin][metric].quantile(0.84) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_run_data[metric][bin_type]['percentiles']['high_percentile'],
         mode='lines',
         line=dict(
             color='Red',
@@ -140,8 +151,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace12 = go.Scatter(
-        x=bin_mids,
-        y=[opponent_errors[opponent_errors[bin_name] == ibin][metric].quantile(0.16) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_comparison_data[metric][bin_type]['percentiles']['low_percentile'],
         mode='lines',
         line=dict(
             color='Green',
@@ -152,8 +163,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace13 = go.Scatter(
-        x=bin_mids,
-        y=[opponent_errors[opponent_errors[bin_name] == ibin][metric].quantile(0.5) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_comparison_data[metric][bin_type]['percentiles']['median'],
         mode='lines',
         line=dict(
             color='Green'
@@ -163,8 +174,8 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
         showlegend=False
     )
     trace14 = go.Scatter(
-        x=bin_mids,
-        y=[opponent_errors[opponent_errors[bin_name] == ibin][metric].quantile(0.84) for ibin in bins],
+        x=percentile_x_mids,
+        y=selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'],
         mode='lines',
         line=dict(
             color='Green',
@@ -192,10 +203,12 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
     fig.append_trace(trace13, 1, 2)
     fig.append_trace(trace14, 1, 2)
 
-    fig['layout']['xaxis1'].update(title=x_axis_title, range=[0.5, 3.0])
-    fig['layout']['xaxis2'].update(title=x_axis_title, range=[0.5, 3.0])
+    fig['layout']['xaxis1'].update(title=x_axis_text)
+    fig['layout']['xaxis2'].update(title=x_axis_text)
     fig['layout']['yaxis1'].update(title='Error')
+    fig['layout']['yaxis1'].update(range=[min(x_edges), max(x_edges)])
     fig['layout']['yaxis2'].update(title='Error')
+    fig['layout']['yaxis2'].update(range=[min(x_edges), max(x_edges)])
     fig['layout']['coloraxis'].update(colorscale='Oranges')
 
     # fig.add_trace(go.Scatter(
@@ -236,7 +249,7 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
                 x=0.01,
                 y=0.99,
                 showarrow=False,
-                text='Events: {}'.format(int(np.sum(H1[0]))),
+                text='Events: {}'.format(int(np.sum(H1))),
                 xref='paper',
                 yref='paper',
                 bgcolor='white'
@@ -245,7 +258,7 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
                 x=0.99,
                 y=0.99,
                 showarrow=False,
-                text='Events: {}'.format(int(np.sum(H2[0]))),
+                text='Events: {}'.format(int(np.sum(H2))),
                 xref='paper',
                 yref='paper',
                 bgcolor='white'
@@ -272,13 +285,20 @@ def plotly_2d_histograms(H1, H2, own_errors, opponent_errors, max_z_value, metri
     return fig
 
 
-def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_errors, metric, bin_name, bin_print_name, bin_no, bin_index, own_name, opponent_name):
-    bin_mids = np.sort(own_errors[bin_name + '_mid'].unique())
-    bin_widths = np.sort(own_errors[bin_name + '_width'])
+def plotly_error_comparison(selected_run_data, selected_comparison_data, metric, bin_type, own_name, opponent_name, meta_data, bin_no):
+    x_axis_text = 'Event length' if bin_type == 'event_length' else 'log E (E / GeV)'
+    bin_mids = meta_data[bin_type]['bin_mids']
+    bin_widths = meta_data[bin_type]['bin_widths']
     bin_lengths = [ibin * 2 for ibin in bin_widths]
-    bin_counts = own_errors.groupby([bin_name]).count()[metric].values
+    bin_counts = meta_data['train_dists'][bin_type]
+    own_error_bin_edges = selected_run_data[metric][bin_type]['error_histograms'][bin_no]['bin_edges']
+    own_error_x_bin_mids = (own_error_bin_edges[:-1] + own_error_bin_edges[1:]) / 2
+    own_error_x_bin_widths = 1.0 * (own_error_bin_edges[1] - own_error_bin_edges[0])
+    opponent_error_bin_edges = selected_comparison_data[metric][bin_type]['error_histograms'][bin_no]['bin_edges']
+    opponent_error_x_bin_mids = (opponent_error_bin_edges[:-1] + opponent_error_bin_edges[1:]) / 2
+    opponent_error_x_bin_widths = 1.0 * (opponent_error_bin_edges[1] - opponent_error_bin_edges[0])
     histogram_colors = ['grey'] * len(bin_mids)
-    histogram_colors[bin_index] = 'red'
+    histogram_colors[bin_no] = 'red'
     trace1 = go.Bar(
         x=bin_mids,
         y=bin_counts,
@@ -287,13 +307,13 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
         marker_color=histogram_colors,
         xaxis='x1',
         yaxis='y2',
-        name='test data',
-        showlegend=False
+        name='train data',
+        showlegend=True
     )
 
     trace2 = go.Scatter(
         x=bin_mids,
-        y=own_widths,
+        y=selected_run_data[metric][bin_type]['performance'],
         mode='markers',
         name=own_name,
         showlegend=True,
@@ -310,7 +330,7 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
 
     trace3 = go.Scatter(
         x=bin_mids,
-        y=opponent_widths,
+        y=selected_comparison_data[metric][bin_type]['performance'],
         mode='markers',
         name=opponent_name,
         showlegend=True,
@@ -325,22 +345,24 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
         xaxis='x1'
         )
 
-    trace4 = go.Histogram(
-        x=own_errors[own_errors[bin_name] == bin_no][metric].values,
+    trace4 = go.Bar(
+        x=own_error_x_bin_mids,
+        y=selected_run_data[metric][bin_type]['error_histograms'][bin_no]['hist'],
+        width=own_error_x_bin_widths,
         xaxis='x2',
         yaxis='y3',
         name=own_name + ' error',
-        histnorm='probability',
         opacity=0.5,
         marker_color='Red',
         showlegend=False
     )
-    trace5 = go.Histogram(
-        x=opponent_errors[opponent_errors[bin_name] == bin_no][metric].values,
+    trace5 = go.Bar(
+        x=opponent_error_x_bin_mids,
+        y=selected_comparison_data[metric][bin_type]['error_histograms'][bin_no]['hist'],
+        width=opponent_error_x_bin_widths,
         xaxis='x2',
         yaxis='y3',
         name=opponent_name + ' error',
-        histnorm='probability',
         opacity=0.5,
         marker_color='Green',
         showlegend=False
@@ -350,17 +372,20 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
 
     layout = go.Layout(
         xaxis=dict(
-            title=bin_print_name,
-            domain=[0, 0.6],
-            range=[0, 3.105]
+            title=x_axis_text,
+            domain=[0, 0.6]
         ),
         xaxis2=dict(
             title='Error',
-            domain=[0.7, 1]
+            domain=[0.7, 1],
+            range=[
+                selected_run_data[metric][bin_type]['percentiles']['low_cut_percentile'][bin_no],
+                selected_run_data[metric][bin_type]['percentiles']['high_cut_percentile'][bin_no]
+            ]
         ),
         yaxis=dict(
-            title='Resolution',
-            range=[0, 4]
+            title='(84th percentile - 16th percentile) / 2',
+            # range=[0,]
         ),
         yaxis2=dict(
             title='Events',
@@ -369,7 +394,7 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
             side='right'
         ),
         yaxis3=dict(
-            title='Density',
+            title='Frequency',
             side='right',
             anchor='x2'
         )
@@ -391,7 +416,7 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
                 x=0.01,
                 y=0.99,
                 showarrow=False,
-                text='Events: {}'.format(np.sum(bin_counts)),
+                text='Events: {}'.format(int(sum(bin_counts))),
                 xref='paper',
                 yref='paper',
                 bgcolor='white'
@@ -400,7 +425,7 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
                 x=0.99,
                 y=0.99,
                 showarrow=False,
-                text='Events: {}'.format(len(own_errors[own_errors[bin_name] == bin_no][metric].values)),
+                text='Events: {}'.format(int(sum(selected_run_data[metric][bin_type]['error_histograms'][bin_no]['hist']))),
                 xref='paper',
                 yref='paper',
                 bgcolor='white'
@@ -412,9 +437,9 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=own_errors[own_errors[bin_name] == bin_no][metric].quantile(0.16),
+                x0=selected_run_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
                 y0=0,
-                x1=own_errors[own_errors[bin_name] == bin_no][metric].quantile(0.16),
+                x1=selected_run_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
                 y1=1,
                 name=own_name + ' 16\%',
                 line=dict(
@@ -427,9 +452,9 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=own_errors[own_errors[bin_name] == bin_no][metric].quantile(0.84),
+                x0=selected_run_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
                 y0=0,
-                x1=own_errors[own_errors[bin_name] == bin_no][metric].quantile(0.84),
+                x1=selected_run_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
                 y1=1,
                 name=own_name + ' 84\%',
                 line=dict(
@@ -443,9 +468,9 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=opponent_errors[opponent_errors[bin_name] == bin_no][metric].quantile(0.16),
+                x0=selected_comparison_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
                 y0=0,
-                x1=opponent_errors[opponent_errors[bin_name] == bin_no][metric].quantile(0.16),
+                x1=selected_comparison_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
                 y1=1,
                 name=opponent_name + ' 16\%',
                 line=dict(
@@ -458,9 +483,9 @@ def plotly_error_comparison(own_widths, opponent_widths, own_errors, opponent_er
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=opponent_errors[opponent_errors[bin_name] == bin_no][metric].quantile(0.84),
+                x0=selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
                 y0=0,
-                x1=opponent_errors[opponent_errors[bin_name] == bin_no][metric].quantile(0.84),
+                x1=selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
                 y1=1,
                 name=opponent_name + ' 84\%',
                 line=dict(
