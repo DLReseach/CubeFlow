@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import bootstrapped.bootstrap as bs
 import bootstrapped.stats_functions as bs_stats
 
@@ -12,11 +13,29 @@ class PerformanceData():
         self.use_own = use_own
         self.bin_centers = [ibin.mid for ibin in self.bins]
         self.bin_widths = [ibin.length / 2 for ibin in self.bins]
+        self.metric_sigmas = [metric + '_sigma' for metric in metrics]
+        self.own_performances_df = pd.DataFrame(
+            columns=metrics + self.metric_sigmas
+        )
+        self.opponent_performances_df = pd.DataFrame(
+            columns=metrics + self.metric_sigmas
+        )
         self.performances_dict = {}
         if self.use_own:
             self.create_own_performance_data()
         else:
             self.create_performance_data()
+
+        own_performances = {metric: self.performances_dict[metric]['own_performances'] for metric in metrics}
+        own_performances_sigmas = {metric + '_sigma': self.performances_dict[metric]['own_sigmas'] for metric in metrics}
+        self.own_performances_df = pd.DataFrame(
+            dict(own_performances, **own_performances_sigmas)
+        )
+        opponent_performances = {metric: self.performances_dict[metric]['opponent_performances'] for metric in metrics}
+        opponent_performances_sigmas = {metric + '_sigma': self.performances_dict[metric]['opponent_sigmas'] for metric in metrics}
+        self.opponent_performances_df = pd.DataFrame(
+            dict(opponent_performances, **opponent_performances_sigmas)
+        )
 
     def convert_iqr_to_sigma(self, quartiles, e_quartiles):
         factor = 1 / 1.349

@@ -31,7 +31,7 @@ class Saver:
         self.column_names += [name for name in self.config.targets]
         self.data = {name: [] for name in self.column_names}
 
-        self.pandas_column_names = ['file_number']
+        self.pandas_column_names = ['file_number', 'energy', 'event_length']
         self.pandas_column_names += ['own_' + name.replace('true_', '') for name in self.config.targets]
 
     def train_step(self, train_true_energy, train_event_length):
@@ -70,18 +70,11 @@ class Saver:
             str(file_name),
             compression='gzip'
         )
-        comparison_df = comparison_df[self.pandas_column_names]
-        comparison_df_new_columns = ['event']
-        comparison_df_new_columns += ['own_' + name.replace('true_', '') for name in comparison_df.columns[1:]]
-        comparison_df.columns = comparison_df_new_columns
-        comparison_df.event = comparison_df.event.astype(int)
-        file_name = self.files_and_dirs['run_root'].joinpath(
-            'prediction_dataframe_parquet_for_db.gzip'
-        )
-        comparison_df.to_parquet(
-            str(file_name),
-            compression='gzip'
-        )
+        self.prediction_df = comparison_df[self.pandas_column_names]
+        prediction_df_new_columns = ['event', 'true_primary_energy', 'event_length']
+        prediction_df_new_columns += ['predicted_' + name.replace('own_', '') for name in self.prediction_df.columns[3:]]
+        self.prediction_df.columns = prediction_df_new_columns
+        self.prediction_df.event = self.prediction_df.event.astype(int)
         if self.config.save_train_dists:
             train_dists_dict = {}
             train_dists_dict['train_true_energy'] = self.train_true_energy
@@ -95,6 +88,34 @@ class Saver:
                 compression='gzip'
             )
         self.data = {name: [] for name in self.column_names}
+
+    def on_comparison_end(self, error_df):
+        combined_prediction_and_comparison_df = self.prediction_df.merge(error_df, on='event')
+        combined_prediction_and_comparison_df['true_primary_energy_bin'] = pd.cut(
+            combined_prediction_and_comparison_df.true_primary_energy,
+            24
+        )
+        combined_prediction_and_comparison_df['event_length_bin'] = pd.cut(
+            combined_prediction_and_comparison_df.event_length,
+            20
+        )
+        energy_bin_mids = combined_prediction_and_comparison_df['true_primary_energy_bin'].apply(lambda x: x.mid)
+        combined_prediction_and_comparison_df['true_primary_energy_bin_mid'] = energy_bin_mids
+        energy_bin_widths = combined_prediction_and_comparison_df['true_primary_energy_bin'].apply(lambda x: x.length / 2)
+        combined_prediction_and_comparison_df['true_primary_energy_bin_width'] = energy_bin_widths
+        dom_bin_mids = combined_prediction_and_comparison_df['event_length_bin'].apply(lambda x: x.mid)
+        combined_prediction_and_comparison_df['event_length_bin_mid'] = dom_bin_mids
+        dom_bin_widths = combined_prediction_and_comparison_df['event_length_bin'].apply(lambda x: x.length / 2)
+        combined_prediction_and_comparison_df['event_length_bin_width'] = dom_bin_widths
+        combined_prediction_and_comparison_df['true_primary_energy_bin'] = combined_prediction_and_comparison_df['true_primary_energy_bin'].astype(str)
+        combined_prediction_and_comparison_df['event_length_bin'] = combined_prediction_and_comparison_df['event_length_bin'].astype(str)
+        file_name = self.files_and_dirs['run_root'].joinpath(
+            'run_dataframe.gzip'
+        )
+        combined_prediction_and_comparison_df.to_parquet(
+            str(file_name),
+            compression='gzip'
+        )
 
     def early_stopping(self, epoch, epoch_val_loss, model_state_dict, optimizer_state_dict):
         epoch_val_loss = round(epoch_val_loss.item(), 3)

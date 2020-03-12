@@ -7,11 +7,12 @@ from src.modules.calculate_and_plot import calculate_and_plot
 
 
 class ResolutionComparison():
-    def __init__(self, comparison_metrics, files_and_dirs, comparer_config, reporter=None):
+    def __init__(self, comparison_metrics, files_and_dirs, comparer_config, saver, reporter=None):
         super().__init__()
         self.comparison_metrics = comparison_metrics
         self.files_and_dirs = files_and_dirs
         self.comparer_config = comparer_config
+        self.saver = saver
         self.reporter = reporter
 
         self.data = {}
@@ -216,11 +217,25 @@ class ResolutionComparison():
         self.calculate_errors(matched_metrics)
         error_df = pd.DataFrame().from_dict(self.data)
         # print('{}: Saving errors file'.format(get_time()))
+        common_columns = ['file_number']
+        common_columns_renamed = ['event']
+        own_error_columns = ['own_' + metric + '_error' for metric in self.comparison_metrics]
+        opponent_error_columns = ['opponent_' + metric + '_error' for metric in self.comparison_metrics]
+        own_error_renamed_columns = [metric.replace('own_', 'predicted_') for metric in own_error_columns]
+        own_error_df = error_df[common_columns + own_error_columns + opponent_error_columns]
+        own_error_df.columns = common_columns_renamed + own_error_renamed_columns + opponent_error_columns
+        own_error_df.event = own_error_df.event.astype(int)
+        file_name = self.files_and_dirs['run_root'].joinpath('own_error_dataframe_parquet.gzip')
+        own_error_df.to_parquet(
+            str(file_name),
+            compression='gzip'
+        )
         file_name = self.files_and_dirs['run_root'].joinpath('error_dataframe_parquet.gzip')
         error_df.to_parquet(
             str(file_name),
             compression='gzip'
         )
+        self.saver.on_comparison_end(own_error_df)
         # print('{}: Starting calculate_and_plot'.format(get_time()))
         calculate_and_plot(
             self.files_and_dirs,

@@ -90,7 +90,7 @@ def main():
         'use_train_dists': True,
         'only_use_metrics': None,
         'legends': True,
-        'use_own': True,
+        'use_own': False,
         'reso_hists': False,
         'wandb': config.wandb
     }
@@ -98,7 +98,7 @@ def main():
     loss = torch.nn.MSELoss()
     reporter = Reporter(config, wandb, client, experiment_name)
     saver = Saver(config, wandb, files_and_dirs)
-    comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, reporter)
+    comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, saver, reporter)
 
     Model = getattr(importlib.import_module('src.modules.' + config.model), 'Model')
 
