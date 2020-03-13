@@ -15,6 +15,7 @@ dependencies:
     # - scikit-learn">=0.22, <=0.22"
     - psutil
     - plotly
+    - pytables
     - pip:
         - bunch
         - coolname
