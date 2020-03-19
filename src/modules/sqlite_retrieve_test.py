@@ -1,114 +1,57 @@
 from pathlib import Path
 from datetime import datetime
-import pickle
 import numpy as np
 import pandas as pd
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import Column, Integer, String, Float, Index, select
-from sqlalchemy.ext.declarative import declarative_base
+import sqlite3
+import pickle
+from multiprocessing import Pool, cpu_count
+from itertools import product
 
-Base = declarative_base()
-
-
-class Sequential(Base):
-    __tablename__ = 'sequential'
-    row = Column(Integer, primary_key=True, autoincrement=True, nullable=False)
-    event = Column(Integer)
-    pulse = Column(Integer, nullable=False)
-    dom_key = Column(String, nullable=False)
-    dom_x = Column(Float, nullable=False)
-    dom_y = Column(Float, nullable=False)
-    dom_z = Column(Float, nullable=False)
-    dom_charge = Column(Float, nullable=False)
-    dom_time = Column(Integer, nullable=False)
-    dom_lc = Column(Integer, nullable=False)
-    dom_atwd = Column(Integer, nullable=False)
-    dom_fadc = Column(Integer, nullable=False)
-    dom_pulse_width = Column(Integer, nullable=False)
-    SplitInIcePulses = Column(Integer, nullable=False)
-    SRTInIcePulses = Column(Integer, nullable=False)
+sql_path = Path('/mnt/c/Users/MadsEhrhorn/Downloads/')
+sql_file = sql_path.joinpath('train_set.db')
+masks_path = Path().home().joinpath('masks')
+masks_file = masks_path.joinpath('muon_neutrino.pickle')
+with open(str(masks_file), 'rb') as f:
+    mask = pickle.load(f)
 
 
-class Scalar(Base):
-    __tablename__ = 'scalar'
-    event = Column(Integer, primary_key=True, nullable=False)
-    dom_timelength_fwhm = Column(Float, nullable=False)
-    true_primary_direction_x = Column(Float, nullable=False)
-    true_primary_direction_y = Column(Float, nullable=False)
-    true_primary_direction_z = Column(Float, nullable=False)
-    true_primary_position_x = Column(Float, nullable=False)
-    true_primary_position_y = Column(Float, nullable=False)
-    true_primary_position_z = Column(Float, nullable=False)
-    true_primary_speed = Column(Float, nullable=False)
-    true_primary_time = Column(Float, nullable=False)
-    true_primary_energy = Column(Float, nullable=False)
-    linefit_direction_x = Column(Float, nullable=False)
-    linefit_direction_y = Column(Float, nullable=False)
-    linefit_direction_z = Column(Float, nullable=False)
-    linefit_point_on_line_x = Column(Float, nullable=False)
-    linefit_point_on_line_y = Column(Float, nullable=False)
-    linefit_point_on_line_z = Column(Float, nullable=False)
-    toi_direction_x = Column(Float, nullable=False)
-    toi_direction_y = Column(Float, nullable=False)
-    toi_direction_z = Column(Float, nullable=False)
-    toi_point_on_line_x = Column(Float, nullable=False)
-    toi_point_on_line_y = Column(Float, nullable=False)
-    toi_point_on_line_z = Column(Float, nullable=False)
-    toi_evalratio = Column(Float, nullable=False)
-    retro_crs_prefit_x = Column(Float, nullable=False)
-    retro_crs_prefit_y = Column(Float, nullable=False)
-    retro_crs_prefit_z = Column(Float, nullable=False)
-    retro_crs_prefit_azimuth = Column(Float, nullable=False)
-    retro_crs_prefit_zenith = Column(Float, nullable=False)
-    retro_crs_prefit_time = Column(Float, nullable=False)
-    retro_crs_prefit_energy = Column(Float, nullable=False)
-    dom_n_hit_multiple_doms = Column(Integer, nullable=False)
-    secondary_track_length = Column(Float, nullable=True)
-
-
-class Meta(Base):
-    __tablename__ = 'meta'
-    event = Column(Integer, primary_key=True, nullable=False)
-    file = Column(String, nullable=False)
-    idx = Column(Integer, nullable=False)
-    particle_code = Column(Integer, nullable=False)
-    level = Column(Integer, nullable=False)
-    split_in_ice_pulses_event_length = Column(Integer, nullable=False)
-    srt_in_ice_pulses_event_length = Column(Integer, nullable=False)
-
-
-SQLITE_PATH = Path('/mnt/c/Users/MadsEhrhorn/Downloads/')
-SQLITE_FILE = SQLITE_PATH.joinpath('test_set_test.db')
-
-engine = create_engine('sqlite:///' + str(SQLITE_FILE), echo=False)
-connection = engine.connect()
-Session = sessionmaker(bind=connection)
-session = Session()
-
-event_nos = session.query(Meta.event).all()
-print(len(event_nos))
-for i in range(0, 1024, 64):
-    events = ()
-    temp_events = event_nos[i:i + 64]
-    for j in range(len(temp_events)):
-        events += temp_events[j]
+def get_training_batch(event_nos):
     start = datetime.now()
-    query = session.query(
-        Sequential.dom_x,
-        Sequential.dom_y,
-        Sequential.dom_z,
-        Sequential.dom_charge,
-        Sequential.dom_time,
-        Sequential.pulse,
-        Sequential.event
-    ).filter(Sequential.event.in_(events))
-    query_string = str(query.statement.compile(compile_kwargs={'literal_binds': True}))
-    test_df = pd.read_sql(query_string, connection)
-    # results = query.all()
+    con = sqlite3.connect(sql_file)
+    cur = con.cursor()
+    # query = 'SELECT * FROM sequential WHERE event IN ({})'.format(', '.join(['?' for _ in event_nos]))
+    query = 'SELECT * FROM sequential WHERE event IN ({seq})'.format(seq=','.join(['?'] * len(event_nos)))
+    cur.execute(query, event_nos)
+    fetched_sequential = cur.fetchall()
+    # fetched_sequential = pd.read_sql(query, con, params=[*event_nos])
+    # query = 'SELECT * FROM scalar WHERE event IN ({})'.format(', '.join(['?' for _ in event_nos]))
+    # fetched_scalar = pd.read_sql(query, con, params=[*event_nos])
+    con.close()
     end = datetime.now()
-    time_delta = (end - start).total_seconds()
-    print('Fetch {} event(s) took {} seconds'.format(len(events), time_delta))
-print(test_df.head())
-print(len(test_df))
-session.close()
+    delta_time = (end - start).total_seconds()
+    return delta_time
+
+
+if __name__ == '__main__':
+    batch_size = 64
+    total_time = []
+    total_events = []
+    event_predictions = []
+    events = []
+    pool = Pool(processes=(4))
+
+    for i in range(0, 7280448, batch_size):
+        events.append(mask[i:i + batch_size])
+
+    events = events[0:1024]
+
+    start = datetime.now()
+    pool.map(get_training_batch, events)
+    pool.close()
+    pool.join()
+    end = datetime.now()
+    delta_time = round((end - start).total_seconds(), 2)
+
+no_of_events = len(events) * batch_size
+batches_per_second = int(no_of_events / delta_time)
+print('Grabbed {} events, {} events per second. Script took {} seconds'.format(no_of_events, batches_per_second, delta_time))
