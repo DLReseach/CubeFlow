@@ -104,8 +104,5 @@ class PickleDataset(torch.utils.data.Dataset):
             X[i, insert_point:insert_point + event_length, :] = sequential
             y[i, :] = scalar
         X = np.transpose(X, axes=[0, 2, 1])
-        comparisons = np.array(comparisons).reshape(self.batch_size, len(self.config.comparison_metrics))
-        energies = np.array(energies).reshape(self.batch_size, -1)
-        lengths = np.array(lengths).reshape(self.batch_size, -1)
         events = np.array(events).reshape(self.batch_size, -1)
-        return X, y, comparisons, energies, lengths, events
+        return X, y, events
