@@ -134,6 +134,8 @@ st.plotly_chart(fig, use_container_width=True)
 
 st.markdown('## Random event from bin')
 
+st.write(comparison['predicted_primary_energy'])
+
 df = pd.DataFrame(
     [
         [

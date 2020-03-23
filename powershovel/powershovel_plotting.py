@@ -12,6 +12,10 @@ def y_axis_print(metric):
         y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (ns)'
     elif metric == 'x' or metric == 'y' or metric == 'z':
         y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (m)'
+    elif metric == 'angle':
+        y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (rad)'
+    elif metric == 'vertex':
+        y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (rad)'
     return y_axis_text
 
 
