@@ -47,7 +47,7 @@ class Inferer:
         predictions.to_parquet(file_name, engine='fastparquet')
 
     def on_test_step(self, y, y_hat, events):
-        self.data['events'].extend(events)
+        self.data['event'].extend(events)
         for i, target in enumerate(self.config.targets):
             self.predictions[target.replace('true', 'own')].extend(y_hat[:, i])
             self.truths[target].extend(y[:, i])
