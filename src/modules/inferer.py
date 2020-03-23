@@ -33,6 +33,7 @@ class Inferer:
         self.model.eval()
         with torch.no_grad():
             for i, batch in enumerate(self.dataloader):
+                print(batch)
                 x = batch[0].to(self.device).float()
                 y = batch[1].to(self.device).float()
                 y_hat = self.model.forward(x)

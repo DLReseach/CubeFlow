@@ -46,6 +46,7 @@ class PickleDataset(torch.utils.data.Dataset):
         # Retrieve batch from events list
         batch_events = self.events[index]
         X, y, events = self._coerce_batch(batch_events)
+        print(X)
         return X, y, events
 
     def _get_from_pickle(self, events):
