@@ -20,6 +20,8 @@ class Inferer:
         self.device = torch.device('cuda:' + gpu if torch.cuda.is_available() else 'cpu')        
         self.model.to(self.device)
 
+        torch.multiprocessing.set_sharing_strategy('file_system')
+
         self.data = {'event': []}
         self.predictions = {target.replace('true', 'own'): [] for target in self.config.targets}
         self.truths = {target: [] for target in self.config.targets}
