@@ -1,0 +1,22 @@
+name: cubeflow
+channels:
+    - anaconda
+    - pytorch
+dependencies:
+    - python
+    - pip
+    - pytorch
+    - torchvision
+    - numpy
+    - pandas
+    - psutil
+    - plotly
+    - pytables
+    - pip:
+        - bunch
+        - coolname
+        - streamlit
+        - matplotlib
+        - wandb
+        - slackclient
+        - fastparquet

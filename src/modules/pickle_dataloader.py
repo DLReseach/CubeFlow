@@ -45,16 +45,14 @@ class PickleDataset(torch.utils.data.Dataset):
         '''
         # Retrieve batch from events list
         batch_events = self.events[index]
-        X, y, comparisons, energies, lengths, events = self._coerce_batch(batch_events)
-        return X, y, comparisons, energies, lengths, events
+        X, y, events = self._coerce_batch(batch_events)
+        return X, y, events
 
     def _get_from_pickle(self, events):
         sequentials = []
         scalars = []
-        comparisons = []
         lengths = []
         masks = []
-        energies = []
         for event in events:
             sub_folder = str(int(event // 10000 % 9999))
             file = Path(self.config.gpulab_data_dir).joinpath(self.config.data_type).joinpath('pickles').joinpath(sub_folder).joinpath(str(event) + '.pickle')
@@ -66,7 +64,6 @@ class PickleDataset(torch.utils.data.Dataset):
             lengths.append(event_length)
             event_sequential = np.zeros((event_length, len(self.config.features)))
             event_scalar = np.zeros((1, len(self.config.targets)))
-            event_comparison = np.zeros((1, len(self.config.comparison_metrics)))
             for i, feature in enumerate(self.config.features):
                 try:
                     event_sequential[:, i] = loaded_file[self.config.transform][feature][event_mask]
@@ -77,17 +74,9 @@ class PickleDataset(torch.utils.data.Dataset):
                     event_scalar[:, i] = loaded_file[self.config.transform][target]
                 except:
                     event_scalar[:, i] = loaded_file['raw'][target]
-            for i, comparison in enumerate(self.config.comparison_metrics):
-                try:
-                    event_comparison[:, i] = loaded_file[self.config.transform][self.config.opponent + '_' + comparison]
-                except:
-                    event_comparison[:, i] = loaded_file['raw'][self.config.opponent + '_' + comparison]
-            event_energy = loaded_file['raw']['true_primary_energy']
             sequentials.append(event_sequential)
             scalars.append(event_scalar)
-            comparisons.append(event_comparison)
-            energies.append(event_energy)
-        return sequentials, scalars, comparisons, lengths, energies, masks
+        return sequentials, scalars, lengths, masks
 
     def _coerce_batch(self, events):
         '''Retrieve events from a SQLite database and coerce + pad them.
@@ -102,7 +91,7 @@ class PickleDataset(torch.utils.data.Dataset):
                     z (numpy.ndarray): Event numbers and rows used for testing.
         '''
         # Get the rows from the database
-        sequentials, scalars, comparisons, lengths, energies, masks = self._get_from_pickle(events)
+        sequentials, scalars, lengths, masks = self._get_from_pickle(events)
         # Length of longest event, used for padding
         # max_length = max(lengths)
         max_length = 200
