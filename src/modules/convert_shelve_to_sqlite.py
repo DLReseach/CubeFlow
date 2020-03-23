@@ -79,8 +79,8 @@ C = CONN.cursor()
 CREATE_SEQ_TABLE_QUERY = '''
 CREATE TABLE sequential (
     row INTEGER PRIMARY KEY,
-    event_no INTEGER NOT NULL,
-    pulse_no INTEGER NOT NULL,
+    event INTEGER NOT NULL,
+    pulse INTEGER NOT NULL,
     dom_key TEXT NOT NULL,
     dom_x REAL NOT NULL,
     dom_y REAL NOT NULL,
@@ -97,7 +97,7 @@ CREATE TABLE sequential (
 '''
 CREATE_SCALAR_TABLE_QUERY = '''
 CREATE TABLE scalar (
-    event_no INTEGER PRIMARY KEY,
+    event INTEGER PRIMARY KEY,
     dom_timelength_fwhm REAL,
     true_primary_direction_x REAL,
     true_primary_direction_y REAL,
@@ -133,7 +133,7 @@ CREATE TABLE scalar (
 '''
 CREATE_META_TABLE_QUERY = '''
 CREATE TABLE meta (
-    event_no INTEGER PRIMARY KEY,
+    event INTEGER PRIMARY KEY,
     file TEXT,
     idx INTEGER,
     particle_code INTEGER,
@@ -143,16 +143,9 @@ CREATE TABLE meta (
 );
 '''
 
-# C.execute('''CREATE TABLE sequential
-#              {}'''.format(tuple(['event_no', 'pulse_no'] + SEQ_STRING_KEYS + SEQ_FLOAT_KEYS + SEQ_INT_KEYS + MASK_KEYS)))
-# C.execute('''CREATE TABLE scalar
-#              {}'''.format(tuple(['event_no'] + SCALAR_FLOAT_KEYS + SCALAR_INT_KEYS + SCALAR_STRING_KEYS)))
-# C.execute('''CREATE TABLE meta
-#              {}'''.format(tuple(['event_no'] + META_KEYS + ['split_in_ice_pulses_event_length', 'srt_in_ice_pulses_event_length'])))
 C.execute(CREATE_SEQ_TABLE_QUERY)
 C.execute(CREATE_SCALAR_TABLE_QUERY)
 C.execute(CREATE_META_TABLE_QUERY)
-# C.execute('''CREATE TABLE blah (id, data)''')
 
 row = 0
 
@@ -160,13 +153,6 @@ with shelve.open(str(SHELVE_PATH) + '/train_set', 'r') as f:
     print('{}: starting conversion'.format(datetime.now().time().strftime('%H:%M:%S')))
     keys = list(f.keys())
     for i, event_no in enumerate(keys):
-        # event = f[event_no]
-        # for key in event:
-        #     for attribute in event[key]:
-        #         print(type(event[key][attribute]))
-        #         if isinstance(event[key][attribute], np.ndarray):
-        #             event[key][attribute] = event[key][attribute].tolist()
-        # C.execute('insert into countries values (?, ?)', [event_no, json.dumps(f[event_no])])
         event_raw = f[event_no]['raw']
         event_length = len(event_raw['dom_x'])
         event_masks = f[event_no]['masks']
@@ -222,11 +208,9 @@ with shelve.open(str(SHELVE_PATH) + '/train_set', 'r') as f:
         if i % 10000 == 0 and i > 0:
             CONN.commit()
             print('{}: handled {} events'.format(datetime.now().time().strftime('%H:%M:%S'), i))
-        # if i == 1000:
-        #     break
-C.execute('''CREATE INDEX sequential_idx ON sequential(event_no)''')
-C.execute('''CREATE UNIQUE INDEX scalar_idx ON scalar(event_no)''')
-C.execute('''CREATE UNIQUE INDEX meta_idx ON meta(event_no)''')
+C.execute('''CREATE INDEX sequential_idx ON sequential(event)''')
+C.execute('''CREATE UNIQUE INDEX scalar_idx ON scalar(event)''')
+C.execute('''CREATE UNIQUE INDEX meta_idx ON meta(event)''')
 CONN.commit()
 CONN.close()
 print('{}: Done!'.format(datetime.now().time().strftime('%H:%M:%S')))

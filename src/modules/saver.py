@@ -1,5 +1,6 @@
 import torch
 from datetime import datetime
+import numpy as np
 import pandas as pd
 
 from src.modules.utils import get_time
@@ -34,6 +35,8 @@ class Saver:
         self.pandas_column_names = ['file_number', 'energy', 'event_length']
         self.pandas_column_names += ['own_' + name.replace('true_', '') for name in self.config.targets]
 
+        self.epoch = 0
+
     def train_step(self, train_true_energy, train_event_length):
         if self.config.save_train_dists:
             self.train_true_energy.extend(train_true_energy.tolist())
@@ -50,10 +53,10 @@ class Saver:
         file_number
     ):
         values = [
-            list(file_number),
-            energy.tolist(),
-            event_length.tolist(),
-            *[comparison.tolist() for comparison in comparisons],
+            np.ravel(file_number.tolist()),
+            np.ravel(energy.tolist()),
+            np.ravel(event_length.tolist()),
+            *[comparisons[:, i].tolist() for i in range(comparisons.size(1))],
             *[y_hat[:, i].tolist() for i in range(y_hat.size(1))],
             *[y[:, i].tolist() for i in range(y.size(1))]
         ]
@@ -74,8 +77,7 @@ class Saver:
         prediction_df_new_columns = ['event', 'true_primary_energy', 'event_length']
         prediction_df_new_columns += ['predicted_' + name.replace('own_', '') for name in self.prediction_df.columns[3:]]
         self.prediction_df.columns = prediction_df_new_columns
-        self.prediction_df.event = self.prediction_df.event.astype(int)
-        if self.config.save_train_dists:
+        if self.config.save_train_dists and self.epoch == 0:
             train_dists_dict = {}
             train_dists_dict['train_true_energy'] = self.train_true_energy
             train_dists_dict['train_event_length'] = self.train_event_length
@@ -87,6 +89,7 @@ class Saver:
                 str(train_dists_file_name),
                 compression='gzip'
             )
+        self.epoch += 1
         self.data = {name: [] for name in self.column_names}
 
     def on_comparison_end(self, error_df):

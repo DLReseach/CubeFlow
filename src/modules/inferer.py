@@ -24,20 +24,19 @@ class Inferer:
     def infer(self, model_path):
         loss = []
         self.create_dataloader()
-        self.dataset.shuffle()
-        dl_iter = iter(self.dataloader)
         state_dict = torch.load(model_path)
         self.model.load_state_dict(state_dict['model_state_dict'])
         self.optimizer.load_state_dict(state_dict['optimizer_state_dict'])
         self.model.eval()
         with torch.no_grad():
-            for i in range(len(self.dataloader)):
-                x, y, comparisons, energy, event_length, file_number = next(dl_iter)
-                x = x.to(self.device)
-                y = y.to(self.device)
+            for i, batch in enumerate(self.dataloader):
+                x = batch[0].to(self.device).float()
+                y = batch[1].to(self.device).float()
                 y_hat = self.model.forward(x)
                 loss.append(self.loss(y_hat, y))
-                self.saver.on_val_step(x, y, y_hat, comparisons, energy, event_length, file_number)
+                self.saver.on_val_step(x, y, y_hat, batch[2], batch[3], batch[4], batch[5])
+                # if i == 0:
+                #     break
         self.saver.on_val_end()
         avg_loss = torch.stack(loss).mean()
         return avg_loss
@@ -45,8 +44,7 @@ class Inferer:
     def create_dataloader(self):
         self.dataloader = torch.utils.data.DataLoader(
             self.dataset,
-            batch_size=1024,
+            batch_size=None,
             num_workers=4,
-            drop_last=True,
             shuffle=False
         )

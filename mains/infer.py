@@ -35,7 +35,6 @@ warnings.filterwarnings(
 slack_token = os.environ["SLACK_API_TOKEN"]
 client = slack.WebClient(token=slack_token)
 
-
 def main():
     # capture the config path from the run arguments
     # then process the json configuration file
@@ -46,18 +45,7 @@ def main():
         print('missing or invalid arguments')
         exit(0)
 
-    experiment_name = create_experiment_name(config, slug_length=2)
-
-    if config.wandb and config.exp_name != 'lr_finder':
-        wandb.init(
-                project='cubeflow',
-                name=experiment_name
-            )
-
-    if config.dev_run:
-        config.train_fraction = 0.01
-        config.val_fraction = 0.01
-        config.test_fraction = 0.01
+    experiment_name = 'ingeniouslively-vulture'
 
     files_and_dirs = get_files_and_dirs(config, experiment_name)
     mask_and_split = MaskAndSplit(config, files_and_dirs)
@@ -86,12 +74,12 @@ def main():
         'legends': True,
         'use_own': False,
         'reso_hists': False,
-        'wandb': config.wandb
+        'wandb': None
     }
 
     loss = torch.nn.MSELoss()
-    reporter = Reporter(config, wandb, client, experiment_name)
-    saver = Saver(config, wandb, files_and_dirs)
+    reporter = Reporter(config, None, client, experiment_name)
+    saver = Saver(config, None, files_and_dirs)
     comparer = ResolutionComparison(config.comparison_metrics, files_and_dirs, comparer_config, saver, reporter)
 
     Model = getattr(importlib.import_module('src.modules.' + config.model), 'Model')
@@ -102,8 +90,8 @@ def main():
 
     inferer = Inferer(model, optimizer, loss, test_dataset, saver, config)
 
-    if config.wandb:
-        wandb.watch(model, log='gradients')
+    # if config.wandb:
+    #     wandb.watch(model, log='gradients')
 
     if config.gpulab:
         gpus = config.gpulab_gpus
@@ -124,25 +112,25 @@ def main():
             use_amp = False
             distributed_backend = None
 
-    trainer = Trainer(
-        config,
-        model,
-        optimizer,
-        loss,
-        reporter,
-        saver,
-        inferer,
-        train_dataset,
-        val_dataset
-    )
+    # trainer = Trainer(
+    #     config,
+    #     model,
+    #     optimizer,
+    #     loss,
+    #     reporter,
+    #     saver,
+    #     inferer,
+    #     train_dataset,
+    #     val_dataset
+    # )
 
-    trainer.fit()
+    # trainer.fit()
 
-    if config.wandb:
-        comp_df = files_and_dirs['run_root'].joinpath(
-            'comparison_dataframe_parquet.gzip'
-        )
-        wandb.save(str(comp_df))
+    # if config.wandb:
+    #     comp_df = files_and_dirs['run_root'].joinpath(
+    #         'comparison_dataframe_parquet.gzip'
+    #     )
+    #     wandb.save(str(comp_df))
 
     model_path = files_and_dirs['run_root'].joinpath('model.pt')
 

@@ -74,7 +74,12 @@ class PickleGenerator(torch.utils.data.Dataset):
                 feature,
                 self.config.transform
             )
-            X[0:event_length, i] = loaded_file[transform][feature][event_mask]
+            # X[0:event_length, i] = loaded_file[transform][feature][event_mask]
+            temp = loaded_file[transform][feature][event_mask]
+            if i == 0:
+                event_length = temp.shape[0]
+                insert_point = int(np.floor((max_doms - event_length) / 2))
+            X[insert_point:insert_point + event_length, i] = loaded_file[transform][feature][event_mask]
         for i, target in enumerate(self.config.targets):
             transform = self.check_entry_in_transform(
                 loaded_file,
@@ -117,7 +122,14 @@ class PickleGenerator(torch.utils.data.Dataset):
                 feature,
                 self.config.transform
             )
-            X[0:event_length, i] = loaded_event[transform][feature][event_mask]
+            # X[0:event_length, i] = loaded_event[transform][feature][event_mask]
+            temp = loaded_event[transform][feature][event_mask]
+            if i == 0:
+                event_length = temp.shape[0]
+                insert_point = np.floor((max_doms - event_length) / 2)
+            X[insert_point:, i] = loaded_event[transform][feature][event_mask]
+        print(X)
+        print(X.shape)
         for i, target in enumerate(self.config.targets):
             transform = self.check_entry_in_transform(
                 loaded_event,
