@@ -30,3 +30,4 @@ mains/downloads
 *.out
 *.hdf5
 .anaconda
+.DS_Store

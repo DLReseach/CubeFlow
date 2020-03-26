@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
-import bootstrapped.bootstrap as bs
-import bootstrapped.stats_functions as bs_stats
+
 
 class PerformanceData():
     def __init__(self, metrics, df, bins, bin_type, percentiles, use_own):

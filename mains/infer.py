@@ -1,72 +1,77 @@
 import os
 import torch
-# from torch.utils.data import DataLoader
-# from pytorch_lightning import Trainer
-# from pytorch_lightning.callbacks import EarlyStopping
-import wandb as wandb
-import matplotlib.cbook
-import warnings
-from argparse import Namespace
-import slack
-import numpy as np
 import importlib
-# from torch_lr_finder import LRFinder
+from pathlib import Path
+import argparse
 
-# from src.modules.cnn_conv1d import CnnSystemConv1d
-from src.modules.config import process_config
-from src.modules.utils import get_args
-from src.modules.utils import create_experiment_name
-from src.modules.utils import get_files_and_dirs
+from src.modules.utils import get_dirs_and_config
 from src.modules.utils import get_time
 from src.modules.mask_and_split import MaskAndSplit
-from src.modules.reporter import Reporter
-from src.modules.saver import Saver
-from src.modules.resolution_comparison import ResolutionComparison
-from src.modules.pickle_dataloader import PickleDataset
-from src.modules.losses import logcosh_loss
-from src.modules.trainer import Trainer
 from src.modules.inferer import Inferer
+from src.modules.transform_inverter import DomChargeScaler
+from src.modules.transform_inverter import EnergyNoLogTransformer
+from src.modules.truth_saver import TruthSaver
+from src.modules.error_calculator import ErrorCalculator
 
-warnings.filterwarnings(
-    'ignore',
-    category=matplotlib.cbook.mplDeprecation
-)
 
 def main():
-    try:
-        args = get_args()
-        config = process_config(args.config)
-    except Exception:
-        print('missing or invalid arguments')
-        exit(0)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-r', '--run', help='run name')
+    args = parser.parse_args()
+    experiment_name = args.run
 
-    experiment_name = 'pompous-puma'
+    test_set_transformed_path = Path().home().joinpath('CubeFlowData').joinpath('dbs').joinpath('test_transformed.db')
 
-    files_and_dirs = get_files_and_dirs(config, experiment_name)
-    mask_and_split = MaskAndSplit(config, files_and_dirs)
+    dirs, config, first_run = get_dirs_and_config(experiment_name)
+
+    errors_db_path = dirs['dbs'].joinpath('errors.db')
+    predictions_db_path = dirs['dbs'].joinpath('predictions.db')
+
+    mask_and_split = MaskAndSplit(config, dirs, ['test'])
     sets = mask_and_split.split()
 
-    test_dataset = PickleDataset(
+    config['val_batch_size'] = 2000
+
+    if 'dataloader' not in config:
+        Dl = getattr(importlib.import_module('src.modules.' + 'sql_dataloader_middle_pad'), 'Dataloader')
+    else:
+        Dl = getattr(importlib.import_module('src.modules.' + config['dataloader']), 'Dataloader')
+
+    if 'SRTInIcePulses' in '-'.join(config['masks']):
+        config['cleaning'] = 'SRTInIcePulses'
+        config['cleaning_length'] = 'srt_in_ice_pulses_event_length'
+    elif 'SplitInIcePulses' in '-'.join(config['masks']):
+        config['cleaning'] = 'SplitInIcePulses'
+        config['cleaning_length'] = 'split_in_ice_pulses_event_length'
+
+    # sets['test'] = sets['test'][0:20000]
+
+    dataset = Dl(
         sets['test'],
         config,
-        'test'
-    ) 
+        test_set_transformed_path,
+        test=True
+    )
+
+    events = [item for sublist in dataset.events for item in sublist]
+
+    if first_run:
+        print('{}: First run with these masks; saving truth and retro_crs_prefit to prediction db'.format(get_time()))
+        TruthSaver(config, dirs, events)
 
     loss = torch.nn.MSELoss()
-
-    Model = getattr(importlib.import_module('src.modules.' + config.model), 'Model')
-
+    Model = getattr(importlib.import_module('src.modules.' + config['model']), 'Model')
     model = Model()
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['min_learning_rate'])
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.min_learning_rate)
-
-    inferer = Inferer(model, optimizer, loss, test_dataset, config)
-
-    model_path = files_and_dirs['run_root'].joinpath('model.pt')
+    inferer = Inferer(model, optimizer, loss, dataset, config, experiment_name, dirs)
+    model_path = dirs['run'].joinpath('model.pt')
 
     print('{}: Beginning inference'.format(get_time()))
+    inferer.infer(model_path, dirs['run'])
 
-    inferer.infer(model_path, files_and_dirs['run_root'])
+    print('{}: Beginning error calculation'.format(get_time()))
+    ErrorCalculator(experiment_name, first_run, dirs)
 
     print('{}: Script done!'.format(get_time()))
 

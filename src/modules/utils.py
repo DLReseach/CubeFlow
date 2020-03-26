@@ -1,21 +1,8 @@
-import argparse
 from pathlib import Path
 import time
 import datetime
 from coolname import generate_slug
-import numpy as np
-import h5py as h5
-
-
-def get_args():
-    argparser = argparse.ArgumentParser(description=__doc__)
-    argparser.add_argument(
-        '-c', '--config',
-        metavar='C',
-        default='None',
-        help='The Configuration file')
-    args = argparser.parse_args()
-    return args
+import json
 
 
 def get_project_root() -> Path:
@@ -35,70 +22,33 @@ def get_date_and_time():
     return st
 
 
-def print_data_set_sizes(
-    config,
-    train_generator,
-    validation_generator,
-    test_generator
-):
-    print(
-        'We have around {} training events'.format(
-            len(train_generator) * config.batch_size
-        )
-    )
-    print(
-        'We have around {} validation events'.format(
-            len(validation_generator) * config.batch_size
-        )
-    )
-    print(
-        'We have around {} test events'.format(
-            len(test_generator) * config.batch_size
-        )
-    )
-
-
-def create_experiment_name(config, slug_length):
+def create_experiment_name(slug_length):
     cool_name = generate_slug(2)
     # today = str(datetime.date.today())
     # experiment_name = config.exp_name + '_' + today + '.' + cool_name
     return cool_name
 
 
-def set_random_seed():
-    np.random.seed(int(time.time()))
-
-
-def h5_groups_reader(data_file, group):
-    with h5.File(data_file, 'r') as f:
-        groups = list(f[group].keys())
-    return groups
-
-
-def h5_data_reader(data_file, group, idx):
-    with h5.File(data_file, 'r') as f:
-        if idx == 'all':
-            data = f[group][:]
-        else:
-            data = f[group][idx]
-    return data
-
-
-def get_files_and_dirs(config, experiment_name):
+def get_dirs_and_config(experiment_name, train):
     files_and_dirs = {}
-    if config.gpulab:
-        files_and_dirs['data_dir'] = Path(config.gpulab_data_dir).joinpath(config.data_type).joinpath('pickles')
-        files_and_dirs['transformer_dir'] = Path(config.gpulab_data_dir).joinpath(config.data_type).joinpath('transformers')
-        files_and_dirs['masks_dir'] = Path(config.gpulab_data_dir).joinpath(config.data_type).joinpath('masks')
+    data_path = Path().home().joinpath('CubeFlowData')
+    files_and_dirs['transformers'] = data_path.joinpath('transformers')
+    files_and_dirs['masks'] = data_path.joinpath('masks')
+    files_and_dirs['run'] = data_path.joinpath('runs').joinpath(experiment_name)
+    files_and_dirs['run'].mkdir(exist_ok=True, parents=True)
+    files_and_dirs['train_distributions'] = data_path.joinpath('train_distributions')
+    files_and_dirs['project'] = get_project_root()
+    if train:
+        with open(files_and_dirs['project'].joinpath('configs').joinpath('config.json'), 'r') as f:
+            config = json.load(f)
     else:
-        dir_in_repo = Path(config.data_dir).joinpath(config.data_type)
-        files_and_dirs['data_dir'] = Path.home().joinpath(dir_in_repo).joinpath('pickles')
-        files_and_dirs['transformer_dir'] = Path.home().joinpath(dir_in_repo).joinpath('transformers')
-        files_and_dirs['masks_dir'] = Path.home().joinpath(dir_in_repo).joinpath('masks')
-    files_and_dirs['project_root'] = get_project_root()
-    files_and_dirs['run_root'] = get_project_root().joinpath('runs').joinpath(experiment_name)
-    files_and_dirs['run_root'].mkdir(exist_ok=True, parents=True)
-    files_and_dirs['python_model_file'] = get_project_root().joinpath('src/modules').joinpath(config.model + '.py')
-    files_and_dirs['train_dists_path'] = get_project_root().joinpath('train_distributions')
-    files_and_dirs['train_dists_path'].mkdir(exist_ok=True)
-    return files_and_dirs
+        with open(files_and_dirs['run'].joinpath('config.json'), 'r') as f:
+            config = json.load(f)
+    mask_name = '-'.join(config['masks'])
+    files_and_dirs['dbs'] = data_path.joinpath('dbs').joinpath(mask_name)
+    if not files_and_dirs['dbs'].is_dir():
+        files_and_dirs['dbs'].mkdir(exist_ok=False)
+        first_run = True
+    else:
+        first_run = False
+    return files_and_dirs, config, first_run

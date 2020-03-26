@@ -1,28 +1,33 @@
 import torch
 import sqlite3
 import numpy as np
+from pathlib import Path
 
 
-class SqlDataset(torch.utils.data.Dataset):
+class Dataloader(torch.utils.data.Dataset):
     '''Dataset fetching from SQLite database.'''
-    def __init__(self, mask, sql_file, features, targets, max_doms, cleaning, batch_size):
+    def __init__(self, mask, config, sql_file, test):
         self.mask = mask
+        self.config = config
         self.sql_file = sql_file
-        self.features = features
-        self.targets = targets
-        self.max_doms = max_doms
-        self.cleaning = cleaning
-        self.batch_size = batch_size
-        self.floor_events = int(len(mask) // batch_size * batch_size)
-        self.no_of_batches = int(len(mask) // batch_size)
+        self.test = test
+
+        if self.test:
+            self.batch_size = config['val_batch_size']
+        else:
+            self.batch_size = config['batch_size']
+
+        self.floor_events = int(len(mask) // self.batch_size * self.batch_size)
+        self.no_of_batches = int(len(mask) // self.batch_size)
+
         # Shuffle events at init
-        self._on_epoch_start()
+        self.on_epoch_start()
 
     def __len__(self):
         '''Standard __len__.'''
         return len(self.events)
 
-    def _on_epoch_start(self):
+    def on_epoch_start(self):
         '''Shuffle events at epoch start.'''
         # Shuffle events list
         np.random.shuffle(self.mask)
@@ -47,11 +52,8 @@ class SqlDataset(torch.utils.data.Dataset):
         '''
         # Retrieve batch from events list
         batch_events = self.events[index]
-        X, y, z = self._coerce_batch(batch_events)
-        # Shuffle events list at last index
-        if index == self.no_of_batches:
-            self._on_epoch_start()
-        return X, y, z
+        X, y, events = self._coerce_batch(batch_events)
+        return X, y, events
 
     def _get_from_sql(self, events):
         '''Retrieve events from a SQLite database.
@@ -69,25 +71,25 @@ class SqlDataset(torch.utils.data.Dataset):
         con = sqlite3.connect(self.sql_file)
         cur = con.cursor()
         # Write query for sequential table and fetch all matching rows
-        query = 'SELECT {features} FROM sequential WHERE event IN ({events})'.format(
-            features=', '.join(self.features + [self.cleaning, 'pulse']),
-            events=', '.join(['?'] * len(events))
+        query = 'SELECT {} FROM sequential WHERE event IN ({})'.format(
+            ', '.join(self.config['features'] + [self.config['cleaning'], 'pulse_no']),
+            ', '.join(str(event) for event in events)
         )
-        cur.execute(query, events)
+        cur.execute(query)
         fetched_sequential = cur.fetchall()
         # Write query for scalar table and fetch all matching rows
-        query = 'SELECT {targets} FROM scalar WHERE event IN ({events})'.format(
-            targets=', '.join(self.targets),
-            events=', '.join(['?'] * len(events))
+        query = 'SELECT {} FROM scalar WHERE event_no IN ({})'.format(
+            ', '.join(self.config['targets']),
+            ', '.join(str(event) for event in events)
         )
-        cur.execute(query, events)
+        cur.execute(query)
         fetched_scalar = cur.fetchall()
         # Write query for meta table and fetch all matching rows
-        query = 'SELECT {cleaning} FROM meta WHERE event IN ({events})'.format(
-            cleaning=self.cleaning,
-            events=', '.join(['?'] * len(events))
+        query = 'SELECT {} FROM meta WHERE event_no IN ({})'.format(
+            self.config['cleaning_length'],
+            ', '.join(str(event) for event in events)
         )
-        cur.execute(query, events)
+        cur.execute(query)
         lengths = cur.fetchall()
         # Close database connection
         con.close()
@@ -108,12 +110,15 @@ class SqlDataset(torch.utils.data.Dataset):
         # Get the rows from the database
         fetched_sequential, fetched_scalar, lengths = self._get_from_sql(events)
         # Length of longest event, used for padding
-        max_length = max(lengths)[0]
+        # max_length = max(lengths)[0]
+        max_length = self.config['max_doms']
         # Preallocation of arrays
-        X = np.zeros((len(events), max_length, len(self.features)))
-        y = np.zeros((len(events), len(self.targets)))
-        # Array for testing (saving to csv)
-        z = np.zeros((len(events), max_length, 3))
+        X = np.zeros((len(events), max_length, len(self.config['features'])))
+        y = np.zeros((len(events), len(self.config['targets'])))
+        # sqlite3 returns events with event number sorted
+        events = sorted(events)
+        # We can use torch convenience functions on Numpy arrays, not lists
+        events = np.array(events)
         # Set counters for coercion
         i = 0
         j = 0
@@ -121,23 +126,17 @@ class SqlDataset(torch.utils.data.Dataset):
             # On the first pulse in a sequence
             if pulse[-1] == 0:
                 event_length = lengths[i][0]
-                # sqlite3 returns events with event number sorted
-                z[i, :, 0] = sorted(events)[i]
-                z[i, :, 1] = np.arange(0, max_length)
                 # Calculate insertion point in final array dimension 1; for start/end padding
                 insert_point = int((max_length - event_length) // 2)
                 i += 1
                 # Row counter
                 j = 0
-                # Pulse counter
-                k = 0
             if pulse[-2] == 1:
                 # Insert features in the 'middle' of the array
-                X[i - 1, insert_point + j, :] = pulse[0:len(self.features)]
-                # Pulse number
-                z[i - 1, insert_point + j, 2] = k
+                X[i - 1, insert_point + j, :] = pulse[0:len(self.config['features'])]
                 j += 1
-            k += 1
         for i, target in enumerate(fetched_scalar):
             y[i, :] = target
-        return X, y, z
+        # Transpose so (batch, channels, pulses)
+        X = np.transpose(X, axes=[0, 2, 1])
+        return X, y, events

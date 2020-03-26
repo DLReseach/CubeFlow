@@ -10,7 +10,9 @@ def y_axis_print(metric):
         y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (rad)'
     elif metric == 'time':
         y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (ns)'
-    elif metric == 'x' or metric == 'y' or metric == 'z':
+    elif metric == 'direction_x' or metric == 'direction_y' or metric == 'direction_z':
+        y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (m)'
+    elif metric == 'position_x' or metric == 'position_y' or metric == 'position_z':
         y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (m)'
     elif metric == 'angle':
         y_axis_text = 'x<sub>reco</sub> - x<sub>true</sub> (rad)'
@@ -304,19 +306,23 @@ def plotly_2d_histograms(selected_run_data, selected_comparison_data, metric, bi
     return fig
 
 
-def plotly_error_comparison(selected_run_data, selected_comparison_data, metric, bin_type, own_name, opponent_name, meta_data, bin_no):
-    x_axis_text = 'Event length' if bin_type == 'event_length' else 'log E (E / GeV)'
+def plotly_error_comparison(selected_run_data, selected_comparison_data, metric, own_name, opponent_name, meta_data, bin_no):
+    x_axis_text = 'log E (E / GeV)'
     y_axis_text = y_axis_print(metric)
-    bin_mids = meta_data[bin_type]['bin_mids']
-    bin_widths = meta_data[bin_type]['bin_widths']
+    bin_mids = meta_data['1d_histogram']['bin_mids']
+    bin_widths = meta_data['1d_histogram']['bin_widths']
     bin_lengths = [ibin * 2 for ibin in bin_widths]
-    bin_counts = meta_data['train_dists'][bin_type]
-    own_error_bin_edges = selected_run_data[metric][bin_type]['error_histograms'][bin_no]['bin_edges']
+    bin_counts = meta_data['1d_histogram']['counts']
+    own_error_bin_edges = selected_run_data[metric]['error_histograms'][bin_no]['x_edges']
     own_error_x_bin_mids = (own_error_bin_edges[:-1] + own_error_bin_edges[1:]) / 2
     own_error_x_bin_widths = 1.0 * (own_error_bin_edges[1] - own_error_bin_edges[0])
-    opponent_error_bin_edges = selected_comparison_data[metric][bin_type]['error_histograms'][bin_no]['bin_edges']
+    own_percentiles = selected_run_data[metric]['error_histograms'][bin_no]['percentiles']
+    own_performance = selected_run_data[metric]['1d_histogram']['performance']
+    opponent_error_bin_edges = selected_comparison_data[metric]['error_histograms'][bin_no]['x_edges']
     opponent_error_x_bin_mids = (opponent_error_bin_edges[:-1] + opponent_error_bin_edges[1:]) / 2
     opponent_error_x_bin_widths = 1.0 * (opponent_error_bin_edges[1] - opponent_error_bin_edges[0])
+    opponent_percentiles = selected_comparison_data[metric]['error_histograms'][bin_no]['percentiles']
+    opponent_performance = selected_comparison_data[metric]['1d_histogram']['performance']
     histogram_colors = ['grey'] * len(bin_mids)
     histogram_colors[bin_no] = 'red'
     trace1 = go.Bar(
@@ -327,13 +333,13 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
         marker_color=histogram_colors,
         xaxis='x1',
         yaxis='y2',
-        name='train data',
+        name='test data',
         showlegend=True
     )
 
     trace2 = go.Scatter(
         x=bin_mids,
-        y=selected_run_data[metric][bin_type]['performance'],
+        y=own_performance,
         mode='markers',
         name=own_name,
         showlegend=True,
@@ -350,7 +356,7 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
 
     trace3 = go.Scatter(
         x=bin_mids,
-        y=selected_comparison_data[metric][bin_type]['performance'],
+        y=opponent_performance,
         mode='markers',
         name=opponent_name,
         showlegend=True,
@@ -367,7 +373,7 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
 
     trace4 = go.Bar(
         x=own_error_x_bin_mids,
-        y=selected_run_data[metric][bin_type]['error_histograms'][bin_no]['hist'],
+        y=selected_run_data[metric]['error_histograms'][bin_no]['counts'],
         width=own_error_x_bin_widths,
         xaxis='x2',
         yaxis='y3',
@@ -378,7 +384,7 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
     )
     trace5 = go.Bar(
         x=opponent_error_x_bin_mids,
-        y=selected_comparison_data[metric][bin_type]['error_histograms'][bin_no]['hist'],
+        y=selected_comparison_data[metric]['error_histograms'][bin_no]['counts'],
         width=opponent_error_x_bin_widths,
         xaxis='x2',
         yaxis='y3',
@@ -392,6 +398,7 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
 
     layout = go.Layout(
         xaxis=dict(
+            rangemode='tozero',
             title=x_axis_text,
             domain=[0, 0.6]
         ),
@@ -404,6 +411,7 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
             # ]
         ),
         yaxis=dict(
+            rangemode='tozero',
             title='(84th percentile - 16th percentile) / 2',
             # range=[0,]
         ),
@@ -445,7 +453,7 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
                 x=0.99,
                 y=0.99,
                 showarrow=False,
-                text='Events: {}'.format(int(sum(selected_run_data[metric][bin_type]['error_histograms'][bin_no]['hist']))),
+                text='Events: {}'.format(int(sum(selected_run_data[metric]['error_histograms'][bin_no]['counts']))),
                 xref='paper',
                 yref='paper',
                 bgcolor='white'
@@ -457,9 +465,9 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=selected_run_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
+                x0=own_percentiles[0],
                 y0=0,
-                x1=selected_run_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
+                x1=own_percentiles[0],
                 y1=1,
                 name=own_name + ' 16\%',
                 line=dict(
@@ -472,9 +480,9 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=selected_run_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
+                x0=own_percentiles[2],
                 y0=0,
-                x1=selected_run_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
+                x1=own_percentiles[2],
                 y1=1,
                 name=own_name + ' 84\%',
                 line=dict(
@@ -488,9 +496,9 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=selected_comparison_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
+                x0=opponent_percentiles[0],
                 y0=0,
-                x1=selected_comparison_data[metric][bin_type]['percentiles']['low_percentile'][bin_no],
+                x1=opponent_percentiles[0],
                 y1=1,
                 name=opponent_name + ' 16\%',
                 line=dict(
@@ -503,9 +511,9 @@ def plotly_error_comparison(selected_run_data, selected_comparison_data, metric,
                 type='line',
                 xref='x2',
                 yref='paper',
-                x0=selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
+                x0=opponent_percentiles[2],
                 y0=0,
-                x1=selected_comparison_data[metric][bin_type]['percentiles']['high_percentile'][bin_no],
+                x1=opponent_percentiles[2],
                 y1=1,
                 name=opponent_name + ' 84\%',
                 line=dict(

@@ -13,7 +13,6 @@ class Trainer:
         loss,
         reporter,
         saver,
-        inferer,
         train_dataset,
         val_dataset
     ):
@@ -24,12 +23,10 @@ class Trainer:
         self.loss = loss
         self.reporter = reporter
         self.saver = saver
-        self.inferer = inferer
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
 
-        gpu = self.config.gpulab_gpus if self.config.gpulab else self.config.gpus
-        self.device = torch.device('cuda:' + gpu if torch.cuda.is_available() else 'cpu')        
+        self.device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')        
         self.model.to(self.device)
 
         self.global_step = 0

@@ -5,11 +5,9 @@ from src.modules.utils import get_time
 
 
 class Reporter:
-    def __init__(self, config, wandb, client, experiment_name):
+    def __init__(self, config, experiment_name):
         super(Reporter, self).__init__()
         self.config = config
-        self.wandb = wandb
-        self.client = client
         self.experiment_name = experiment_name
 
         self.current_epoch = 0
@@ -29,11 +27,6 @@ class Reporter:
             '''
             .format(get_time(), self.experiment_name, self.current_epoch)
         )
-        if not self.config.dev_run and self.client is not None:
-            self.client.chat_postMessage(
-                channel='training',
-                text='{}: beginning epoch {}'.format(self.experiment_name, self.current_epoch)
-            )
 
     def on_epoch_end(self):
         self.iteration = 0
@@ -67,11 +60,6 @@ class Reporter:
             )
         )
         print(log_text)
-        if not self.config.dev_run and self.client is not None:
-            self.client.chat_postMessage(
-                channel='training',
-                text=log_text
-            )
 
     def on_intermediate_validation_batch_start(self):
         if self.first_val:
@@ -100,14 +88,6 @@ class Reporter:
             )
         )
         print(log_text)
-        if not self.config.dev_run and self.client is not None:
-            self.client.chat_postMessage(
-                channel='training',
-                text=log_text
-            )
-        if self.config.wandb:
-            metrics = {'train_loss': self.avg_train_loss, 'val_loss': avg_val_loss}
-            self.wandb.log(metrics, step=self.global_step)
         self.iteration += 1
         self.train_loss = []
         self.training_step = 0
@@ -144,11 +124,6 @@ class Reporter:
             )
         )
         print(log_text)
-        if not self.config.dev_run and self.client is not None:
-            self.client.chat_postMessage(
-                channel='training',
-                text=log_text
-            )
         self.train_loss = []
         self.training_step = 0
         self.val_loss = []
@@ -158,25 +133,4 @@ class Reporter:
         return avg_val_loss
 
     def optimizer_step(self, learning_rate):
-        if self.config.wandb == True:
-            self.wandb.log(
-                {'learning_rate': learning_rate},
-                step=self.global_step
-            )
-
-    def add_plot_to_wandb(self, im, log_text):
-        self.wandb.log(
-            {log_text: [self.wandb.Image(im)]}
-        )
-
-    def add_metric_comparison_to_wandb(self, markers, log_text):
-        for x, y in zip(markers.get_data()[0], markers.get_data()[1]):
-            self.wandb.log(
-                {
-                    log_text: y,
-                    'energy': x
-                }
-            )
-
-    def save_file_to_wandb(self, file_name):
-        self.wandb.save(file_name)
+        pass
