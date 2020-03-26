@@ -3,6 +3,7 @@ import torch
 import importlib
 from pathlib import Path
 import argparse
+from torchsummary import summary
 
 from src.modules.utils import get_dirs_and_config
 from src.modules.utils import get_time
@@ -12,6 +13,7 @@ from src.modules.transform_inverter import DomChargeScaler
 from src.modules.transform_inverter import EnergyNoLogTransformer
 from src.modules.truth_saver import TruthSaver
 from src.modules.error_calculator import ErrorCalculator
+from src.modules.histogram_calculator import HistogramCalculator
 
 
 def main():
@@ -22,7 +24,7 @@ def main():
 
     test_set_transformed_path = Path().home().joinpath('CubeFlowData').joinpath('dbs').joinpath('test_transformed.db')
 
-    dirs, config, first_run = get_dirs_and_config(experiment_name, False)
+    dirs, config = get_dirs_and_config(experiment_name, False)
 
     errors_db_path = dirs['dbs'].joinpath('errors.db')
     predictions_db_path = dirs['dbs'].joinpath('predictions.db')
@@ -41,7 +43,7 @@ def main():
         config['cleaning'] = 'SplitInIcePulses'
         config['cleaning_length'] = 'split_in_ice_pulses_event_length'
 
-    # sets['test'] = sets['test'][0:20000]
+    sets['test'] = sets['test'][0:20000]
 
     dataset = Loader(
         sets['test'],
@@ -52,7 +54,7 @@ def main():
 
     events = [item for sublist in dataset.events for item in sublist]
 
-    if first_run:
+    if not dirs['dbs'].joinpath('predictions.db').is_file():
         print('{}: First run with these masks; saving truth and retro_crs_prefit to prediction db'.format(get_time()))
         TruthSaver(config, dirs, events)
 
@@ -72,7 +74,13 @@ def main():
     inferer.infer(model_path, dirs['run'])
 
     print('{}: Beginning error calculation'.format(get_time()))
-    ErrorCalculator(experiment_name, first_run, dirs)
+    if not dirs['dbs'].joinpath('errors.db').is_file():
+        print('{}: First run with these masks; calculating retro_crs_prefit errors'.format(get_time()))
+        ErrorCalculator('retro_crs_prefit', dirs)
+    ErrorCalculator(experiment_name, dirs)
+
+    print('{}: Beginning histogram calculation'.format(get_time()))
+    HistogramCalculator(experiment_name, dirs)
 
     print('{}: Script done!'.format(get_time()))
 

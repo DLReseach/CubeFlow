@@ -32,6 +32,11 @@ class Saver:
         with open(self.val_loss_pickle_file, 'wb') as f:
             pickle.dump(val_loss_to_pickle, f)
 
+        learning_rate_to_pickle = []
+        self.learning_rate_pickle_file = files_and_dirs['run'].joinpath('learning_rate.pkl')
+        with open(self.learning_rate_pickle_file, 'wb') as f:
+            pickle.dump(learning_rate_to_pickle, f)
+
         config_file = get_project_root().joinpath('configs').joinpath('config.json')
         shutil.copy(config_file, self.files_and_dirs['run'].joinpath('config.json'))
 
@@ -46,6 +51,13 @@ class Saver:
         val_loss_to_pickle.append(val_loss.item())
         with open(self.val_loss_pickle_file, 'wb') as f:
             pickle.dump(val_loss_to_pickle, f)
+
+    def save_learning_rate(self, learning_rate):
+        with open(self.learning_rate_pickle_file, 'rb') as f:
+            learning_rate_to_pickle = pickle.load(f)
+        learning_rate_to_pickle.append(learning_rate)
+        with open(self.learning_rate_pickle_file, 'wb') as f:
+            pickle.dump(learning_rate_to_pickle, f)
 
     def early_stopping(self, epoch, epoch_val_loss, model_state_dict, optimizer_state_dict):
         epoch_val_loss = round(epoch_val_loss.item(), 3)
@@ -64,6 +76,7 @@ class Saver:
             return False
     
     def save_model_state(self, epoch, model_state_dict, optimizer_state_dict):
+        print('hallo')
         model_path = self.files_and_dirs['run'].joinpath('model.pt')
         torch.save(
             {

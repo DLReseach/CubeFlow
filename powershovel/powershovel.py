@@ -6,11 +6,10 @@ import pickle
 from datetime import datetime
 
 from powershovel_sql import DbHelper
-from powershovel_utils import make_2d_histograms
-from powershovel_utils import calculate_resolution_widths
 from powershovel_plotting import plotly_2d_histograms
 from powershovel_plotting import plotly_error_comparison
 from powershovel_plotting import plotly_event
+from powershovel_plotting import plotly_loss
 
 
 def _max_width_():
@@ -97,11 +96,14 @@ selected_bin = st.sidebar.slider(
 selected_bin_index = bins.index(selected_bin)
 
 random_event_from_bin = np.random.choice(meta_data['events'][selected_bin_index])
-predictions, scalars, sequential, comparison, meta = db.get_predictions(selected_run, selected_comparison, random_event_from_bin)
+predictions, truth, sequential, comparison, meta = db.get_predictions(selected_run, selected_comparison, random_event_from_bin)
+
+metrics = list(selected_run_data.keys())
+metrics.remove('meta')
 
 selected_metric = st.sidebar.selectbox(
     'Metric',
-    list(selected_run_data.keys())
+    metrics
 )
 
 show_cleaned_pulses = st.sidebar.radio(
@@ -112,6 +114,39 @@ show_cleaned_pulses = st.sidebar.radio(
 
 if show_cleaned_pulses == 'Yes':
     sequential = sequential[sequential['SRTInIcePulses'] == 1]
+
+meta_df = pd.DataFrame(
+    [
+        [
+            selected_run_data['meta']['model'],
+            selected_run_data['meta']['loss'],
+            selected_run_data['meta']['dataloader'],
+            selected_run_data['meta']['optimizer']
+        ],
+        [
+            selected_comparison_data['meta']['model'],
+            selected_comparison_data['meta']['loss'],
+            selected_comparison_data['meta']['dataloader'],
+            selected_comparison_data['meta']['optimizer']
+        ],
+    ],
+    columns=[
+        'Model',
+        'Loss',
+        'Dataloader',
+        'Optimizer'
+    ],
+    index=[
+        selected_run,
+        selected_comparison
+    ]
+)
+
+st.table(meta_df)
+
+fig = plotly_loss(selected_run_data)
+
+st.plotly_chart(fig, use_container_width=True)
 
 # st.markdown('## 2D histograms')
 # 
@@ -139,62 +174,60 @@ fig = plotly_error_comparison(
 )
 
 st.plotly_chart(fig, use_container_width=True)
-# 
-# st.markdown('## Random event from bin')
-# 
-# st.write(comparison['predicted_primary_energy'])
-# 
-# df = pd.DataFrame(
-#     [
-#         [
-#             10**scalars['true_primary_energy'].values[0],
-#             2,
-#             3,
-#             scalars['true_primary_time'].values[0],
-#             scalars['true_primary_position_x'].values[0],
-#             scalars['true_primary_position_y'].values[0],
-#             scalars['true_primary_position_z'].values[0],
-#             len(sequential)
-#         ],
-#         [
-#             10**predictions['predicted_primary_energy'].values[0],
-#             2,
-#             3,
-#             predictions['predicted_primary_time'].values[0],
-#             predictions['predicted_primary_position_x'].values[0],
-#             predictions['predicted_primary_position_y'].values[0],
-#             predictions['predicted_primary_position_z'].values[0],
-#             'N/A'
-#         ],
-#         [
-#             scalars['retro_crs_prefit_energy'].values[0] if selected_comparison == 'retro_crs_prefit' else 10**comparison['predicted_primary_energy'].values[0],
-#             2,
-#             3,
-#             scalars['retro_crs_prefit_time'].values[0] if selected_comparison == 'retro_crs_prefit' else comparison['predicted_primary_time'],
-#             scalars['retro_crs_prefit_x'].values[0] if selected_comparison == 'retro_crs_prefit' else comparison['predicted_primary_position_x'],
-#             scalars['retro_crs_prefit_y'].values[0] if selected_comparison == 'retro_crs_prefit' else comparison['predicted_primary_position_y'],
-#             scalars['retro_crs_prefit_z'].values[0] if selected_comparison == 'retro_crs_prefit' else comparison['predicted_primary_position_z'],
-#             'N/A'
-#         ],
-#     ],
-#     columns=[
-#         'Energy',
-#         'Azimuth',
-#         'Zenith',
-#         'Time',
-#         'Vertex x',
-#         'Vertex y',
-#         'Vertex z',
-#         'Event length'
-#     ],
-#     index=[
-#         'Truth',
-#         selected_run,
-#         selected_comparison
-#     ]
-# )
-# 
-# st.table(df)
-# 
-# fig = plotly_event(predictions, scalars, sequential, comparison, geom_clean, selected_run, selected_comparison)
-# st.plotly_chart(fig, use_container_width=True)
+
+st.markdown('## Random event from bin')
+
+df = pd.DataFrame(
+    [
+        [
+            10**truth['energy'].values[0],
+            truth['azimuth'].values[0],
+            truth['zenith'].values[0],
+            truth['time'].values[0],
+            truth['position_x'].values[0],
+            truth['position_y'].values[0],
+            truth['position_z'].values[0],
+            len(sequential)
+        ],
+        [
+            10**predictions['energy'].values[0],
+            predictions['azimuth'].values[0],
+            predictions['zenith'].values[0],
+            predictions['time'].values[0],
+            predictions['position_x'].values[0],
+            predictions['position_y'].values[0],
+            predictions['position_z'].values[0],
+            'N/A'
+        ],
+        [
+            10**comparison['energy'].values[0],
+            comparison['azimuth'].values[0],
+            comparison['zenith'].values[0],
+            comparison['time'].values[0],
+            comparison['position_x'].values[0],
+            comparison['position_y'].values[0],
+            comparison['position_z'].values[0],
+            'N/A'
+        ],
+    ],
+    columns=[
+        'Energy',
+        'Azimuth',
+        'Zenith',
+        'Time',
+        'Vertex x',
+        'Vertex y',
+        'Vertex z',
+        'Event length'
+    ],
+    index=[
+        'Truth',
+        selected_run,
+        selected_comparison
+    ]
+)
+
+st.table(df)
+
+fig = plotly_event(predictions, truth, sequential, comparison, geom_clean, selected_run, selected_comparison)
+st.plotly_chart(fig, use_container_width=True)

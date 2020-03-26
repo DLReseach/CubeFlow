@@ -539,26 +539,19 @@ def direction_vectors(direction, position, scale):
     return np.array([x, y, z])
 
 
-def plotly_event(predictions, scalars, sequential, comparison, geom, selected_run, selected_comparison):
-    own_dirs = predictions[['predicted_primary_direction_x', 'predicted_primary_direction_y', 'predicted_primary_direction_z']].values
-    own_pos = predictions[['predicted_primary_position_x', 'predicted_primary_position_y', 'predicted_primary_position_z']].values
+def plotly_event(predictions, truth, sequential, comparison, geom, selected_run, selected_comparison):
+    own_dirs = predictions[['direction_x', 'direction_y', 'direction_z']].values
+    own_pos = predictions[['position_x', 'position_y', 'position_z']].values
 
-    true_dirs = scalars[['true_primary_direction_x', 'true_primary_direction_y', 'true_primary_direction_z']].values
-    true_pos = scalars[['true_primary_position_x', 'true_primary_position_y', 'true_primary_position_z']].values
+    true_dirs = truth[['direction_x', 'direction_y', 'direction_z']].values
+    true_pos = truth[['position_x', 'position_y', 'position_z']].values
+
+    opp_dirs = comparison[['direction_x', 'direction_y', 'direction_y']].values
+    opp_pos = comparison[['position_x', 'position_y', 'position_z']].values
 
     own_vector = direction_vectors(own_dirs, own_pos, 100000)
     true_vector = direction_vectors(true_dirs, true_pos, 100000)
-
-    if selected_comparison == 'retro_crs_prefit':
-        opp_angles = scalars[['retro_crs_prefit_azimuth', 'retro_crs_prefit_zenith']].values
-        opp_dirs = convert_to_cartesian(opp_angles[0][0], opp_angles[0][1])
-        opp_pos = scalars[['retro_crs_prefit_x', 'retro_crs_prefit_y', 'retro_crs_prefit_z']].values
-    else:
-        opp_dirs = comparison[['predicted_primary_direction_x', 'predicted_primary_direction_y', 'predicted_primary_direction_z']].values
-        opp_pos = comparison[['predicted_primary_position_x', 'predicted_primary_position_y', 'predicted_primary_position_z']].values
-
     opp_vector = direction_vectors(opp_dirs, opp_pos, 100000)
-
 
     trace1 = go.Scatter3d(
         x=sequential.dom_x.values,
@@ -676,4 +669,53 @@ def plotly_event(predictions, scalars, sequential, comparison, geom, selected_ru
         )
     )
     fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+    return fig
+
+def plotly_loss(selected_run_data):
+    train_y = selected_run_data['meta']['train_loss']
+    loss_x = np.arange(len(train_y))
+    val_y = selected_run_data['meta']['val_loss']
+    learning_rate_y = selected_run_data['meta']['learning_rate']
+    learning_rate_x = np.arange(len(learning_rate_y))
+
+    trace1 = go.Scatter(
+        x=loss_x,
+        y=train_y,
+        name='train',
+        xaxis='x1',
+        yaxis='y1'
+    )
+    trace2 = go.Scatter(
+        x=loss_x,
+        y=val_y,
+        name='val',
+        xaxis='x1',
+        yaxis='y1'
+    )
+    trace3 = go.Scatter(
+        x=learning_rate_x,
+        y=learning_rate_y,
+        xaxis='x2',
+        yaxis='y2'
+        showlegend=False
+    )
+    data = [trace1, trace2]
+    layout = go.Layout(
+        xaxis=dict(
+            title='iteration',
+            domain=[0, 0.45]
+        ),
+        xaxis2=dict(
+            title='iteration',
+            domain=[0.55, 1]
+        ),
+        yaxis=dict(
+            title='loss',
+        ),
+        yaxis2=dict(
+            title='learning rate',
+            side='right'
+        )
+    )
+    fig = go.Figure(data, layout=layout)
     return fig

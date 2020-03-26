@@ -94,6 +94,7 @@ class Trainer:
         optimizer.step()   
         optimizer.zero_grad()
         self.reporter.optimizer_step(optimizer.param_groups[0]['lr'])
+        self.saver.save_learning_rate(optimizer.param_groups[0]['lr'])
         self.global_step += 1
 
 

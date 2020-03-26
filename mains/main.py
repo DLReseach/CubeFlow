@@ -14,7 +14,7 @@ from src.modules.trainer import Trainer
 
 def main():
     experiment_name = create_experiment_name(slug_length=2)
-    dirs, config, _ = get_dirs_and_config(experiment_name, True)
+    dirs, config = get_dirs_and_config(experiment_name, True)
 
     if socket.gethostname() == 'air.local':
         train_set = Path().home().joinpath('CubeFlowData').joinpath('dbs').joinpath('test_transformed.db')

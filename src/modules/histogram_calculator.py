@@ -2,19 +2,32 @@ import numpy as np
 import pandas as pd
 import sqlite3
 import pickle
+import json
 from pathlib import Path
 
 
 class HistogramCalculator:
-    def __init__(self, masks_name, run_name, dirs):
-        self.masks_name = masks_name
+    def __init__(self, run_name, dirs):
         self.run_name = run_name
         self.dirs = dirs
 
-        self.errors_db_path = dirs['dbs'].joinpath(self.masks_name).joinpath('errors.db')
-        self.predictions_db_path = dirs['dbs'].joinpath(self.masks_name).joinpath('predictions.db')
-        pickle_path = dirs['dbs'].joinpath(self.masks_name)
-        self.pickle_file = pickle_path.joinpath('histograms.pkl')
+        self.errors_db_path = dirs['dbs'].joinpath('errors.db')
+        self.predictions_db_path = dirs['dbs'].joinpath('predictions.db')
+        self.pickle_file = dirs['dbs'].joinpath('histograms.pkl')
+        self.config_file = dirs['run'].joinpath('config.json')
+        self.train_loss_file = dirs['run'].joinpath('train_loss.pkl')
+        self.val_loss_file = dirs['run'].joinpath('val_loss.pkl')
+        self.learning_rate_file = dirs['run'].joinpath('learning_rate.pkl')
+
+        with open(self.train_loss_file, 'rb') as f:
+            self.train_loss = pickle.load(f)
+        with open(self.val_loss_file, 'rb') as f:
+            self.val_loss = pickle.load(f)
+        with open(self.learning_rate_file, 'rb') as f:
+            self.learning_rate = pickle.load(f)
+
+        with open(self.config_file, 'r') as f:
+            self.config = json.load(f)
 
         if not self.pickle_file.is_file():
             self.create_new_dictionary()
@@ -45,6 +58,23 @@ class HistogramCalculator:
 
     def create_run_dictionary(self, run_name, errors):
         self.dictionary['runs'][run_name] = {}
+        self.dictionary['runs'][run_name]['meta'] = {}
+        if run_name == 'retro_crs_prefit':
+            self.dictionary['runs'][run_name]['meta']['dataloader'] = 'N/A'
+            self.dictionary['runs'][run_name]['meta']['loss'] = 'N/A'
+            self.dictionary['runs'][run_name]['meta']['optimizer'] = 'N/A'
+            self.dictionary['runs'][run_name]['meta']['model'] = 'N/A'
+            self.dictionary['runs'][run_name]['meta']['train_loss'] = []
+            self.dictionary['runs'][run_name]['meta']['val_loss'] = []
+            self.dictionary['runs'][run_name]['meta']['learning_rate'] = []
+        else:
+            self.dictionary['runs'][run_name]['meta']['dataloader'] = self.config['dataloader']
+            self.dictionary['runs'][run_name]['meta']['loss'] = self.config['loss']
+            self.dictionary['runs'][run_name]['meta']['optimizer'] = self.config['optimizer']
+            self.dictionary['runs'][run_name]['meta']['model'] = self.config['model']
+            self.dictionary['runs'][run_name]['meta']['train_loss'] = self.train_loss
+            self.dictionary['runs'][run_name]['meta']['val_loss'] = self.val_loss
+            self.dictionary['runs'][run_name]['meta']['learning_rate'] = self.learning_rate
         for error in errors:
             self.dictionary['runs'][run_name][error] = {}
             self.dictionary['runs'][run_name][error]['1d_histogram'] = {}

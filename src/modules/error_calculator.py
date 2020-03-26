@@ -5,9 +5,8 @@ import pandas as pd
 
 
 class ErrorCalculator():
-    def __init__(self, run_name, first_run, dirs):
+    def __init__(self, run_name, dirs):
         self.run_name = run_name
-        self.first_run = first_run
         self.dirs = dirs
 
         self.predictions_db_path = dirs['dbs'].joinpath('predictions.db')
@@ -15,8 +14,6 @@ class ErrorCalculator():
 
         pd.options.mode.use_inf_as_na = True
 
-        if first_run:
-            self.calculate_errors('retro_crs_prefit')
         self.calculate_errors(run_name)
 
     def convert_spherical_to_cartesian(self, zenith, azimuth):
