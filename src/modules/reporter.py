@@ -56,7 +56,7 @@ class Reporter:
                 self.current_epoch,
                 self.avg_train_loss,
                 len(self.train_loss),
-                len(self.train_loss) * self.config.batch_size / self.train_time_delta,
+                len(self.train_loss) * self.config['batch_size'] / self.train_time_delta,
             )
         )
         print(log_text)
@@ -84,7 +84,7 @@ class Reporter:
                 self.current_epoch,
                 avg_val_loss,
                 len(self.val_loss),
-                len(self.val_loss) * self.config.val_batch_size / self.val_time_delta
+                len(self.val_loss) * self.config['val_batch_size'] / self.val_time_delta
             )
         )
         print(log_text)
@@ -120,7 +120,7 @@ class Reporter:
                 self.current_epoch,
                 avg_val_loss,
                 len(self.val_loss),
-                len(self.val_loss) * self.config.val_batch_size / self.val_time_delta
+                len(self.val_loss) * self.config['val_batch_size'] / self.val_time_delta
             )
         )
         print(log_text)

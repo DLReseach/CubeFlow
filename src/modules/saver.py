@@ -31,7 +31,7 @@ class Saver:
             self.early_stopping_counter += 1
             print('{}: model didn\'t improve for {} epoch(s)'.format(get_time(), self.early_stopping_counter))
         self.epoch_val_loss.append(epoch_val_loss)
-        if self.early_stopping_counter >= self.config.patience:
+        if self.early_stopping_counter >= self.config['patience']:
             return True
         else:
             return False
