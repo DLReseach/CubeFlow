@@ -23,7 +23,7 @@ from src.modules.trainer import Trainer
 
 def main():
     experiment_name = create_experiment_name(slug_length=2)
-    dirs, config, _ = get_dirs_and_config(experiment_name)
+    dirs, config, _ = get_dirs_and_config(experiment_name, True)
 
     train_set = Path('/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/train_transformed.db')
     val_set = Path('/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/val_transformed.db')
