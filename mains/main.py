@@ -13,15 +13,12 @@ import importlib
 # from torch_lr_finder import LRFinder
 
 # from src.modules.cnn_conv1d import CnnSystemConv1d
-from src.modules.config import process_config
-from src.modules.utils import get_args
 from src.modules.utils import create_experiment_name
-from src.modules.utils import get_files_and_dirs
+from src.modules.utils import get_dirs_and_config
 from src.modules.utils import get_time
 from src.modules.mask_and_split import MaskAndSplit
 from src.modules.reporter import Reporter
 from src.modules.saver import Saver
-from src.modules.resolution_comparison import ResolutionComparison
 from src.modules.trainer import Trainer
 
 def main():
