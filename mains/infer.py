@@ -32,10 +32,7 @@ def main():
 
     config['val_batch_size'] = 2000
 
-    if 'dataloader' not in config:
-        Dl = getattr(importlib.import_module('src.modules.' + 'sql_dataloader_middle_pad'), 'Dataloader')
-    else:
-        Dl = getattr(importlib.import_module('src.modules.' + config['dataloader']), 'Dataloader')
+    Loader = getattr(importlib.import_module('src.dataloaders.' + config['dataloader']), 'Dataloader')
 
     if 'SRTInIcePulses' in '-'.join(config['masks']):
         config['cleaning'] = 'SRTInIcePulses'
@@ -46,7 +43,7 @@ def main():
 
     # sets['test'] = sets['test'][0:20000]
 
-    dataset = Dl(
+    dataset = Loader(
         sets['test'],
         config,
         test_set_transformed_path,
@@ -59,10 +56,12 @@ def main():
         print('{}: First run with these masks; saving truth and retro_crs_prefit to prediction db'.format(get_time()))
         TruthSaver(config, dirs, events)
 
-    loss = torch.nn.MSELoss()
+    Loss = getattr(importlib.import_module('src.losses.losses'), config['loss'])
+    loss = Loss()
     Model = getattr(importlib.import_module('src.modules.' + config['model']), 'Model')
     model = Model()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['min_learning_rate'])
+    Optimizer = getattr(importlib.import_module('src.optimizers.optimizers'), config['optimizer'])
+    optimizer = Optimizer(model.parameters(), lr=config['min_learning_rate'])
 
     inferer = Inferer(model, optimizer, loss, dataset, config, experiment_name, dirs)
     model_path = dirs['run'].joinpath('model.pt')

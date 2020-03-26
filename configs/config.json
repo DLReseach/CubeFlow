@@ -4,6 +4,8 @@
     "muon_neutrino"
   ],
   "model": "cnn_conv1d",
+  "loss": "Mse",
+  "optimizers": "Adam",
   "dataloader": "sql_dataloader_middle_pad",
   "dev_run": true,
   "num_epochs": 1,

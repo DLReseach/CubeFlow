@@ -1,21 +1,9 @@
 import os
 import torch
-# from torch.utils.data import DataLoader
-# from pytorch_lightning import Trainer
-# from pytorch_lightning.callbacks import EarlyStopping
-import wandb as wandb
-import matplotlib.cbook
-import warnings
-from argparse import Namespace
-import slack
-import numpy as np
 import importlib
 from pathlib import Path
-# from torch_lr_finder import LRFinder
-
 import socket
 
-# from src.modules.cnn_conv1d import CnnSystemConv1d
 from src.modules.utils import create_experiment_name
 from src.modules.utils import get_dirs_and_config
 from src.modules.utils import get_time
@@ -66,16 +54,15 @@ def main():
         val_set,
         test=True
     )
-
-    loss = torch.nn.MSELoss()
     reporter = Reporter(config, experiment_name)
     saver = Saver(config, dirs)
 
+    Loss = getattr(importlib.import_module('src.losses.losses'), config['loss'])
+    loss = Loss()
     Model = getattr(importlib.import_module('src.modules.' + config['model']), 'Model')
-
     model = Model()
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['min_learning_rate'])
+    Optimizer = getattr(importlib.import_module('src.optimizers.optimizers'), config['optimizer'])
+    optimizer = Optimizer(model.parameters(), lr=config['min_learning_rate'])
 
     trainer = Trainer(
         config,

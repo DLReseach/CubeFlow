@@ -125,7 +125,7 @@ class Trainer:
             num_workers=self.config['num_workers'],
             shuffle=False
         )
-        no_of_samples = len(self.val_dataset) * self.config['batch_size']
+        no_of_samples = len(self.val_dataset) * self.config['val_batch_size']
         self.val_batches = len(self.val_dataset)
         print('No. of validation samples:', no_of_samples)
         self.train_length = int(self.config['val_check_frequency'] * len(self.train_dl))
