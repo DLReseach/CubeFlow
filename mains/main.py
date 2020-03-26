@@ -10,6 +10,7 @@ from argparse import Namespace
 import slack
 import numpy as np
 import importlib
+from pathlib import Path
 # from torch_lr_finder import LRFinder
 
 # from src.modules.cnn_conv1d import CnnSystemConv1d
@@ -44,13 +45,13 @@ def main():
         sets['train'] = sets['train'][0:20000]
         sets['val'] = sets['val'][0:20000]
 
-    dataset = Dl(
+    train_dataset = Dl(
         sets['train'],
         config,
         train_set,
         test=False
     )
-    dataset = Dl(
+    val_dataset = Dl(
         sets['val'],
         config,
         val_set,
@@ -74,7 +75,6 @@ def main():
         loss,
         reporter,
         saver,
-        inferer,
         train_dataset,
         val_dataset
     )

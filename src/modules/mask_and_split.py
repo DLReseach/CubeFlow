@@ -28,12 +28,8 @@ class MaskAndSplit:
     def split(self):
         sets = {}
         for set_type in self.sets:
-            set_file = self.files_and_dirs['masks'].joinpath(set_type + '_set.pickle')
+            set_file = self.files_and_dirs['masks'].joinpath(set_type + '_set.pkl')
             with open(set_file, 'rb') as f:
                 sets[set_type] = pickle.load(f)
             sets[set_type] = self.get_intersection(sets[set_type])
-        if self.config['dev_run']:
-            sets['train'] = sets['train'][0:int(0.01 * len(sets['train']))]
-            sets['val'] = sets['val'][0:int(0.01 * len(sets['val']))]
-            sets['test'] = sets['test'][0:int(0.01 * len(sets['test']))]
         return sets
