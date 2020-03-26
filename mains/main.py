@@ -13,6 +13,8 @@ import importlib
 from pathlib import Path
 # from torch_lr_finder import LRFinder
 
+import socket
+
 # from src.modules.cnn_conv1d import CnnSystemConv1d
 from src.modules.utils import create_experiment_name
 from src.modules.utils import get_dirs_and_config
@@ -26,11 +28,18 @@ def main():
     experiment_name = create_experiment_name(slug_length=2)
     dirs, config, _ = get_dirs_and_config(experiment_name, True)
 
-    train_set = Path('/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/train_transformed.db')
-    val_set = Path('/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/val_transformed.db')
-
-    mask_and_split = MaskAndSplit(config, dirs, ['train', 'val'])
-    sets = mask_and_split.split()
+    if socket.gethostname() == 'air.local':
+        train_set = Path().home().joinpath('CubeFlowData').joinpath('dbs').joinpath('test_transformed.db')
+        val_set = Path().home().joinpath('CubeFlowData').joinpath('dbs').joinpath('test_transformed.db')
+        mask_and_split = MaskAndSplit(config, dirs, ['test'])
+        sets = mask_and_split.split()
+        sets['train'] = sets['test']
+        sets['val'] = sets['test']
+    elif socket.gethostname() == 'gpulab':
+        train_set = Path('/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/train_transformed.db')
+        val_set = Path('/home/bjoernhm/CubeML/data/oscnext-genie-level5-v01-01-pass2/val_transformed.db')
+        mask_and_split = MaskAndSplit(config, dirs, ['train', 'val'])
+        sets = mask_and_split.split()
 
     Dl = getattr(importlib.import_module('src.modules.' + config['dataloader']), 'Dataloader')
 

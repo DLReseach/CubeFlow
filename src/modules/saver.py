@@ -38,12 +38,12 @@ class Saver:
     def save_loss(self, train_loss, val_loss):
         with open(self.train_loss_pickle_file, 'rb') as f:
             train_loss_to_pickle = pickle.load(f)
-        train_loss_to_pickle.extend(train_loss)
+        train_loss_to_pickle.append(train_loss.item())
         with open(self.train_loss_pickle_file, 'wb') as f: 
             pickle.dump(train_loss_to_pickle, f)
         with open(self.val_loss_pickle_file, 'rb') as f:
             val_loss_to_pickle = pickle.load(f)
-        val_loss_to_pickle.extend(val_loss)
+        val_loss_to_pickle.append(val_loss.item())
         with open(self.val_loss_pickle_file, 'wb') as f:
             pickle.dump(val_loss_to_pickle, f)
 

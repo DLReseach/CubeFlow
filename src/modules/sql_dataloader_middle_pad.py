@@ -71,11 +71,18 @@ class Dataloader(torch.utils.data.Dataset):
         con = sqlite3.connect(self.sql_file)
         cur = con.cursor()
         # Write query for sequential table and fetch all matching rows
-        query = 'SELECT {} FROM sequential WHERE event IN ({})'.format(
-            ', '.join(self.config['features'] + [self.config['cleaning'], 'pulse_no']),
-            ', '.join(str(event) for event in events)
-        )
-        cur.execute(query)
+        try:
+            query = 'SELECT {} FROM sequential WHERE event IN ({})'.format(
+                ', '.join(self.config['features'] + [self.config['cleaning'], 'pulse_no']),
+                ', '.join(str(event) for event in events)
+            )
+            cur.execute(query)
+        except Exception:
+            query = 'SELECT {} FROM sequential WHERE event_no IN ({})'.format(
+                ', '.join(self.config['features'] + [self.config['cleaning'], 'pulse_no']),
+                ', '.join(str(event) for event in events)
+            )
+            cur.execute(query)
         fetched_sequential = cur.fetchall()
         # Write query for scalar table and fetch all matching rows
         query = 'SELECT {} FROM scalar WHERE event_no IN ({})'.format(
