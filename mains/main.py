@@ -29,7 +29,7 @@ def main():
         mask_and_split = MaskAndSplit(config, dirs, ['train', 'val'])
         sets = mask_and_split.split()
 
-    Dl = getattr(importlib.import_module('src.modules.' + config['dataloader']), 'Dataloader')
+    Loader = getattr(importlib.import_module('src.dataloaders.' + config['dataloader']), 'Dataloader')
 
     if 'SRTInIcePulses' in '-'.join(config['masks']):
         config['cleaning'] = 'SRTInIcePulses'
@@ -42,13 +42,13 @@ def main():
         sets['train'] = sets['train'][0:20000]
         sets['val'] = sets['val'][0:20000]
 
-    train_dataset = Dl(
+    train_dataset = Loader(
         sets['train'],
         config,
         train_set,
         test=False
     )
-    val_dataset = Dl(
+    val_dataset = Loader(
         sets['val'],
         config,
         val_set,
@@ -58,11 +58,14 @@ def main():
     saver = Saver(config, dirs)
 
     Loss = getattr(importlib.import_module('src.losses.losses'), config['loss'])
-    loss = Loss()
-    Model = getattr(importlib.import_module('src.modules.' + config['model']), 'Model')
+    loss_init = Loss()
+    loss = loss_init.loss
+    print(type(loss))
+    Model = getattr(importlib.import_module('src.models.' + config['model']), 'Model')
     model = Model()
     Optimizer = getattr(importlib.import_module('src.optimizers.optimizers'), config['optimizer'])
-    optimizer = Optimizer(model.parameters(), lr=config['min_learning_rate'])
+    optimizer_init = Optimizer(model.parameters(), config['min_learning_rate'])
+    optimizer = optimizer_init.optimizer
 
     trainer = Trainer(
         config,
