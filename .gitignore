@@ -31,3 +31,4 @@ mains/downloads
 *.hdf5
 .anaconda
 .DS_Store
+src.egg-info/
