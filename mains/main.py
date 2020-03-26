@@ -60,7 +60,6 @@ def main():
     Loss = getattr(importlib.import_module('src.losses.losses'), config['loss'])
     loss_init = Loss()
     loss = loss_init.loss
-    print(type(loss))
     Model = getattr(importlib.import_module('src.models.' + config['model']), 'Model')
     model = Model()
     Optimizer = getattr(importlib.import_module('src.optimizers.optimizers'), config['optimizer'])
