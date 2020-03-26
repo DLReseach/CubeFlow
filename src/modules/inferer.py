@@ -29,8 +29,7 @@ class Inferer:
         self.transform_inverter = InvertTransforms(files_and_dirs['transformers'].joinpath('sqlite_transformers.pickle'))
         self.sql_file = files_and_dirs['dbs'].joinpath('predictions.db')
 
-        gpu = self.config['gpulab_gpus'] if self.config['gpulab'] else self.config['gpus']
-        self.device = torch.device('cuda:' + gpu if torch.cuda.is_available() else 'cpu')        
+        self.device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')        
         self.model.to(self.device)
 
         self.data = {'event_no': []}

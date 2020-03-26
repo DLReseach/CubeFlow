@@ -22,7 +22,7 @@ def main():
 
     test_set_transformed_path = Path().home().joinpath('CubeFlowData').joinpath('dbs').joinpath('test_transformed.db')
 
-    dirs, config, first_run = get_dirs_and_config(experiment_name)
+    dirs, config, first_run = get_dirs_and_config(experiment_name, False)
 
     errors_db_path = dirs['dbs'].joinpath('errors.db')
     predictions_db_path = dirs['dbs'].joinpath('predictions.db')

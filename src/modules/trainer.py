@@ -46,7 +46,7 @@ class Trainer:
             self.reporter.on_training_batch_end(loss)
             self.optimizer_step(self.optimizer)
             if self.i % self.train_length == 0 and self.i > 0:
-                self.reporter.on_intermediate_training_end()
+                self.train_loss = self.reporter.on_intermediate_training_end()
                 self.intermediate_validation()
 
     def intermediate_validation(self):
@@ -59,7 +59,7 @@ class Trainer:
                 y = batch[1].to(self.device).float()
                 y_hat = self.model.forward(x)
                 loss = self.loss(y_hat, y)
-                self.reporter.on_intermediate_validation_batch_end(loss)
+                self.val_loss = self.reporter.on_intermediate_validation_batch_end(loss)
                 if i == self.val_length:
                     break
             self.reporter.on_intermediate_validation_end()
@@ -101,6 +101,7 @@ class Trainer:
         for self.epoch in range(self.config['num_epochs']):
             self.reporter.on_epoch_start()
             self.train_epoch()
+            self.saver.save_loss(self.train_loss, self.val_loss)
             epoch_val_loss = self.epoch_validation()
             make_early_stop = self.saver.early_stopping(self.epoch, epoch_val_loss, self.model.state_dict(), self.optimizer.state_dict())
             self.reporter.on_epoch_end()

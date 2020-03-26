@@ -2,8 +2,8 @@ from pathlib import Path
 import pickle
 from src.modules.histogram_calculator import HistogramCalculator
 
-masks_name = 'dom_interval_SplitInIcePulses_min0_max200-muon_neutrino'
-run_name = 'pompous-puma'
+masks_name = 'dom_interval_SRTInIcePulses_min0_max200-muon_neutrino'
+run_name = 'piquant-crocodile'
 dirs = {}
 dirs['dbs'] = Path().home().joinpath('CubeFlowData').joinpath('dbs')
 

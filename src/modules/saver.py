@@ -3,6 +3,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import shutil
+import pickle
 
 from src.modules.utils import get_time
 from src.modules.utils import get_project_root
@@ -21,8 +22,28 @@ class Saver:
 
         self.epoch = 0
 
+        train_loss_to_pickle = []
+        self.train_loss_pickle_file = files_and_dirs['run'].joinpath('train_loss.pkl')
+        with open(self.train_loss_pickle_file, 'wb') as f:
+            pickle.dump(train_loss_to_pickle, f)
+
+        val_loss_to_pickle = []
+        self.val_loss_pickle_file = files_and_dirs['run'].joinpath('val_loss.pkl')
+        with open(self.val_loss_pickle_file, 'wb') as f:
+            pickle.dump(val_loss_to_pickle, f)
+
         config_file = get_project_root().joinpath('configs').joinpath('config.json')
         shutil.copy(config_file, self.files_and_dirs['run'].joinpath('config.json'))
+
+    def save_loss(self, train_loss, val_loss):
+        with open(self.train_loss_pickle_file, 'wb') as f:
+            train_loss_to_pickle = pickle.load(f)
+            train_loss_to_pickle.extend(train_loss)
+            pickle.dump(train_loss_to_pickle, f)
+        with open(self.val_loss_pickle_file, 'wb') as f:
+            val_loss_to_pickle = pickle.load(f)
+            val_loss_to_pickle.extend(val_loss)
+            pickle.dump(val_loss_to_pickle, f)
 
     def early_stopping(self, epoch, epoch_val_loss, model_state_dict, optimizer_state_dict):
         epoch_val_loss = round(epoch_val_loss.item(), 3)
@@ -41,7 +62,6 @@ class Saver:
             return False
     
     def save_model_state(self, epoch, model_state_dict, optimizer_state_dict):
-        print('hallo')
         model_path = self.files_and_dirs['run'].joinpath('model.pt')
         torch.save(
             {

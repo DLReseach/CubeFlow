@@ -60,6 +60,7 @@ class Reporter:
             )
         )
         print(log_text)
+        return self.avg_train_loss
 
     def on_intermediate_validation_batch_start(self):
         if self.first_val:
@@ -96,6 +97,7 @@ class Reporter:
         self.first_train = True
         self.first_val = True
         self.avg_train_loss = 0
+        return avg_val_loss
 
     def on_epoch_validation_batch_start(self):
         if self.first_val:
