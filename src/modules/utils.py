@@ -41,14 +41,15 @@ def get_dirs_and_config(experiment_name, train):
     if train:
         with open(files_and_dirs['project'].joinpath('configs').joinpath('config.json'), 'r') as f:
             config = json.load(f)
+        first_run = False
     else:
         with open(files_and_dirs['run'].joinpath('config.json'), 'r') as f:
             config = json.load(f)
-    mask_name = '-'.join(config['masks'])
-    files_and_dirs['dbs'] = data_path.joinpath('dbs').joinpath(mask_name)
-    if not files_and_dirs['dbs'].is_dir():
-        files_and_dirs['dbs'].mkdir(exist_ok=False)
-        first_run = True
-    else:
-        first_run = False
+        mask_name = '-'.join(config['masks'])
+        files_and_dirs['dbs'] = data_path.joinpath('dbs').joinpath(mask_name)
+        if not files_and_dirs['dbs'].is_dir():
+            files_and_dirs['dbs'].mkdir(exist_ok=False)
+            first_run = True
+        else:
+            first_run = False
     return files_and_dirs, config, first_run
