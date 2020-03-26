@@ -31,6 +31,11 @@ def main():
 
     Loader = getattr(importlib.import_module('src.dataloaders.' + config['dataloader']), 'Dataloader')
 
+    print(
+        '{}: The overlap between train and val set is {}'
+        .format(get_time(), len(list(set(sets['val']) & set(sets['train']))))
+    )
+
     if 'SRTInIcePulses' in '-'.join(config['masks']):
         config['cleaning'] = 'SRTInIcePulses'
         config['cleaning_length'] = 'srt_in_ice_pulses_event_length'
