@@ -2,6 +2,7 @@ import torch
 from datetime import datetime
 import numpy as np
 import pandas as pd
+import shutil
 
 from src.modules.utils import get_time
 from src.modules.utils import get_project_root
@@ -20,6 +21,9 @@ class Saver:
 
         self.epoch = 0
 
+        config_file = get_project_root().joinpath('configs').joinpath('config.json')
+        shutil.copy(config_file, self.files_and_dirs['run'].joinpath('config.json'))
+
     def early_stopping(self, epoch, epoch_val_loss, model_state_dict, optimizer_state_dict):
         epoch_val_loss = round(epoch_val_loss.item(), 3)
         if epoch == 0 or epoch_val_loss < min(self.epoch_val_loss):
@@ -37,6 +41,7 @@ class Saver:
             return False
     
     def save_model_state(self, epoch, model_state_dict, optimizer_state_dict):
+        print('hallo')
         model_path = self.files_and_dirs['run'].joinpath('model.pt')
         torch.save(
             {
