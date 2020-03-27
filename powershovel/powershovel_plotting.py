@@ -696,17 +696,17 @@ def plotly_loss(selected_run_data):
         x=learning_rate_x,
         y=learning_rate_y,
         xaxis='x2',
-        yaxis='y2'
+        yaxis='y2',
         showlegend=False
     )
-    data = [trace1, trace2]
+    data = [trace1, trace2, trace3]
     layout = go.Layout(
         xaxis=dict(
             title='iteration',
             domain=[0, 0.45]
         ),
         xaxis2=dict(
-            title='iteration',
+            title='step',
             domain=[0.55, 1]
         ),
         yaxis=dict(
@@ -715,6 +715,11 @@ def plotly_loss(selected_run_data):
         yaxis2=dict(
             title='learning rate',
             side='right'
+        ),
+        legend=dict(
+            x=-.1,
+            y=1.2,
+            orientation='h'
         )
     )
     fig = go.Figure(data, layout=layout)

@@ -76,7 +76,6 @@ class Saver:
             return False
     
     def save_model_state(self, epoch, model_state_dict, optimizer_state_dict):
-        print('hallo')
         model_path = self.files_and_dirs['run'].joinpath('model.pt')
         torch.save(
             {

@@ -64,6 +64,7 @@ class Trainer:
                     break
             self.val_loss = self.reporter.on_intermediate_validation_end()
             self.saver.save_loss(self.train_loss, self.val_loss)
+            self.saver.save_learning_rate(self.learning_rate)
         self.model.train()
 
     def epoch_validation(self):
@@ -93,8 +94,8 @@ class Trainer:
                 pg['lr'] = self.config['max_learning_rate'] / (self.epoch * 1)
         optimizer.step()   
         optimizer.zero_grad()
-        self.reporter.optimizer_step(optimizer.param_groups[0]['lr'])
-        self.saver.save_learning_rate(optimizer.param_groups[0]['lr'])
+        self.learning_rate = optimizer.param_groups[0]['lr']
+        self.reporter.optimizer_step(self.learning_rate)
         self.global_step += 1
 
 
